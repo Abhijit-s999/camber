@@ -87,7 +87,7 @@ class RotorDisc:
 
 
 def discs_from(vehicle: Vehicle, thrusts: dict[str, float],
-               cell: float) -> list[RotorDisc]:
+               cell: float, max_thickness: float | None = None) -> list[RotorDisc]:
     out: list[RotorDisc] = []
     for t in vehicle.thrusters:
         if not isinstance(t, Rotor):
@@ -100,9 +100,21 @@ def discs_from(vehicle: Vehicle, thrusts: dict[str, float],
         out.append(RotorDisc(
             name=t.name, centre=t.position, radius=t.radius,
             thrust=thrusts[t.name], direction=t.direction(),
-            thickness=max(3.0 * cell, 0.1 * t.radius),
+            thickness=(max_thickness if max_thickness is not None
+                       else max(3.0 * cell, 0.1 * t.radius)),
         ))
     return out
+
+
+class DiscGeometryError(ValueError):
+    """The actuator disc intersects the airframe.
+
+    Fatal rather than a warning. A momentum source injected into the cells
+    surrounding the body makes the measured force on that body meaningless --
+    it is reading the source, not a wake -- and the result looks entirely
+    plausible: smooth convergence, sensible magnitudes, wrong sign. A campaign
+    built on it fits an interference model to an artefact.
+    """
 
 
 class CaseBuilder:
@@ -116,7 +128,76 @@ class CaseBuilder:
         radius = max((getattr(t, "radius", 0.0) for t in vehicle.thrusters),
                      default=0.05)
         self.cell = radius * self.config.base_cell_per_radius
-        self.discs = discs_from(vehicle, thrusts, self.cell)
+        self.discs = discs_from(vehicle, thrusts, self.cell,
+                                max_thickness=self._safe_thickness(radius))
+        self._check_disc_clearance()
+
+    def _body_z_extent(self) -> tuple[float, float]:
+        lo, hi = float("inf"), float("-inf")
+        for b in self.vehicle.all_bodies():
+            h = b.shape.half_extents()
+            lo = min(lo, b.position.z - h.z)
+            hi = max(hi, b.position.z + h.z)
+        return (lo, hi) if lo <= hi else (0.0, 0.0)
+
+    def _safe_thickness(self, radius: float) -> float:
+        """Thin enough to be a disc, and to stay clear of the airframe.
+
+        Thickness was previously tied to the cell size, which is tied to the
+        radius, so a large rotor produced a disc 0.75 R thick -- taller than
+        the vehicle, swallowing the body it was supposed to blow on. The disc
+        is a numerical device and should be thin; its thickness is now capped
+        by the clearance to the nearest body so it cannot intersect one.
+        """
+        rotor_z = [t.position.z for t in self.vehicle.thrusters]
+        if not rotor_z:
+            return radius / 6.0
+        plane = float(sum(rotor_z) / len(rotor_z))
+        body_lo, body_hi = self._body_z_extent()
+        if plane <= body_lo:
+            clearance = body_lo - plane
+        elif plane >= body_hi:
+            clearance = plane - body_hi
+        else:
+            clearance = 0.0
+        return max(min(radius / 6.0, 1.6 * clearance), radius / 40.0)
+
+    def _check_disc_clearance(self) -> None:
+        body_lo, body_hi = self._body_z_extent()
+        for d in self.discs:
+            z0 = d.centre.z - d.thickness / 2.0
+            z1 = d.centre.z + d.thickness / 2.0
+            if min(z1, body_hi) - max(z0, body_lo) > 0:
+                raise DiscGeometryError(
+                    f"actuator disc {d.name!r} spans z {z0:+.4f}..{z1:+.4f} m "
+                    f"while the airframe spans {body_lo:+.4f}..{body_hi:+.4f} m. "
+                    f"They intersect, so a force measured on the body would be "
+                    f"reading the momentum source rather than its wake. Move "
+                    f"the rotors clear of the airframe in z."
+                )
+
+    @property
+    def disc_cell(self) -> float:
+        """Cell size inside the disc regions, refined below the base cell."""
+        if not self.discs:
+            return self.cell
+        need = self.discs[0].thickness / 3.0
+        cell = self.background_cell
+        while cell > need and cell > self.cell / 16.0:
+            cell /= 2.0
+        return cell
+
+    @property
+    def disc_refinement_level(self) -> int:
+        levels, cell = 0, self.background_cell
+        while cell > self.disc_cell + 1e-12 and levels < 8:
+            cell /= 2.0
+            levels += 1
+        return levels
+
+    def cells_across_disc(self) -> float:
+        """Cells through the disc thickness at the refined size."""
+        return self.discs[0].thickness / self.disc_cell if self.discs else 0.0
 
     # -- domain ------------------------------------------------------------
 
@@ -209,15 +290,22 @@ boundary
         blocks = []
         rho = self.config.rho
         for d in self.discs:
-            # Incompressible solvers divide the momentum equation by density,
-            # so U-equation sources are kinematic: [m^4/s^2], i.e. force/rho,
-            # NOT newtons. Passing newtons over-thrusts every disc by a factor
-            # of rho -- 22% here, which is invisible in a residual plot and
-            # showed up only as a far-wake velocity 12% above what momentum
-            # theory allows. See DECISIONS.md CFD-05.
-            fx = d.direction.x * d.thrust / rho
-            fy = d.direction.y * d.thrust / rho
-            fz = d.direction.z * d.thrust / rho
+            # TWO things are easy to get wrong here and neither shows up in a
+            # residual plot.
+            #
+            # Sign: the source acts on the *fluid*, and it is the reaction to
+            # the thrust. A rotor lifting a vehicle pushes air DOWNWARD, so the
+            # source is opposite to the thrust direction. Getting this backwards
+            # blows the wake up through the airframe and lifts it, which reads
+            # as a large negative download -- physically impossible, and
+            # invisible to any check that compares only wake speed.
+            #
+            # Scale: incompressible solvers divide the momentum equation by
+            # density, so U-equation sources are kinematic, [m^4/s^2] = force
+            # over rho, not newtons. See DECISIONS.md CFD-05 and CFD-06.
+            fx = -d.direction.x * d.thrust / rho
+            fy = -d.direction.y * d.thrust / rho
+            fz = -d.direction.z * d.thrust / rho
             blocks.append(f"""{d.name}Source
 {{
     type            vectorSemiImplicitSource;
@@ -280,16 +368,17 @@ functions
                    * round((hi.z - lo.z) / c))
 
     def cells_per_disc(self) -> float:
-        """Rough cell count in one actuator disc. A sanity check with teeth.
+        """Cell count in one actuator disc, at the refined size it gets.
 
         A momentum source spread over a handful of cells is a point force with
-        a misleading name. Below about fifty cells the disc does not resolve
-        and the wake it produces is numerical rather than physical.
+        a misleading name. Measured against the *refined* disc cell, not the
+        base cell: the disc is deliberately thin -- its thickness is capped by
+        the clearance to the airframe -- and is resolved by local refinement
+        rather than by making the whole near field that fine.
         """
         if not self.discs:
             return 0.0
-        d = self.discs[0]
-        return d.volume / (self.cell ** 3)
+        return self.discs[0].volume / (self.disc_cell ** 3)
 
     def build(self, case_dir: Path, stl: Path) -> Path:
         """Write the whole case. `stl` is the airframe from camber.geometry.cad.
@@ -346,9 +435,35 @@ functions
         return (Vec3(-r, -r, -self.span * 0.8),
                 Vec3(r, r, self.span * 2.5))
 
+    def _disc_search_geometry(self) -> tuple[str, str]:
+        """Each disc as a searchable cylinder, refined enough to resolve it.
+
+        A thin disc needs cells across it or the momentum source is a sheet of
+        one cell and the wake it makes is numerical. Refining only these four
+        small cylinders is far cheaper than refining the near field to match.
+        """
+        level = self.disc_refinement_level
+        geom, regions = [], []
+        for d in self.discs:
+            half = d.direction * (d.thickness / 2.0)
+            p1, p2 = d.centre - half, d.centre + half
+            geom.append(
+                f"    {d.name}Disc\n"
+                f"    {{\n"
+                f"        type    searchableCylinder;\n"
+                f"        point1  ({p1.x:.6g} {p1.y:.6g} {p1.z:.6g});\n"
+                f"        point2  ({p2.x:.6g} {p2.y:.6g} {p2.z:.6g});\n"
+                f"        radius  {d.radius:.6g};\n"
+                f"    }}")
+            regions.append(
+                f"        {d.name}Disc {{ mode inside; "
+                f"levels ((1e15 {level})); }}")
+        return ("\n".join(geom) + "\n", "\n".join(regions) + "\n")
+
     def _snappy(self) -> str:
         lo, hi = self.bounds()
         nf_lo, nf_hi = self.near_field()
+        disc_geometry, disc_regions = self._disc_search_geometry()
         # A point that is inside the fluid and outside the body: offset well
         # away from the vehicle, near the top of the domain.
         loc = Vec3((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, lo.z * 0.8)
@@ -365,7 +480,7 @@ geometry
         min     ({nf_lo.x:.6g} {nf_lo.y:.6g} {nf_lo.z:.6g});
         max     ({nf_hi.x:.6g} {nf_hi.y:.6g} {nf_hi.z:.6g});
     }}
-}}
+{disc_geometry}}}
 
 castellatedMeshControls
 {{
@@ -387,7 +502,7 @@ castellatedMeshControls
         // and the column of wake immediately beneath them. Everything further
         // out stays coarse, which is what keeps the case affordable.
         nearField {{ mode inside; levels ((1e15 {self.config.refinement_levels})); }}
-    }}
+{disc_regions}    }}
 }}
 
 snapControls

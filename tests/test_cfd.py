@@ -71,10 +71,40 @@ class TestMeshSizing:
     def test_discs_resolve_across_many_cells(self, builder):
         """A momentum source spread over a few cells is a point force.
 
-        An earlier version divided the base cell by a further four and left
-        three cells per disc.
+        Two earlier versions got this wrong in opposite directions: one
+        divided the base cell by a further four and left three cells per disc;
+        the other made the disc so thick it swallowed the airframe.
         """
         assert builder.cells_per_disc() > 50
+        assert builder.cells_across_disc() >= 3, (
+            "the disc needs cells through its thickness, not just across its "
+            "face, or the source is a single sheet of cells"
+        )
+
+    def test_disc_never_intersects_the_airframe(self, vehicle):
+        """A disc overlapping the body measures its own source, not a wake."""
+        from camber.cfd.case import DiscGeometryError
+        import copy
+        from camber.spec.units import Vec3
+        bad = copy.deepcopy(vehicle)
+        for t in bad.thrusters:          # drop the rotors into the airframe
+            t.placement = type(t.placement)(
+                Vec3(t.position.x, t.position.y, 0.0), t.placement.rotation)
+        with pytest.raises(DiscGeometryError, match="intersect"):
+            CaseBuilder(bad, {t.name: 1.1 for t in bad.thrusters}, CaseConfig())
+
+    def test_momentum_source_pushes_air_down(self, builder):
+        """The source is the *reaction* to thrust: lift up, wake down.
+
+        Getting this backwards blows the wake up through the airframe and
+        lifts it, which reads as a large negative download -- impossible, and
+        invisible to any check comparing only wake speed. See CFD-06.
+        """
+        import re
+        vec = re.search(r"U   \( \(([^)]*)\)", builder.fv_options()).group(1)
+        z = float(vec.split()[2])
+        assert z > 0, "z is down, so the wake must have positive z"
+        assert builder.discs[0].direction.z < 0, "thrust itself points up"
 
     def test_background_is_coarser_than_the_base_cell(self, builder):
         assert builder.background_cell > builder.cell

@@ -62,6 +62,52 @@ class GaussianProcess:
     _chol: np.ndarray | None = field(default=None, init=False)
     _alpha: np.ndarray | None = field(default=None, init=False)
 
+    def log_marginal_likelihood(self) -> float:
+        """Evidence for the current hyperparameters, given the fitted data."""
+        if self._chol is None:
+            raise RuntimeError("fit first")
+        y = self.y_train - self._y_mean
+        return float(-0.5 * y @ self._alpha
+                     - np.sum(np.log(np.diag(self._chol)))
+                     - 0.5 * len(y) * math.log(2.0 * math.pi))
+
+    def tune(self, x: np.ndarray, y: np.ndarray,
+             length_scales=(0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0),
+             noises=(1e-5, 1e-4, 1e-3, 1e-2)) -> "GaussianProcess":
+        """Pick hyperparameters by marginal likelihood rather than by hand.
+
+        The interference response spans three orders of magnitude -- 0.04% for
+        a wide airframe to 40% when the discs sit over the body -- and no
+        single hand-chosen length scale describes both ends. Choosing by
+        evidence is the standard remedy and costs nothing at this data size:
+        the whole grid is a few dozen Cholesky factorisations of a 10x10
+        matrix.
+
+        The signal variance is set from the data's own spread rather than
+        searched, since a GP whose prior variance disagrees with its
+        observations reports uncertainty that means nothing.
+        """
+        y = np.asarray(y, dtype=float).ravel()
+        best, best_score = None, -np.inf
+        variance = max(float(np.var(y)), 1e-8)
+        for ls in length_scales:
+            for noise in noises:
+                trial = GaussianProcess(length_scale=ls, variance=variance,
+                                        noise=noise)
+                try:
+                    trial.fit(x, y)
+                    score = trial.log_marginal_likelihood()
+                except np.linalg.LinAlgError:
+                    continue
+                if score > best_score:
+                    best, best_score = trial, score
+        if best is None:
+            raise RuntimeError("no hyperparameters produced a stable fit")
+        self.length_scale = best.length_scale
+        self.variance = best.variance
+        self.noise = best.noise
+        return self.fit(x, y)
+
     def fit(self, x: np.ndarray, y: np.ndarray) -> "GaussianProcess":
         x = np.atleast_2d(np.asarray(x, dtype=float))
         y = np.asarray(y, dtype=float).ravel()
@@ -165,10 +211,16 @@ class InterferenceModel:
         length_scale=1.0, variance=0.02, noise=1e-4))
     fitted: bool = False
     n_observations: int = 0
+    #: Set when the GP was fitted to sqrt(loss); predictions are squared back.
+    _sqrt_space: bool = False
 
-    def fit(self, features: np.ndarray, loss_fraction: np.ndarray) -> "InterferenceModel":
+    def fit(self, features: np.ndarray, loss_fraction: np.ndarray,
+            tune: bool = True) -> "InterferenceModel":
         """`loss_fraction` is (isolated - installed) / isolated, per case."""
-        self.gp.fit(features, loss_fraction)
+        if tune:
+            self.gp.tune(features, loss_fraction)
+        else:
+            self.gp.fit(features, loss_fraction)
         self.fitted = True
         self.n_observations = len(np.atleast_2d(features))
         return self
@@ -182,6 +234,12 @@ class InterferenceModel:
         if not self.fitted:
             return 0.0, 0.0
         mean, std = self.gp.predict(design_features(vehicle)[None, :])
+        if self._sqrt_space:
+            # Predictions live in sqrt space; square back, and propagate the
+            # uncertainty through the same map rather than reporting a sigma
+            # that belongs to a different quantity.
+            m = max(float(mean[0]), 0.0)
+            return m ** 2, 2.0 * m * float(std[0])
         return float(mean[0]), float(std[0])
 
     def installed_thrust(self, vehicle, isolated_thrust: float) -> float:

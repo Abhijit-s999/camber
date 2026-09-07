@@ -51,12 +51,18 @@ shape = { kind = "box", lx = 0.180, ly = 0.080, lz = 0.028 }
 # 2207 motors, 5.0 inch props => radius 0.0635 m. static_thrust_n is a
 # measured catalogue figure, not a guess (AI-05): 2207/1900Kv on 4S with a
 # 5x4.3x3 prop is about 1.05 kgf at full throttle.
+#
+# z = -0.045 puts the disc 45 mm above the frame centreline: a 2207 motor
+# stands about 32 mm and the prop sits on top of it. An earlier version had
+# them at -0.014, half a millimetre above the camera, which is not a real
+# aircraft and which the CFD tier rejects outright (DiscGeometryError) because
+# an actuator disc intersecting the airframe measures its own source.
 
 [[thrusters]]
 name = "front_right"
 type = "rotor"
 mass = 0.032
-position = [0.098, 0.098, -0.014]
+position = [0.098, 0.098, -0.045]
 radius = 0.0635
 pitch = 0.109
 blades = 3
@@ -67,7 +73,7 @@ static_thrust_n = 10.3
 name = "rear_right"
 type = "rotor"
 mass = 0.032
-position = [-0.098, 0.098, -0.014]
+position = [-0.098, 0.098, -0.045]
 radius = 0.0635
 pitch = 0.109
 blades = 3
@@ -78,7 +84,7 @@ static_thrust_n = 10.3
 name = "rear_left"
 type = "rotor"
 mass = 0.032
-position = [-0.098, -0.098, -0.014]
+position = [-0.098, -0.098, -0.045]
 radius = 0.0635
 pitch = 0.109
 blades = 3
@@ -89,7 +95,7 @@ static_thrust_n = 10.3
 name = "front_left"
 type = "rotor"
 mass = 0.032
-position = [0.098, -0.098, -0.014]
+position = [0.098, -0.098, -0.045]
 radius = 0.0635
 pitch = 0.109
 blades = 3

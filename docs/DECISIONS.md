@@ -682,6 +682,75 @@ the only defence is an independent quantity the code cannot fudge. Every future
 CFD case should be checked against its own momentum-theory wake velocity before
 its forces are believed.
 
+### CFD-06 · The momentum source is the reaction, so the wake goes down — `FIXED`
+
+**Value:** the `vectorSemiImplicitSource` vector is `-direction * thrust / rho`.
+
+**Reasoning:** a rotor lifting a vehicle pushes air *downward*; the source acts
+on the fluid and is the reaction to the thrust, not the thrust. Applying
+`+direction` blew the wake upward through the airframe and lifted it, which
+reported download of **-6% to -17%** -- a body gaining thrust by sitting under
+its own rotors, which is impossible.
+
+Two things make this worth recording. First, every diagnostic looked healthy:
+residuals converged, the solver exited zero, the disc zones were populated, the
+sources were listed in the log. Second, and worse, the momentum-theory check
+introduced in CFD-05 **passed** -- because it compared only the *magnitude* of
+the far-wake velocity, and a wake blowing the wrong way is exactly as fast as
+one blowing the right way.
+
+A validation that checks magnitude but not direction is half a validation. The
+check now asserts the fastest cell moves in +z, and a test asserts the source
+vector's sign directly.
+
+### CFD-07 · Disc thickness is capped by clearance to the airframe — `FIXED`
+
+**Value:** thickness `min(R/6, 1.6 * clearance)`, and `DiscGeometryError` if a
+disc still intersects a body.
+
+**Reasoning:** thickness was `3 * cell`, and the cell scales with radius, so a
+large rotor produced a disc **0.75 R thick** -- taller than the vehicle. Every
+layout in the first campaign had all four discs intersecting all four bodies,
+so the "force on the body" was reading the momentum source injected into the
+cells around it. The results were smooth, converged and entirely meaningless.
+
+The example spec was also wrong and the check found it: rotors sat at
+z = -14 mm with the camera top at -13.5 mm, half a millimetre of clearance. A
+2207 motor stands about 32 mm, so the disc belongs at -45 mm. A geometric
+assertion caught a modelling error in the input, which is the argument for
+making it fatal rather than a warning.
+
+### CAL-02 · The interference model is not yet trustworthy — `OPEN`
+
+**Value:** fitted in sqrt space with hyperparameters chosen by marginal
+likelihood, on cases passing a mesh-resolution guard. Currently 8 usable cases.
+
+**What works.** The physical trend is unambiguous and strongly layout
+dependent, which is the whole justification for the tier:
+
+```
+arm  103 mm, R 83 mm  ->  +21.8%     discs over the airframe
+arm  115 mm, R 65 mm  ->   +8.0%
+arm  132 mm, R 64 mm  ->   +0.5%
+arm  170 mm, R 66 mm  ->   +0.04%    airframe clear of the wake
+```
+
+Three orders of magnitude, driven by geometry the optimiser is free to change.
+And the fitted model predicts the baseline layout at **+0.03% +- 0.25%** against
+an independent CFD run measuring **+0.19%** -- agreement within one sigma on a
+case not in its training set.
+
+**What does not.** Leave-one-out error is **6.9% mean** in sqrt space (8.3%
+raw) on a quantity ranging 0 to 40%. That is far too large to hand an
+optimiser. Eight points cannot describe a response this nonlinear, and the
+uncertainty the GP reports is honest about that.
+
+**Before this is used:** thirty to fifty cases rather than ten; a mesh
+convergence study on at least one layout, since the guard currently rejects
+under-resolution by cohort comparison rather than by evidence of convergence;
+and `next_case()` driving the sampling instead of a one-shot Latin hypercube.
+Until then the correction stays off by default.
+
 ### CAL-01 · A Gaussian process over four physical features — `FIXED`
 
 **Value:** `camber/calibrate.py`. Features: blockage (body planform / disc
