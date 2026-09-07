@@ -772,3 +772,69 @@ clamped outside the training range so an extrapolating fit cannot invent thrust.
 
 An unfitted model returns exactly `(0.0, 0.0)` and is a transparent no-op --
 never a silent guess.
+
+---
+
+## 7. Generated structure (P5)
+
+### STR-01 · Hover is almost never the governing load — `FIXED`
+
+**Value:** three cases, the largest governs: hover, manoeuvre (one arm at full
+thrust, as a hard roll commands), and a landing at 6 g shared across the arms.
+
+**Reasoning:** a frame sized for the thrust needed to hang still is a frame
+that breaks. An optimiser makes this mistake far more enthusiastically than a
+person would, because minimising mass drives every section to its limit, so
+whichever load case is omitted is exactly the one that fails.
+
+Measured, and the result is more interesting than expected. On the 460 g
+example the distinction does **not** bite: the smallest purchasable tube is
+already 3.5x over-strength, which is why hobbyists get away with ignoring it.
+From roughly 1.8 kg upward it bites hard -- a hover-sized 8 mm arm on a 10-inch
+quad fails under **landing**, not manoeuvre, and needs 14 mm. At 18 kg no stock
+section in the ladder passes at all, which the sizer reports rather than
+silently returning the strongest thing it has.
+
+### STR-02 · Sections come from a stock ladder, not a closed-form optimum — `FIXED`
+
+**Reasoning:** tube is bought in sizes. A continuous optimum of 11.3 mm outer
+diameter is not purchasable, and rounding it afterwards either wastes mass or
+quietly invalidates the margin it was chosen for. The search is over the
+ladder, so the answer is orderable.
+
+Deflection is checked alongside stress, and not for comfort: a visibly flexing
+arm tilts its rotor off vertical, which both steals thrust and feeds the flight
+controller a moment it did not command. Slender arms fail this limit long
+before they approach yield.
+
+### MFG-02 · Manufacturability is checked inside the loop — `FIXED`
+
+**Value:** `camber/manufacture.py`, a `Process` interface with `CNC3Axis` and
+`FDM`. Violations carry a continuous magnitude, not a boolean.
+
+**Reasoning:** an unconstrained search converges on a beautiful shape nobody
+can produce, and finding that out afterwards means discarding the answer rather
+than steering away from it. Continuous violations let the optimiser walk back
+out of a mild breach.
+
+MFG-01's ordering is confirmed by the checks themselves: on the same part CNC
+raises five violations to FDM's two. The one worth naming is that a round
+cutter cannot produce an internal corner sharper than its own radius -- a
+geometric impossibility rather than a tolerance, and the constraint most often
+missed by people designing for milling for the first time.
+
+### GEN-01 · Straight tubular arms, deliberately — `PROVISIONAL`
+
+**Value:** the generated frame is a centre plate sized to the payload envelope
+plus one straight tube per rotor, each sized by STR-01.
+
+**Reasoning:** topology optimisation would produce something lighter and
+something no closed-form beam model can check. That would mean trusting a
+generated airframe on a generated analysis with nothing measured anywhere in
+the chain. A shape the structural model sizes *exactly* is worth more than a
+lighter one it can only approximate.
+
+**Known optimism.** The generated frame comes out at 30.8 g against the 110 g
+chassis in the example, and that gap is not all savings: it is a plate and four
+tubes with no standoffs, fasteners, camera mount or crash margin. Treat it as a
+structural lower bound, not a bill of materials.
