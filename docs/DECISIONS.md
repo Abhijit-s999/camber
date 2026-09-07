@@ -720,36 +720,46 @@ z = -14 mm with the camera top at -13.5 mm, half a millimetre of clearance. A
 assertion caught a modelling error in the input, which is the argument for
 making it fatal rather than a warning.
 
-### CAL-02 · The interference model is not yet trustworthy — `OPEN`
+### CAL-02 · Accurate where it is boring, weak where it matters — `OPEN`
 
-**Value:** fitted in sqrt space with hyperparameters chosen by marginal
-likelihood, on cases passing a mesh-resolution guard. Currently 8 usable cases.
+**Value:** 40 cases run, 32 converged, 30 usable after the mesh guard. Fitted
+in sqrt space with hyperparameters chosen by marginal likelihood.
 
-**What works.** The physical trend is unambiguous and strongly layout
-dependent, which is the whole justification for the tier:
+**The physics is settled and strongly layout dependent**, which was the whole
+justification for the tier. Download spans **+0.037% to +24.9%** and collapses
+as the arms lengthen and the discs clear the airframe.
+
+**The headline accuracy is real but misleading.** Leave-one-out over all 30
+cases gives 0.82% mean error and R2 = 0.946. Broken down by regime:
 
 ```
-arm  103 mm, R 83 mm  ->  +21.8%     discs over the airframe
-arm  115 mm, R 65 mm  ->   +8.0%
-arm  132 mm, R 64 mm  ->   +0.5%
-arm  170 mm, R 66 mm  ->   +0.04%    airframe clear of the wake
+flat  (loss < 1%)      22 cases   LOO mean 0.16%   worst 0.60%
+transition (1 - 15%)    5 cases   LOO mean 2.25%   worst 5.21%
+steep (> 15%)           3 cases   LOO mean 3.31%   worst 4.60%
 ```
 
-Three orders of magnitude, driven by geometry the optimiser is free to change.
-And the fitted model predicts the baseline layout at **+0.03% +- 0.25%** against
-an independent CFD run measuring **+0.19%** -- agreement within one sigma on a
-case not in its training set.
+Twenty-two of thirty cases sit in the flat region, where predicting "about
+zero" is nearly always right. The aggregate is dominated by them. In the
+transition band -- the only region where the correction changes a design
+decision -- the error is 2 to 3 percentage points on values of 1 to 15%.
 
-**What does not.** Leave-one-out error is **6.9% mean** in sqrt space (8.3%
-raw) on a quantity ranging 0 to 40%. That is far too large to hand an
-optimiser. Eight points cannot describe a response this nonlinear, and the
-uncertainty the GP reports is honest about that.
+The baseline layout demonstrates it: the model predicts **+3.50% +- 1.69%**
+where an independent CFD run measured **+0.19%**. The response is nearly
+exponential in disc overlap (at ~140 mm arms: R = 56 mm gives 0.07%,
+R = 63.5 mm gives 0.19%, R = 86 mm gives 6.14%), and a GP interpolating that
+gap overshoots. Worse, its reported uncertainty does not cover the error, so
+the model is *overconfident* precisely where it is weakest.
 
-**Before this is used:** thirty to fifty cases rather than ten; a mesh
-convergence study on at least one layout, since the guard currently rejects
-under-resolution by cohort comparison rather than by evidence of convergence;
-and `next_case()` driving the sampling instead of a one-shot Latin hypercube.
-Until then the correction stays off by default.
+**Why, and the fix.** The sampling was a one-shot Latin hypercube over the
+whole box, which spends most of its budget confirming that widely-spaced
+rotors do not interfere. `next_case()` -- uncertainty sampling, written in
+CAL-01 and still unused -- exists for exactly this: it would put the next
+batch in the transition band instead. About fifteen adaptively chosen cases
+should do more than the thirty already run.
+
+**Status:** the correction stays **off by default**. It is trustworthy for
+screening a layout as "clear of interference" (the flat region, 0.16% error)
+and not for quantifying interference once a design is in the steep band.
 
 ### CAL-01 · A Gaussian process over four physical features — `FIXED`
 
