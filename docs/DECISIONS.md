@@ -599,3 +599,107 @@ positive cannot distinguish the two formulas. `TestCrowdingDistanceExactValues`
 now pins the arithmetic. The lesson generalises past this bug -- a green suite
 licenses delegated code only as far as the suite actually constrains it, and
 tests written to describe a shape will accept any implementation of that shape.
+
+---
+
+## 6. The CFD tier and the closed loop (P4)
+
+### CFD-01 · CFD calibrates the cheap model; it never evaluates candidates — `FIXED`
+
+**Value:** prescribed-thrust actuator discs plus a resolved airframe, steady
+RANS. The measured quantity is the *download* on the body, not rotor
+performance.
+
+**Reasoning:** isolated rotor accuracy was settled in P2 against 115
+wind-tunnel propellers, and no simulation improves on measuring the thing
+itself. CFD earns its cost only where BEMT is structurally blind -- airframe
+download, rotor-rotor interaction, blockage -- all of which vary with *layout*,
+which is exactly what the optimiser changes.
+
+Blade-resolved rotors were rejected for a second reason beyond cost: feeding a
+BEMT-derived loading into a rotor model and then using the result to correct
+BEMT is circular. Prescribing the thrust L1 predicts and measuring what the
+airframe feels isolates the one term L1 cannot produce.
+`vectorSemiImplicitSource` is used rather than `rotorDiskSource` for precisely
+that reason -- the latter computes its own blade-element loading.
+
+### CFD-02 · The CAD exporter needs an explicit unit — `FIXED`
+
+**Value:** `cad.export(..., metres=True)` for CFD; millimetres remains the
+default for STEP and printing.
+
+**Reasoning:** found by reading a log that reported success. GEOM-04 confines
+millimetres to the CAD exporter, and the first CFD case then fed that
+millimetre STL straight into a metre-based domain -- making a 180 mm airframe
+180 m across and swallowing the entire domain. snappyHexMesh reported
+`Selected for refinement : 0 cells`, exited zero, and produced a mesh with no
+`body` patch at all; the forces object would have integrated over nothing.
+
+This is exactly the failure GEOM-04 was written to warn about, walked into by
+the person who wrote the warning. The lesson is that a unit convention stated
+in a docstring is not enforcement: the boundary now takes an argument, and a
+test compares the two files' coordinate magnitudes.
+
+### CFD-03 · Coarse background, refined near field — `FIXED`
+
+**Reasoning:** the actuator discs need cells small enough to resolve a momentum
+source; applying that size to the whole domain costs about four million cells
+before snappy refines anything, which does not fit in 22 GB. The background is
+therefore coarser by 2^levels with a near-field box refined back down.
+
+The first attempt got this backwards by dividing the *base* cell by four -- the
+same arithmetic applied to the wrong quantity, coarsening the discs themselves
+to **three cells each**. A momentum source spread over three cells is a point
+force with a misleading name. `cells_per_disc()` now guards it and a test
+requires more than fifty.
+
+### CFD-04 · Trust the log, not the exit code — `FIXED`
+
+**Reasoning:** OpenFOAM will exit zero having printed a fatal error, and worse,
+exit zero having done nothing useful -- both of which happened here within one
+session. `foam()` scans for `FOAM FATAL` as well as checking the status, and
+the mesh step is verified by asserting the `body` patch exists and the cell
+zones are populated, rather than by the absence of a crash.
+
+### CFD-05 · Momentum sources are kinematic, not newtons — `FIXED`
+
+**Value:** `vectorSemiImplicitSource` values are `thrust / rho`.
+
+**Reasoning:** incompressible OpenFOAM divides the momentum equation by
+density, so a source in the U equation carries units of m^4/s^2, not newtons.
+Passing newtons over-thrusts every disc by a factor of rho -- 22.5% here.
+
+Nothing in the run reported it. Residuals converged, the solver exited zero,
+the log looked clean. It surfaced only from an independent check: momentum
+theory fixes the far-wake velocity at `2 sqrt(T / 2 rho A)` = 12.06 m/s for
+this disc loading, and the field showed **13.56**, which is what 5.53 N
+produces rather than 4.51 N. After the correction the field gives **12.25 m/s**,
+within 1.6% of theory.
+
+The general lesson is the one PHYS-03 and the probe metric taught in different
+costumes: a simulation that runs cleanly is not a simulation that is right, and
+the only defence is an independent quantity the code cannot fudge. Every future
+CFD case should be checked against its own momentum-theory wake velocity before
+its forces are believed.
+
+### CAL-01 · A Gaussian process over four physical features — `FIXED`
+
+**Value:** `camber/calibrate.py`. Features: blockage (body planform / disc
+area), rotor spacing in diameters, body-to-disc offset in radii, and disc
+loading. The correction is stored as a *fraction* of isolated thrust.
+
+**Reasoning:** with ten or twenty CFD runs the data is tiny, and a GP is
+well-behaved there where a flexible model overfits and then extrapolates
+confidently. More importantly a GP reports its own uncertainty, which turns
+"where should the next expensive run go?" into arithmetic rather than taste --
+`next_case()` samples where the correction is least known. Spending hours
+re-confirming what the model already knows is the most expensive way to learn
+nothing.
+
+A fraction rather than an absolute force because interference scales with
+thrust: a design twice as heavy loses roughly twice as much to download, and a
+model fitted in newtons would relearn that at every scale. The correction is
+clamped outside the training range so an extrapolating fit cannot invent thrust.
+
+An unfitted model returns exactly `(0.0, 0.0)` and is a transparent no-op --
+never a silent guess.

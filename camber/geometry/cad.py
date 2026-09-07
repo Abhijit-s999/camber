@@ -87,11 +87,21 @@ def build(vehicle: Vehicle):
     return b3.Compound(children=solids)
 
 
-def export(vehicle: Vehicle, path: str | Path) -> Path:
-    """Write STEP for CNC, or STL for printing, chosen by file extension."""
+def export(vehicle: Vehicle, path: str | Path, *, metres: bool = False) -> Path:
+    """Write STEP for CNC, or STL for printing, chosen by file extension.
+
+    `metres=True` emits the geometry at true SI scale instead of millimetres.
+    CAM wants millimetres; a CFD case is built in metres, and handing it the
+    millimetre file makes a 180 mm airframe 180 m across, which silently
+    swallows the whole domain. snappyHexMesh then reports success having
+    refined nothing, and the forces function object finds no patch to
+    integrate. See DECISIONS.md GEOM-04 and CFD-02.
+    """
     b3 = _b3()
     path = Path(path)
     assembly = build(vehicle)
+    if metres:
+        assembly = assembly.scale(1.0 / M_TO_MM)
 
     suffix = path.suffix.lower()
     if suffix == ".step" or suffix == ".stp":
