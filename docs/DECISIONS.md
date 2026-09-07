@@ -848,3 +848,65 @@ lighter one it can only approximate.
 chassis in the example, and that gap is not all savings: it is a plate and four
 tubes with no standoffs, fasteners, camera mount or crash margin. Treat it as a
 structural lower bound, not a bill of materials.
+
+---
+
+## 8. GPU acceleration
+
+### GPU-01 · The bottleneck is memory bandwidth, and it is measured — `FIXED`
+
+**Hardware:** RTX 5060 Laptop, 8 GiB GDDR7, compute capability 12.0
+(Blackwell), driver 610.57. Host is an Ultra 7 255H with LPDDR5-5600.
+
+**Measured on this machine**, not quoted from a spec sheet:
+
+```
+stream triad          CPU (1 thread)   18.0 GB/s
+                      GPU             202.5 GB/s        11x
+SpMV, 636k rows        CPU              6.84 ms
+                      GPU              0.24 ms          28x
+pressure CG, 300 it    CPU            3562.5 ms
+                      GPU              93.4 ms          38x
+```
+
+Abhijit's diagnosis was right: incompressible RANS on unstructured meshes is
+bandwidth bound, not compute bound, which is why earlier CFD runs were capped
+by RAM speed and why a 5060's GDDR7 is the relevant resource rather than its
+shader count.
+
+**Two honest qualifications.** The 38x is CG against CG -- the same algorithm on
+both devices -- so it measures the hardware gap, not the gain in practice.
+OpenFOAM does not use plain CG on the CPU; it uses GAMG, which is far better per
+iteration. The fair comparison is GPU algebraic multigrid (AmgX) against CPU
+GAMG, and the published range there is **4-8x on the pressure solve and about
+2x end to end**. Second, this is a *laptop* 5060: 128-bit GDDR7 at roughly
+448 GB/s peak, against about 90 GB/s for dual-channel LPDDR5. A desktop card
+would widen the gap considerably.
+
+**VRAM is the real ceiling.** A 636k-cell pressure system occupied 2.55 GiB, so
+8 GiB caps this route at roughly 4-6M cells. Adequate for actuator-disc cases;
+not adequate for blade-resolved AMI, which was already the expensive tier.
+
+### GPU-02 · The integration needs a system CUDA toolkit — `BLOCKED`
+
+**Value:** the intended route is PETSc built with CUDA plus `petsc4Foam`,
+installed into `FOAM_USER_LIBBIN`. That path is specifically chosen because the
+plugin lives in the *user* tree and never touches
+`~/.local/opt/OpenFOAM-v2606`, so ENV-01 holds: the install the other study depends on
+stays untouched. `fvSolution` then selects `solver petsc;` for `p` and nothing
+else about the case changes.
+
+**Blocked on:** `pip install nvidia-cuda-nvcc-cu12` ships only `ptxas`, not the
+`nvcc` driver, so native CUDA code cannot be compiled in userland. CuPy works
+regardless -- it compiles kernels through NVRTC at runtime, which is how the
+benchmarks above ran -- but CuPy cannot accelerate OpenFOAM.
+
+Building PETSc with CUDA, or AmgX, therefore needs `sudo pacman -S cuda`. That
+is the one step requiring elevated privileges; everything after it is a
+userland build.
+
+**Explicitly rejected: FluidX3D.** It is the fastest GPU CFD code available and
+would suit an actuator disc in a box, but it is licensed *free for
+non-commercial use*, which is not open source and is incompatible with the
+GPL-3.0 chosen in LIC-01. If a GPU-native rewrite is ever wanted, OpenLB (GPL,
+CUDA) is the licence-compatible option.
