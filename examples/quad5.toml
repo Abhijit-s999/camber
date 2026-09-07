@@ -1,0 +1,120 @@
+# A 5-inch electric quadrotor, in the units Camber uses everywhere: SI.
+# Datasheet values are inches, grams, mAh and RPM; they are converted once,
+# here, and never appear in that form inside the model. See spec/units.py.
+
+name = "quad5"
+
+[mission]
+objective = "max_endurance"
+min_endurance = 480.0        # seconds
+payload_mass = 0.0
+
+# -- payloads and electronics ------------------------------------------------
+
+[[bodies]]
+name = "stack"               # flight controller + ESC, 30 g
+type = "body"
+mass = 0.030
+position = [0.0, 0.0, 0.0]
+shape = { kind = "box", lx = 0.036, ly = 0.036, lz = 0.012 }
+
+[[bodies]]
+name = "battery"             # 4S 1500 mAh LiPo, 180 g
+type = "battery"
+mass = 0.180
+position = [-0.010, 0.0, 0.018]
+shape = { kind = "box", lx = 0.075, ly = 0.035, lz = 0.030 }
+capacity_ah = 1.5
+nominal_voltage = 14.8
+max_c_rate = 75.0
+
+[[bodies]]
+name = "camera"              # forward-looking, tilted up 25 deg
+type = "camera"
+mass = 0.012
+position = [0.055, 0.0, -0.004]
+rotation_deg = [0.0, 25.0, 0.0]
+shape = { kind = "box", lx = 0.019, ly = 0.019, lz = 0.019 }
+view_direction = [1.0, 0.0, 0.0]
+horizontal_fov_deg = 120.0
+
+# -- structure ---------------------------------------------------------------
+
+[[frame]]
+name = "chassis"
+type = "body"
+mass = 0.110
+position = [0.0, 0.0, 0.002]
+shape = { kind = "box", lx = 0.180, ly = 0.080, lz = 0.028 }
+
+# -- propulsion --------------------------------------------------------------
+# 2207 motors, 5.0 inch props => radius 0.0635 m. static_thrust_n is a
+# measured catalogue figure, not a guess (AI-05): 2207/1900Kv on 4S with a
+# 5x4.3x3 prop is about 1.05 kgf at full throttle.
+
+[[thrusters]]
+name = "front_right"
+type = "rotor"
+mass = 0.032
+position = [0.098, 0.098, -0.014]
+radius = 0.0635
+pitch = 0.109
+blades = 3
+spin = "cw"
+static_thrust_n = 10.3
+
+[[thrusters]]
+name = "rear_right"
+type = "rotor"
+mass = 0.032
+position = [-0.098, 0.098, -0.014]
+radius = 0.0635
+pitch = 0.109
+blades = 3
+spin = "ccw"
+static_thrust_n = 10.3
+
+[[thrusters]]
+name = "rear_left"
+type = "rotor"
+mass = 0.032
+position = [-0.098, -0.098, -0.014]
+radius = 0.0635
+pitch = 0.109
+blades = 3
+spin = "cw"
+static_thrust_n = 10.3
+
+[[thrusters]]
+name = "front_left"
+type = "rotor"
+mass = 0.032
+position = [0.098, -0.098, -0.014]
+radius = 0.0635
+pitch = 0.109
+blades = 3
+spin = "ccw"
+static_thrust_n = 10.3
+
+# -- constraints -------------------------------------------------------------
+
+[[constraints]]
+type = "cg_box"              # CG must stay near the geometric centre
+lower = [-0.015, -0.010, -0.030]
+upper = [0.015, 0.010, 0.030]
+
+# A 120 deg FOV camera on a 5 inch airframe DOES see its own propellers in the
+# corners -- that is a real and accepted characteristic of the class, not a
+# design error. So the constraint protects the central view rather than the
+# whole frame. Raise this toward 60 deg and it fails, correctly.
+[[constraints]]
+type = "view_cone"
+camera = "camera"
+half_angle_deg = 25.0
+obstructed_by = ["front_right", "front_left"]
+
+[[constraints]]
+type = "min_distance"
+a = "battery"
+b = "camera"
+distance = 0.040

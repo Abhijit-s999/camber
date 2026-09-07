@@ -1,0 +1,601 @@
+# Technical decisions
+
+Every non-obvious choice in Camber, with the value, the reasoning, and the
+source. Tagged so that code comments and this document can refer to each other.
+The format is lifted from an earlier CFD study, where it earned its keep.
+
+**Status key**
+`FIXED` — decided and implemented.
+`OPEN` — needs a decision, or a study before it can be settled.
+`PROVISIONAL` — implemented with a defensible default, worth revisiting.
+
+---
+
+## 0. The bench
+
+### AI-01 · One token bucket per account, not per key — `FIXED`
+
+**Value:** a single cross-process `TokenBucket` keyed by
+`Provider.bucket_key`. Kimi K3 and DeepSeek V4-Pro both map to `nvidia`, and
+share one 40 rpm allowance. `BENCH_SPLIT_BUCKETS=1` opts into one bucket per
+distinct credential.
+
+**Revised 2026-09-07.** Two separate keys arrived, one per model, and the
+bucket was briefly split per credential on the assumption that separate keys
+meant separate accounts. They do not here — both belong to one account, so
+splitting would have issued 80 rpm against a 40 rpm limit.
+
+The default is now the conservative one, and the asymmetry is why:
+under-issuing merely runs slower than necessary, while over-issuing produces
+sustained 429s, and retries against an exhausted account make that worse rather
+than better. Prefer the recoverable failure.
+
+**Reasoning:** NVIDIA's free-tier limit is imposed per account. Two clients with
+independent limiters would each believe they owned the full 40 rpm, and the
+account would start returning 429 to whichever request arrived third. The bucket
+is file-backed and `flock`-guarded rather than in-process because the MCP
+server, the overnight daemon and an interactive call can all run at once.
+
+The lock is never held across a sleep — a waiter computes its deficit, releases,
+sleeps, and re-competes. Holding it would serialise every other process behind
+the unluckiest caller.
+
+**Source:** NVIDIA build.nvidia.com free tier, ~40 req/min for Developer
+Program members. Verify against your own account before trusting the number.
+
+### AI-14 · The binding limit is concurrency, not requests per minute — `FIXED`
+
+**Value:** `bench/concurrency.py`, a cross-process semaphore of flock'd slot
+files. `Provider.max_concurrency` defaults to **1** for NVIDIA. The slot is
+held for the whole request; the rate token is only spent to start it.
+
+**Reasoning — measured, not documented.** Four concurrent requests on
+2026-09-07 gave:
+
+```
+[0] deepseek-v4-pro   HTTP 504 in 302.1s
+[1] kimi-k3           HTTP 429 in   0.1s
+[2] deepseek-v4-pro   HTTP 504 in 302.1s
+[3] kimi-k3           ok      in 171.3s
+```
+
+The 429 arrived in 0.1 s with the account nowhere near 40 requests in the
+preceding minute, while another request to the same model was in flight. A
+token bucket cannot express this: it counts starts and forgets them, whereas a
+request that runs for three minutes occupies capacity for all three. Both
+limiters now apply, and the rate bucket is no longer the binding one.
+
+Slots are files rather than a counter because a crashed process must release
+its slot. The kernel drops an flock when the holder's descriptors close; a
+counter would leak until someone noticed.
+
+**Consequence for the daemon:** parallel dispatch does not help on this
+provider. Overnight campaigns are a single-file queue, not a fan-out.
+
+### AI-15 · DeepSeek V4-Pro is not currently usable on the NIM free tier — `OPEN`
+
+**Observed:** every request to `deepseek-ai/deepseek-v4-pro-0813` returned
+**HTTP 504 at 302 s**, twice, consistently — a gateway timeout from NVIDIA's
+side rather than a client timeout. `moonshotai/kimi-k3` on the same account and
+key succeeded at 154 s and 171 s.
+
+**Consequence:** the implementer role, which the whole three-model split rests
+on, has no working model on this provider right now. Options, in the order I
+would try them: `deepseek-v4-flash-0731` (same family, 13B active, should be
+far quicker); a different time of day, since free-tier queue depth varies; or
+OpenRouter / DeepSeek direct for latency-sensitive work, which `AI-09` already
+supports as a base-URL change.
+
+**Not yet established:** whether the 504 is load-dependent or a persistent
+problem with that model's endpoint. Re-test before concluding.
+
+### AI-16 · Route by capability and measured latency, not by model size — `FIXED`
+
+**Value:** `bench/roster.py`. Capabilities (`code`, `reason`, `vision`,
+`safety`, ...) each hold an ordered candidate list; `bench probe` measures what
+this account can actually reach and how fast; the router takes the first
+candidate that works.
+
+**Reasoning — this was a real mistake, and it went unnoticed for two phases.**
+The first bench hardcoded three roles onto the two largest models available,
+and both queue for minutes. From that I concluded the free tier was too slow
+for interactive delegation and quietly stopped delegating at all, writing P1
+and P2 by hand. The call log records the whole story: five calls ever, three
+successful, none after P0.
+
+The conclusion was wrong. Probing the catalogue found seven models answering in
+under a second, including `openai/gpt-oss-20b` at **0.3 s** -- a capable code
+model that was available the entire time. The latency was a consequence of
+asking a 1.6-trillion-parameter reasoning model to write a file parser, not a
+property of the provider. **Routing by prestige is the error; a 20B model
+returning in 0.3 s beats a 1.6T model that never returns.**
+
+Two further facts the catalogue listing does not tell you, both of which is why
+availability is measured rather than assumed:
+
+* `GET /v1/models` lists models the account **cannot invoke**. Most return
+  `"Not found for account"` -- every `mistralai/*` entry and every dedicated
+  code model (Codestral, StarCoder2, granite-code, CodeLlama, deepseek-coder)
+  among them.
+* Among those it can invoke, latency spans three orders of magnitude, and the
+  fast ones are not the ones whose names suggest capability.
+
+Specialists that looked promising and are **not** provisioned, recorded so they
+are not proposed again: `google/deplot` (charts to tables, 404),
+`nvidia/nemotron-4-340b-reward` (404), all embedding endpoints (404), and
+`nvidia/nemotron-parse`, which is not a chat-completions endpoint (400).
+
+**How to apply:** re-run `bench probe` when calls start failing or crawling;
+availability moves. Escalate to Kimi or DeepSeek only for work that genuinely
+needs them, and expect to wait.
+
+### AI-12 · Hosted model ids carry a publisher prefix — `FIXED`
+
+**Value:** `deepseek-ai/deepseek-v4-pro-0813`, `moonshotai/kimi-k3`. Guarded by
+a test that rejects any non-local model id without a `/`.
+
+**Reasoning:** the build.nvidia.com catalogue displays the bare name, and the
+bare name returns `HTTP 404: 404 page not found` — a body that says nothing
+about the id being wrong, and reads like a broken endpoint. `bench models`
+lists what the provider actually serves, which is the fastest way to settle it.
+
+### AI-13 · A truncated generation is an error, not a result — `FIXED`
+
+**Value:** `Client.text()` raises `Truncated` on `finish_reason == "length"`
+unless `allow_truncated=True`. `finish_reason` is recorded in the call log.
+
+**Reasoning:** both hosted models are reasoning models -- they spend completion
+tokens thinking before emitting anything visible. Asking Kimi to "reply with
+exactly: KIMI OK" at `max_tokens=32` returned `"KIM"`: a plausible-looking
+answer that was actually a stump, with the budget consumed by reasoning. For
+`implement` the same failure yields a source file that stops mid-function and
+still parses as a string, which is far worse than an exception. Role defaults
+were raised to 16k accordingly, and `bench ask` now defaults to 4096 rather
+than 512.
+
+### AI-02 · Integration is an MCP server, not a pipe between CLIs — `FIXED`
+
+**Value:** `bench/mcp_server.py`, exposing `implement`, `investigate`, `review`
+and `budget` over stdio.
+
+**Reasoning:** the orchestrating model stays in Claude Code and delegates
+natively, so the heavy token spend lands on NVIDIA's GPUs rather than the
+orchestrating session's budget. A text-piping harness would need its own
+conversation state, error handling and retry logic — all of which MCP already
+has. Written against `mcp` 2.x, where `FastMCP` was renamed `MCPServer`.
+
+### AI-04 · The bench never ships — `FIXED`
+
+**Value:** `camber/` must not import `bench/`; `bench` is excluded from the
+wheel; no HTTP client appears in runtime dependencies. Enforced by
+`tests/test_isolation.py`.
+
+**Reasoning:** two separate claims depend on this. *Open source* — both model
+weights are open (DeepSeek V4-Pro is MIT) but NIM is proprietary hosted
+infrastructure, and a 2.8T-parameter model is not something a user can
+self-host as a fallback; a Camber that phones NVIDIA to pick a motor would be
+open source wrapped around a rented brain. *Offline* — the tool has to work on
+a plane, deterministically, without an account.
+
+### AI-05 · Tests precede implementation, and the implementer does not write them — `FIXED`
+
+**Reasoning:** a model that writes its own tests proves only that it is
+self-consistent. For physics modules the tests are not unit tests in the usual
+sense but *analytic limits and published data*: momentum theory in the ideal
+limit, BEMT against UIUC wind-tunnel curves, a rocket burn against its own
+certified total impulse.
+
+### AI-06 · Models populate and explain; the optimiser decides — `FIXED`
+
+**Reasoning:** ask a language model for "the optimal 6-inch prop" and you get a
+fluent, plausible, unfalsifiable answer. The model's job is retrieval and
+structured extraction into catalogue rows carrying a source URL and a
+measurement method. The numerical optimiser then searches measured data.
+
+### AI-07 · Zero models loaded is the default path — `FIXED`
+
+**Reasoning:** if a local model sits on the critical path, the reliability
+problem has been moved rather than removed. Selection, optimisation and physics
+are all computed, not generated. A local model adds only convenience —
+plain-language mission intake, fuzzy SKU matching, unit normalisation, prose
+explanation. The test: remove every model and Camber still designs the aircraft.
+
+### AI-08 · "Go online and find a motor" is answered by shipping the catalogue — `FIXED`
+
+**Reasoning:** the going-online happens once, at build time, on the maintainer's
+machine. The user receives a versioned SQLite catalogue and searches it offline
+and deterministically. `camber catalogue update` fetches a newer signed
+catalogue rather than turning a model loose on the web.
+
+### AI-09 · Optional keys through one provider-agnostic adapter — `FIXED`
+
+**Value:** one OpenAI-compatible client covers NIM, OpenRouter, DeepSeek direct
+and LM Studio; base URL is the only difference. Anthropic is deliberately
+absent — Opus 5 participates by *running* Claude Code, not by being called from
+inside it.
+
+### AI-10 · Ternary local model, with constrained decoding — `PROVISIONAL`
+
+**Value:** BitNet b1.58-2B-4T (native ternary, ~0.4 GB non-embedding weights);
+`bitnet.cpp` also runs a 1.58-bit Llama3-8B if more judgement is needed.
+
+**Reasoning:** a 2B model is weak at reliable tool calling, which is exactly
+what both of its jobs need. The fix is not a bigger model but **constrained
+decoding** — a GBNF grammar or XGrammar makes malformed JSON unrepresentable,
+because the sampler cannot emit a token the schema forbids. Schema conformance
+then stops depending on model quality.
+
+**Open:** during an overnight CFD campaign OpenFOAM saturates all 16 cores, and
+a CPU-resident ternary model competes for the cores running the solve. Pin the
+janitor to the GPU, or accept that it is slowest when it is busiest.
+
+### AI-11 · `state_dir()` is a function, not a constant — `FIXED`
+
+**Reasoning:** found by a failing test. A module-level `STATE_DIR` is captured
+at first import, so every module that did `from .config import STATE_DIR` held
+a path that could never afterwards be redirected — including by a test fixture,
+which is how three tests ended up sharing one cache file. Resolve the
+environment on every call.
+
+---
+
+## 1. Scope and environment
+
+### SCOPE-01 · Electric multirotor is the v1 validation class — `FIXED`
+
+**Reasoning:** best open data by a wide margin (UIUC and Tyto both centre on
+it), so validation gates are cheap to build and genuinely meaningful. The
+thruster interface stays polymorphic from the first commit regardless — rockets
+bring time-varying mass, EDF brings duct coupling, and retrofitting either into
+a hard-coded rotor model means rewriting the flight simulation.
+
+### MFG-01 · 3-axis CNC first, process user-selectable — `FIXED`
+
+**Reasoning:** manufacturability is a pluggable `Process` interface. 3-axis
+milling **cannot cut undercuts** — every surface must be reachable straight down
+from one of the setups — which is a far harder geometric constraint than FDM's
+overhang angle. Satisfy it first and the additive processes are relaxations;
+do it in the other order and half the CNC designs are unmakeable.
+
+### LIC-02 · The repository stays private — `FIXED`
+
+**Value:** local git only. **No remote, no push, no GitHub repository**, and no
+publishing of any kind until Abhijit says otherwise. Stated 2026-09-07 as
+"make the repo private for now. Keep it that way."
+
+**Reasoning:** the licence chosen in LIC-01 governs what recipients may do once
+the code is shared; it says nothing about *when* to share. Those are separate
+decisions and only the author makes the second one. GPL-3.0 remains the
+intended licence for an eventual release.
+
+There is also a concrete reason to be careful before any first push. LIC-01
+leaves catalogue redistribution **open**: `data/raw/` is git-ignored so the
+UIUC archive is not in the tree today, but a future catalogue build could put
+derived measurements there, and those terms must be settled before anything
+leaves this machine.
+
+**How to apply:** do not run `git remote add`, `gh repo create`, or `git push`.
+If a remote is ever wanted, it is created private, by Abhijit, deliberately.
+
+### LIC-01 · GPL-3.0 for code; catalogue licensing is separate — `FIXED` / `OPEN`
+
+**Value:** GPL-3.0-or-later for Camber. Catalogue redistribution: **OPEN**.
+
+**Reasoning:** GPL matches the ecosystem Camber orchestrates (OpenFOAM is
+GPL-3.0; CalculiX and XFOIL are GPL-2.0) and removes any argument about whether
+tight OpenFOAM coupling creates a derivative work.
+
+The code licence says nothing about whether third-party *measurements* may be
+redistributed. UIUC, APC and Tyto Robotics each set their own terms, and AI-08
+has us shipping a compiled database of them. Verify per source before any
+catalogue ships; where redistribution is not permitted, ship the build script
+and fetch on first run. ThrustCurve is the encouraging precedent — OpenRocket
+already redistributes a compiled database built from it.
+
+### ENV-01 · Other projects are off-limits, including the shared OpenFOAM install — `FIXED`
+
+**Value:** no writes to another project's tree; no refactor that extracts
+shared code out of it; `~/.local/opt/OpenFOAM-v2606` is read-only and pinned.
+
+**Reasoning:** an earlier CFD study shares this machine, and its results must
+stay reproducible. Copying code duplicates
+maintenance, which is the correct trade here.
+
+The non-obvious hazard is the **shared OpenFOAM install** — 2.4 GB, hand-built,
+and used by both. Upgrading it, patching a solver, or rebuilding it after a
+system library moves would silently change the tool those results were produced
+with, with no error to warn anyone. If Camber ever needs a different version it
+gets its own prefix, and the two never meet.
+
+---
+
+## 2. Architecture
+
+### ARCH-01 · Three-tier fidelity ladder; CFD never in the inner loop — `FIXED`
+
+**Value:** L0 analytic (µs, 10⁶ evals) → L1 BEMT/VLM (ms, 10⁴ evals) → L2
+OpenFOAM (hours, 10¹ evals). Plus L3, transient 6-DOF, alongside rather than
+above.
+
+**Reasoning:** a RANS rotor case takes minutes to hours; an optimiser needs
+10⁴–10⁶ evaluations. CFD's product is not a verdict on candidates but a
+correction to L1, fitted as a Gaussian process over the residual and folded back
+in — multi-fidelity trust-region model management. L3 is not optional: three of
+the four mission objectives are properties of a trajectory, not a hover point.
+
+### ARCH-02 · Constraints are declarative data in the vehicle spec — `PROVISIONAL`
+
+**Value:** `fixed`, `relative(a, b, offset)`, `min_distance(a, b, d)`,
+`view_cone(camera, half_angle, unobstructed_by=[...])`, `cg_box`,
+`symmetry(plane)`.
+
+**Reasoning:** the optimiser reads them, the GUI draws them, and the validator
+rejects an over- or under-constrained spec before anything expensive runs. As
+code they would be none of those things.
+
+### ARCH-03 · Controllability is a constraint, not a post-check — `FIXED`
+
+**Reasoning:** a design that is aerodynamically excellent and dynamically
+uncontrollable is a failed design, and an unconstrained optimiser will find
+those enthusiastically. Every candidate gets its allocation matrix built from
+thruster positions and orientations, then checked for rank and control-authority
+margin about all three axes. It is also what makes the output plug-and-play: the
+mixer is part of the deliverable.
+
+---
+
+## 3. The vehicle model (P1)
+
+### GEOM-01 · SI everywhere; convert once, at the edge — `FIXED`
+
+**Value:** metres, kilograms, seconds, radians, newtons, volts, amperes
+throughout. Inches, grams, mAh and RPM appear only in catalogue parsing and
+spec files (`horizontal_fov_deg`, `rotation_deg`), converted at the boundary.
+
+**Reasoning:** mixed units survive unit tests. Every value passes an assertion
+about its type and none about its dimension, so a diameter in millimetres flows
+through the whole stack and emerges as a plausible, wrong answer. That is the
+one failure mode this project cannot tolerate, because nothing downstream
+would flag it.
+
+### GEOM-02 · NED body frame: x forward, y right, **z down** — `FIXED`
+
+**Reasoning:** it is what ArduPilot, PX4 and the flight-dynamics literature
+assume, and Camber must eventually emit a mixer for one of them. The
+consequence to remember is that lift is **negative** z, so `UP = (0, 0, -1)`.
+
+### GEOM-03 · Mass properties are analytic, not tessellated — `FIXED`
+
+**Value:** `camber/spec/shapes.py` returns closed-form inertia tensors. The CAD
+kernel is used only for STEP output, booleans and imported geometry.
+
+**Reasoning:** a box's inertia has been a closed form since Euler; obtaining it
+by tessellating a B-rep and summing tetrahedra is slower, less accurate, and
+makes the product depend on a 200 MB wheel for arithmetic. Keeping the boundary
+sharp is what lets the optimiser evaluate mass properties millions of times
+(AI-07), and build123d stays an optional extra.
+
+Bodies are modelled as solids rather than point masses because a 4S LiPo
+treated as a point understates roll inertia badly, and roll inertia is what
+sets control authority. Verified against closed forms, the thin-rod limit, and
+the triangle inequality `I1 + I2 >= I3`, which no real mass distribution can
+violate.
+
+### GEOM-04 · Millimetres exist only in the CAD exporter — `FIXED`
+
+**Reasoning:** STEP and every CAM package expect millimetres. The conversion
+lives in `camber/geometry/cad.py` and nowhere else; a mismatch between the
+geometry's units and the STEP header produces a part correct in shape and wrong
+by 1000x in size, which a machinist discovers expensively.
+
+### CTRL-01 · An axis is controllable only if it lies *in* the range of A — `FIXED`
+
+**Value:** `controllability()` tests whether the unit wrench `e_i` lies in
+`range(A)`, not whether it has non-zero projection onto it.
+
+**Reasoning:** found by a failing test. Canting a quadrotor's rotors gives every
+axis a non-zero projection while the range stays four-dimensional, so a
+projection test reports such a design as fully controllable when lateral force
+is still unavailable without disturbing something else. `rank(A) <= min(6, N)`,
+so four thrusters can never be fully actuated whatever their angles — six
+canted rotors can, which is why fully-actuated multirotors are built with six.
+
+The SVD's smallest singular value is reported as `margin` because rank alone is
+a discontinuous yes/no that an optimiser cannot follow downhill. The margin
+shrinks continuously as arms shorten, so a design can be pushed away from the
+cliff before it falls off.
+
+### CTRL-02 · Hover trim respects the sign of thrust — `FIXED`
+
+**Reasoning:** the least-squares solution to `A u = [0,0,-W,0,0,0]` will
+happily return negative commands, and a propeller cannot pull. Checking the
+residual and the bounds separately is what distinguishes "this hovers" from
+"an unconstrained solver found numbers". Confirmed against hand arithmetic: a
+symmetric quad splits weight exactly four ways, and four rotors spinning the
+same way cannot hold a heading because nothing cancels their reaction torque.
+
+### SPEC-01 · An unknown key in a spec is an error — `FIXED`
+
+**Reasoning:** `mas = 0.25` must stop the load. Silently substituting a default
+mass produces a confidently wrong endurance figure with nothing to flag it.
+Unknown keys are reported *before* missing ones, so the message names the typo
+rather than the symptom it caused.
+
+---
+
+## 4. The physics tier (P2)
+
+### PHYS-01 · BEMT solves a bracketed residual in phi, not a fixed point — `FIXED`
+
+**Reasoning:** the obvious scheme -- guess the induction factors, recompute,
+repeat -- diverges for heavily loaded stations, which is exactly where a
+propeller operates at low advance ratio. Reformulating as a sign-changing
+residual in the inflow angle and bracketing it either converges or reports
+honestly that it could not. Convergence is recorded per station and a
+non-converged point is discarded from validation rather than averaged in.
+
+### PHYS-02 · The blade section is the dominant error, and it is unknown — `PROVISIONAL`
+
+**Value:** default section `e63`.
+
+**Reasoning — measured, by sensitivity study over the whole database.** With
+everything else fixed, changing only the assumed aerofoil moves predicted CT
+across the 115-propeller set from a median of **-15.9%** (Clark-Y) to **+7.1%**
+(E63). Tip and hub loss, by comparison, account for three to four per cent.
+
+UIUC publishes chord and twist distributions but not the aerofoil, and real
+blades vary section along the span -- high-camber inboard, thin outboard. A
+single section for the whole blade is therefore a named approximation, and it
+is the largest single source of error in the tier. E63 is chosen because it is
+a high-lift low-Reynolds section of the kind thin electric propellers actually
+use, and because it minimises bias across the set. It is not a fitted
+parameter: it was selected from four candidates on a metric fixed in advance.
+
+**Open:** a radially blended section is physically better motivated and would
+probably reduce the scatter. It also adds a knob, so it should be introduced
+only with a held-out set to check it is not being tuned.
+
+### PHYS-03 · Validation error is scaled by peak CT, never by the local value — `FIXED`
+
+**Reasoning:** CT falls to zero as a propeller approaches its zero-thrust
+advance ratio, so a relative error taken against the local value diverges there
+for arithmetic reasons that say nothing about the model. Measured directly:
+points below CT = 0.01 showed a mean relative error of **799%** while points
+above CT = 0.08 sat at **10.3%**, from the same predictions. Quoting the first
+number would be misleading in both directions -- it makes a decent model look
+worthless, and it would let a genuinely bad model hide behind "the tail
+dominates".
+
+Scaling by each run's peak CT asks the question that matters: how many newtons
+out, against how many the propeller makes. Both metrics are reported; the
+scaled one is the one to quote.
+
+### PHYS-04 · Small propellers are not Reynolds-independent — `FIXED`
+
+**Value:** the model reproduces the direction and order of magnitude of the
+effect while over-stating it roughly twofold. Recorded, not corrected.
+
+**Reasoning:** CT and CP remove rpm by construction, so a textbook reading
+expects them invariant at fixed J. At chord Reynolds numbers near 10^5 they are
+not. The database settles it -- doubling rpm at fixed J raises measured CT by
+about **+25%** (apce_10x5) to **+42%** (apce_11x7). The model gives roughly
++70% over the same change.
+
+This matters for design: a propeller characterised on a bench at one rpm cannot
+be assumed to hold its coefficients elsewhere, and an optimiser comparing
+designs at different disc loadings is comparing different Reynolds regimes.
+
+### PHYS-05 · Propellers are tabulated before they are coupled — `FIXED`
+
+**Value:** `PropellerMap` samples CT and CP against J once (about 0.5 s), after
+which a lookup costs **2.8 microseconds** against **5000 microseconds** for a
+direct BEMT solve -- a factor of 1800.
+
+**Reasoning:** the coupled motor-propeller match is a root-find that evaluates
+propeller torque twenty or thirty times. Calling BEMT inside it makes a single
+operating point cost 100 ms, and an optimiser needs thousands. This is the
+fidelity-ladder move (ARCH-01) applied one level down: pay for the physics
+once, then search a cheap surrogate. CT and CP are smooth in J and the sampling
+is finer than the data the model is validated against, so it is a speed
+optimisation rather than an additional approximation.
+
+### PHYS-06 · Viterna's post-stall model needs two guards — `FIXED`
+
+**Reasoning:** a blade element near the hub at low advance ratio genuinely
+visits the whole circle of angles, and the published Viterna formula does not
+survive there. Its lift correction carries `cos^2(a)/sin(a)`, singular at 0 and
+180 degrees -- unguarded it returned CL of 2.4x10^5. Its drag correction goes
+*negative* beyond 90 degrees, which would let a BEMT solve extract energy from
+nothing. The first is damped by a window vanishing at 90 degrees and a floored
+denominator; the second is clipped at zero with a reversed-flow floor. Tested
+across the full circle.
+
+### PHYS-07 · Kt and Kv are one constant, not two inputs — `FIXED`
+
+**Reasoning:** Kv is quoted in RPM per volt and Kt in newton-metres per amp,
+which look independent until both are in SI, where Kt = 1/Kv_rad exactly.
+Accepting them as separate parameters is a standard way to build a motor model
+that violates conservation of energy while appearing well-calibrated.
+
+### PHYS-08 · A pack can fail by sag as well as by capacity — `FIXED`
+
+**Reasoning:** endurance is coulomb-counted against a voltage cutoff rather
+than obtained by dividing capacity by current, because the two answers differ
+whenever internal resistance binds first. A 1 Ah pack at 80 A browns out with
+charge remaining; `Ah/A` reports a flight it will not complete. Sizing on
+energy alone finds designs that fail on the first aggressive manoeuvre.
+
+---
+
+## 5. The optimiser (P3)
+
+### OPT-01 · Hard gates for flyability, penalties for geometry — `FIXED`
+
+**Value:** controllability rank, control margin and hover feasibility reject a
+candidate outright. Clearance, view cones and the CG box become a summed
+violation instead.
+
+**Reasoning:** the two kinds of failure are not alike. A design whose rotors
+cannot produce a roll moment is not a worse design, it is not a design, and its
+objective values are meaningless -- letting it compete on endurance drags the
+population into a region where the numbers mean nothing. A geometric breach is
+different: it is continuous, so a penalty gives the search a gradient to walk
+back out along. Getting the split backwards is expensive in both directions --
+penalise controllability and the budget is spent among unflyable candidates;
+harden the view cone and the search cannot find its way back in.
+
+### OPT-02 · Constrained domination, not a weighted sum — `FIXED`
+
+**Reasoning:** feasible beats infeasible always; between infeasible candidates
+the smaller violation wins; between feasible ones the ordinary Pareto rule
+applies. A weighted sum would hide both the trade-off and the weighting -- an
+arbitrary choice by whoever wrote the line -- inside the answer. The front hands
+the trade-off back to the person who should be making it.
+
+### OPT-03 · The momentum-theory endurance model is a placeholder, and a bad one — `FIXED`
+
+**Value:** `physics_endurance_model()` wires the validated blade-element tier
+in. The analytic fallback remains only for runs with no propeller selected, and
+the CLI warns when it is in use.
+
+**Reasoning:** the placeholder assumes an ideal rotor and ignores motor and ESC
+losses. Its docstring estimated it would overstate endurance "by roughly a
+factor of two". Measured against the validated tier on the same airframe it
+reported **69.4 minutes against 4.2** -- out by 16.5x, and the first
+optimisation run duly converged on a fantasy. A surrogate whose error is
+unmeasured is not a surrogate, it is a guess with a docstring.
+
+### OPT-04 · Mass must be a decision, or the second objective is decorative — `FIXED`
+
+**Reasoning:** the first run produced a "front" of forty identical points.
+Nothing in the variable set changed mass, so there was no trade-off to find and
+every candidate tied. Pack capacity is now a variable with mass following from
+energy at 180 Wh/kg, which is what makes endurance-versus-mass a real axis.
+
+A multi-objective front that collapses to a point is not a converged search; it
+is a sign that one objective is not connected to any variable.
+
+### OPT-05 · One propeller map is scaled across radii — `PROVISIONAL`
+
+**Reasoning:** CT and CP are functions of blade *shape* and Reynolds number,
+not absolute size, so a single map serves every candidate radius with thrust
+scaling as rho n^2 D^4. Rebuilding a map per candidate would cost about 0.5 s
+against roughly 0.4 ms for the whole evaluation.
+
+The approximation is the Reynolds part, and PHYS-04 records that it is not
+negligible at this scale, so comparing radii far apart carries a known error.
+Worth revisiting with a small family of maps if radius ranges widen.
+
+### OPT-06 · Delegated code is reviewed, not merely tested — `FIXED`
+
+**Reasoning:** the Pareto module was generated by the bench and passed all
+fifteen tests written for it beforehand. Reading it found that
+`crowding_distance` computed a *backward* difference, `f[i] - f[i-1]`, where
+NSGA-II specifies the central difference `f[i+1] - f[i-1]` -- understating
+crowding and biasing selection toward one end of the front.
+
+The tests were the problem: checking that boundaries are infinite and interiors
+positive cannot distinguish the two formulas. `TestCrowdingDistanceExactValues`
+now pins the arithmetic. The lesson generalises past this bug -- a green suite
+licenses delegated code only as far as the suite actually constrains it, and
+tests written to describe a shape will accept any implementation of that shape.

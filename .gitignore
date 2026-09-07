@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.egg-info/
+
+# bench runtime state — machine-local, never committed
+.bench/
+data/raw/
+data/*.sqlite
