@@ -20,8 +20,32 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import os
+
 from ..spec.units import Vec3
 from ..spec.vehicle import Rotor, Vehicle
+
+#: Fraction of the machine a simulation may take. Not 1.0, deliberately.
+#:
+#: A CFD run that saturates every core makes the machine unusable for anything
+#: else and runs the fans flat out, and the last cores buy very little anyway:
+#: the solve is memory-bandwidth bound (GPU-01), so ranks beyond about half the
+#: cores contend for the same DRAM channels rather than adding throughput.
+#: Measured on this machine, 4 ranks gave 1.40x the throughput of 2 -- already
+#: only 70% efficient -- so the top 20% of cores are close to free to give up.
+CPU_BUDGET = float(os.environ.get("CAMBER_CPU_BUDGET", "0.8"))
+
+#: Scheduler niceness for solver processes. Positive means "yield to
+#: everything else", so a long campaign stays in the background where it
+#: belongs rather than making the desktop stutter.
+SOLVER_NICE = int(os.environ.get("CAMBER_NICE", "10"))
+
+
+def budgeted_ranks(budget: float = None) -> int:
+    """How many MPI ranks a run may use, from the CPU budget."""
+    budget = CPU_BUDGET if budget is None else budget
+    total = os.cpu_count() or 4
+    return max(1, min(total, int(total * budget)))
 
 FOAM_HEADER = """\
 FoamFile
@@ -49,7 +73,9 @@ class CaseConfig:
     base_cell_per_radius: float = 0.25
     refinement_levels: int = 2
     n_iterations: int = 800
-    n_processors: int = 14
+    #: Defaults to the CPU budget rather than a hardcoded count, so the same
+    #: config behaves sensibly on a laptop and on a workstation.
+    n_processors: int = 0
     #: ISA sea level.
     rho: float = 1.225
     nu: float = 1.4607e-5
@@ -131,6 +157,11 @@ class CaseBuilder:
         self.discs = discs_from(vehicle, thrusts, self.cell,
                                 max_thickness=self._safe_thickness(radius))
         self._check_disc_clearance()
+
+    @property
+    def ranks(self) -> int:
+        """MPI ranks for this case: explicit setting, else the CPU budget."""
+        return self.config.n_processors or budgeted_ranks()
 
     def _body_z_extent(self) -> tuple[float, float]:
         lo, hi = float("inf"), float("-inf")
@@ -409,7 +440,7 @@ functions
                _FV_SOLUTION)
         _write(case / "system" / "decomposeParDict", "dictionary",
                "decomposeParDict",
-               f"numberOfSubdomains {self.config.n_processors};\n"
+               f"numberOfSubdomains {self.ranks};\n"
                f"method scotch;\n")
         _write(case / "system" / "snappyHexMeshDict", "dictionary",
                "snappyHexMeshDict", self._snappy())

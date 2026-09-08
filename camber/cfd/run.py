@@ -45,10 +45,15 @@ def foam(case: Path, command: str, log_name: str | None = None,
     log_name = log_name or f"log.{app}"
     log_path = case / log_name
 
+    # `nice` on everything, not just the solver: snappyHexMesh is single
+    # threaded but pegs a core for minutes, which is just as noticeable on a
+    # laptop as the parallel solve.
+    from .case import SOLVER_NICE
+    prefix = ["nice", "-n", str(SOLVER_NICE)] if SOLVER_NICE else []
     if parallel:
-        argv = ["mpirun", "-np", str(n_proc), *command.split(), "-parallel"]
+        argv = [*prefix, "mpirun", "-np", str(n_proc), *command.split(), "-parallel"]
     else:
-        argv = command.split()
+        argv = [*prefix, *command.split()]
 
     started = time.monotonic()
     with log_path.open("w") as log:
@@ -97,9 +102,11 @@ class CaseState:
         self.save(case)
 
 
-def mesh(case: Path, n_proc: int = 14, force: bool = False) -> list[StepResult]:
+def mesh(case: Path, n_proc: int = 0, force: bool = False) -> list[StepResult]:
     """blockMesh -> snappyHexMesh -> topoSet -> checkMesh, resumably."""
+    from .case import budgeted_ranks
     case = Path(case)
+    n_proc = n_proc or budgeted_ranks()
     state = CaseState.load(case)
     results: list[StepResult] = []
 

@@ -971,6 +971,34 @@ capacity ceiling, and screening-quality accuracy does not need FP64.
 
 ---
 
+## 9b. Machine manners
+
+### RUN-01 · Simulations take 80% of the machine, not all of it — `FIXED`
+
+**Value:** `CPU_BUDGET = 0.8` (12 of 16 ranks here) and `nice +10` on every
+OpenFOAM command. Both overridable with `CAMBER_CPU_BUDGET` and `CAMBER_NICE`.
+
+**Reasoning:** a campaign that saturates every core makes the laptop unusable
+and the fans intolerable, and it was doing exactly that -- load average 17.2 on
+16 cores.
+
+The last cores were nearly free to give up anyway, which is the part worth
+recording. The solve is memory-bandwidth bound (GPU-01), so ranks beyond about
+half the cores contend for the same DRAM channels rather than adding
+throughput: measured here, going from 2 ranks to 4 gave 1.40x, already only 70%
+efficient. Dropping 14 ranks to 12 costs a few per cent of throughput and gives
+back a quarter of the machine.
+
+`nice` matters as much as the rank count and is easy to forget. It does not
+reduce heat, but it means an interactive process preempts the solver
+immediately, so the desktop stops stuttering even while the run continues. It
+is applied to meshing as well: `snappyHexMesh` is single threaded but pegs a
+core for minutes, which is just as noticeable on a laptop as the parallel
+solve.
+
+Measured after the change: load average 6.65, with 72.9% of CPU time in the
+niced bucket and cores left idle.
+
 ## 10. The viewport (P6)
 
 ### UI-01 · The browser owns the view and nothing else — `FIXED`
