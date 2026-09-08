@@ -511,14 +511,29 @@ def volume_fraction_for_mass(domain: Domain, target_mass: float,
 def frame_problem(vehicle, domain_margin: float = 0.012, thickness: float = 0.014,
                   element: float = 0.0035, volume_fraction: float = 0.28,
                   landing_g: float = 10.0, target_mass: float | None = None,
-                  material_density: float = 1550.0) -> Problem:
+                  material_density: float = 1550.0,
+                  pad: float = 0.009, stack_pattern: float = 0.0305) -> Problem:
     """Pose the airframe as a topology problem, from the vehicle itself.
 
     The design domain is the plan-view box enclosing the rotors, given a
-    thickness a frame plate could plausibly occupy. Material is anchored where
-    the payload mounts and loaded where the rotors pull, and the optimiser
-    decides everything in between -- which is the part that was previously
-    authored as "a plate and four straight tubes".
+    thickness the structure may occupy. Material is anchored where the payload
+    bolts on and loaded where the rotors pull, and the optimiser decides
+    everything in between.
+
+    **Mounts are bolt pads, not billets.** An earlier version forced a solid
+    block through the full domain thickness under the whole stack footprint,
+    39 x 39 x 12 mm. That is 34.3 g of carbon out of a 40 g budget: the
+    optimiser was choosing where to put 14% of the mass and the other 86% was
+    a mandated brick. It produced exactly the symptoms you would expect and
+    none that name the cause -- material stranded in islands, because what was
+    left could not span anything; and a meshed part whose facet count and
+    volume came out *identical* across runs that had nothing else in common,
+    because the block dominated both.
+
+    What a frame actually needs is material at the fasteners. A flight stack
+    bolts on a 30.5 mm square of M3, a motor on its own boss, and each of those
+    is a pad at one face -- so `keep` is five small pads on one layer each,
+    about 3 g, and the remaining 37 g is the optimiser's to spend.
 
     Loads are the manoeuvre case from STR-01, one arm at full thrust, applied
     simultaneously at all four mounts. That is conservative for a frame: it is
@@ -537,10 +552,16 @@ def frame_problem(vehicle, domain_margin: float = 0.012, thickness: float = 0.01
     nx = ny = max(8, int(round(2 * half / element)))
     nz = max(3, int(round(thickness / element)))
     domain = Domain(nx, ny, nz, element)
+    span = max(1, int(round(pad / element)) // 2)      # pad half-width, elements
 
     def cell(x: float, y: float) -> tuple[int, int]:
         return (int(np.clip((x + half) / element, 0, nx - 1)),
                 int(np.clip((y + half) / element, 0, ny - 1)))
+
+    def pad_cells(x: float, y: float):
+        i, j = cell(x, y)
+        return (range(max(i - span, 0), min(i + span + 1, nx)),
+                range(max(j - span, 0), min(j + span + 1, ny)))
 
     n_dof = 3 * domain.n_nodes
     load = np.zeros(n_dof)
@@ -551,27 +572,35 @@ def frame_problem(vehicle, domain_margin: float = 0.012, thickness: float = 0.01
     per_rotor = max((r.max_thrust() for r in rotors), default=mass * G / len(rotors))
     tip_load = max(per_rotor, mass * G * landing_g / len(rotors))
 
-    # Rotor mounts: solid, and where the load enters.
+    # Motor bosses: one pad each at the top face, where the load enters.
+    top = nz - 1
     for r in rotors:
-        i, j = cell(r.position.x, r.position.y)
-        pad = 1
-        for ii in range(max(i-pad,0), min(i+pad+1, nx)):
-            for jj in range(max(j-pad,0), min(j+pad+1, ny)):
-                keep[ii, jj, :] = True
-        nodes = [domain.node_id(np.clip(i+di,0,nx), np.clip(j+dj,0,ny), nz)
-                 for di in (0, 1) for dj in (0, 1)]
+        cols, rows = pad_cells(r.position.x, r.position.y)
+        cols, rows = list(cols), list(rows)
+        for i in cols:
+            for j in rows:
+                keep[i, j, top] = True
+        nodes = [domain.node_id(i, j, nz)
+                 for i in cols + [cols[-1] + 1]
+                 for j in rows + [rows[-1] + 1]]
         for n in nodes:
-            load[3*n + 2] -= tip_load / len(nodes)   # z is down; thrust is -z
+            load[3 * n + 2] -= tip_load / len(nodes)   # z is down; thrust is -z
 
-    # Centre: where the stack and battery bolt on. Solid, and held.
-    ci, cj = cell(0.0, 0.0)
-    span = max(2, int(0.020 / element))
-    for ii in range(max(ci-span,0), min(ci+span+1, nx)):
-        for jj in range(max(cj-span,0), min(cj+span+1, ny)):
-            keep[ii, jj, :] = True
-            for k in (0, nz):
-                n = domain.node_id(ii, jj, k)
-                fixed += [3*n, 3*n+1, 3*n+2]
+    # Flight stack: four M3 pads on a square pattern, at the bottom face, and
+    # held there. Fixing the whole centre plan area instead would make the hub
+    # rigid by decree and hide whatever the optimiser would have built.
+    b = stack_pattern / 2.0
+    for sx in (-b, b):
+        for sy in (-b, b):
+            cols, rows = pad_cells(sx, sy)
+            cols, rows = list(cols), list(rows)
+            for i in cols:
+                for j in rows:
+                    keep[i, j, 0] = True
+            for i in cols + [cols[-1] + 1]:
+                for j in rows + [rows[-1] + 1]:
+                    n = domain.node_id(i, j, 0)
+                    fixed += [3 * n, 3 * n + 1, 3 * n + 2]
 
     if target_mass is not None:
         volume_fraction = volume_fraction_for_mass(domain, target_mass,

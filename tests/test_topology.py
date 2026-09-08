@@ -529,3 +529,65 @@ class TestComplianceOfAGivenField:
         before = field.copy()
         T.compliance(p, field)
         assert np.array_equal(field, before)
+
+
+class TestMountsAreNotBillets:
+    """The guard on the bug that made GEN-02 mostly not generative.
+
+    `frame_problem` forced a solid block through the full domain thickness
+    under the whole stack footprint: 34.3 g of a 40 g budget, leaving the
+    optimiser 14% of the mass to place. Nothing raised. The visible symptoms
+    were islands and a meshed volume that came out identical across runs with
+    nothing else in common.
+    """
+
+    @pytest.fixture
+    def vehicle(self):
+        import pathlib
+
+        from camber.spec import io
+        return io.load(pathlib.Path(__file__).resolve().parent.parent
+                       / "examples" / "racer5.toml")
+
+    def test_the_optimiser_gets_most_of_the_mass(self, vehicle):
+        p = T.frame_problem(vehicle, element=0.003, thickness=0.012,
+                            target_mass=0.040)
+        budget = p.volume_fraction * p.domain.n_elements
+        assert p.keep.sum() / budget < 0.15, (
+            f"{p.keep.sum():.0f} of {budget:.0f} elements are forced solid; "
+            f"the optimiser is decorating a mandated shape")
+
+    def test_pads_are_one_layer_thick(self, vehicle):
+        """A pad through the full thickness costs nz times its plan area, and
+        the thickness is the design envelope, not the plate."""
+        p = T.frame_problem(vehicle, element=0.003, thickness=0.012,
+                            target_mass=0.040)
+        per_layer = p.keep.sum(axis=(0, 1))
+        assert (per_layer > 0).sum() <= 2, "mounts occupy more than two layers"
+
+    def test_there_is_one_pad_per_rotor_plus_the_stack_pattern(self, vehicle):
+        from scipy import ndimage
+        p = T.frame_problem(vehicle, element=0.003, thickness=0.012)
+        _, n = ndimage.label(p.keep.any(axis=2))
+        assert n == len(vehicle.thrusters) + 4      # four rotors, four bolts
+
+    def test_the_support_does_not_span_the_whole_hub(self, vehicle):
+        """Fixing the entire centre plan area makes the hub rigid by decree."""
+        p = T.frame_problem(vehicle, element=0.003, thickness=0.012)
+        held = len(p.fixed) / 3
+        assert held < 0.02 * p.domain.n_nodes
+
+    def test_the_load_totals_the_manoeuvre_case(self, vehicle):
+        from camber.control import G
+        p = T.frame_problem(vehicle, element=0.003, thickness=0.012)
+        rotors = vehicle.thrusters
+        mass = vehicle.mass_properties().mass
+        per = max(max(r.max_thrust() for r in rotors),
+                  mass * G * 10.0 / len(rotors))
+        assert -p.load.sum() == pytest.approx(per * len(rotors), rel=1e-9)
+
+    def test_the_reduced_system_is_not_singular(self, vehicle):
+        """Four separated pads must remove every rigid-body mode."""
+        p = T.frame_problem(vehicle, element=0.012, thickness=0.036)
+        c = T.compliance(p, np.full(p.domain.shape, 0.5))
+        assert np.isfinite(c) and c > 0

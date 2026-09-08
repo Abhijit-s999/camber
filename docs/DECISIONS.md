@@ -1076,6 +1076,50 @@ spans nine orders of magnitude of stiffness between void and solid, and an
 unpreconditioned CG on that conditioning does not converge in any useful number
 of iterations. A GPU path here needs algebraic multigrid first, not a port.
 
+### GEN-06 · Mounts are bolt pads, not billets — `FIXED`
+
+**The bug that made GEN-02 mostly not generative.** `frame_problem` forced a
+solid block through the full domain thickness under the whole stack footprint,
+39 x 39 x 12 mm, plus a column at each rotor. On the racing frame:
+
+```
+mass budget              956 elements    40.0 g
+forced solid (keep)      820 elements    34.3 g
+the optimiser chose      136 elements     5.7 g     14.2% of the budget
+```
+
+So 86% of the airframe was a brick I had specified, and the "generated" part
+was what could be arranged with the remaining 5.7 g. After the fix the same
+budget forces 72 elements, 3.0 g, and the optimiser places 92.5% of the mass.
+
+**How it presented.** Not as an error. Compliance fell, the field went binary,
+and the shape looked like load paths. The three symptoms were:
+
+- material stranded in islands -- GEN-03 -- because what was left over could
+  not span anything, so continuation improved it (65.3% to 73.3% of material in
+  the largest component) without ever fixing it;
+- a meshed part of *exactly* 1,088 facets and 17.85 cm^3 from two runs that
+  had nothing in common, one of 80 iterations with continuation and one of 4
+  without, because the block dominated both;
+- a per-iteration density change of 0.01 to 0.04, which read as "settling" and
+  was actually "nearly everything is frozen". It is 0.14 now.
+
+The identical-derived-quantity signature is the one that gave it away, and it
+is the second time on this project: CFD-02 was found the same way, by a cell
+count that did not move when the input did. **An identical derived quantity
+across different inputs means something is ignoring the input.**
+
+**Value:** the domain thickness is the envelope the structure may occupy, not
+the plate. A flight stack bolts on a 30.5 mm square of M3 and a motor on its
+own boss, so `keep` is five 9 mm pads on a single layer each -- material at the
+fasteners, which is what a frame actually needs -- and the supports are those
+four bolt pads rather than the whole hub plan area. Fixing the hub made it
+rigid by decree and hid whatever the optimiser would have built there.
+
+`TestMountsAreNotBillets` asserts the forced-solid fraction stays under 15% of
+the budget, that pads occupy at most two layers, and that the support does not
+span the hub.
+
 ---
 
 ## 8. GPU acceleration
