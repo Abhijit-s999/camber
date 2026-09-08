@@ -242,7 +242,30 @@ class InterferenceModel:
             return m ** 2, 2.0 * m * float(std[0])
         return float(mean[0]), float(std[0])
 
+    def as_penalty(self, vehicle, threshold: float = 0.02) -> float:
+        """Interference above `threshold`, as a continuous optimiser penalty.
+
+        This is the recommended use, and the only one the validation supports.
+        Across 43 CFD cases the model orders designs correctly 92.7% of the
+        time and classifies against a 2% threshold with **no false clears** --
+        it never says a layout is fine when it is not. What it cannot do is
+        state *how much* download a heavily overlapped layout suffers: mean
+        error above 15% loss is 9.25% and the worst case is 48.8%.
+
+        Ordering and a reliable "unacceptable" verdict are what a search needs.
+        A corrected thrust would imply an accuracy this model does not have.
+        See DECISIONS.md CAL-02.
+        """
+        loss, _ = self.correction(vehicle)
+        return max(0.0, loss - threshold)
+
     def installed_thrust(self, vehicle, isolated_thrust: float) -> float:
+        """Isolated thrust reduced by the predicted loss.
+
+        Prefer `as_penalty()`. This is accurate enough in the flat and
+        transition bands but not in the steep one, where the model's magnitude
+        error reaches tens of per cent (CAL-02).
+        """
         loss, _ = self.correction(vehicle)
         # Clamp: a fit extrapolating past total loss, or past no loss at all,
         # has left the data it was trained on and should not invent physics.

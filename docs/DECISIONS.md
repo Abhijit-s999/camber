@@ -720,46 +720,56 @@ z = -14 mm with the camera top at -13.5 mm, half a millimetre of clearance. A
 assertion caught a modelling error in the input, which is the argument for
 making it fatal rather than a warning.
 
-### CAL-02 · Accurate where it is boring, weak where it matters — `OPEN`
+### CAL-02 · Use it as a constraint, not as a correction — `RESOLVED`
 
-**Value:** 40 cases run, 32 converged, 30 usable after the mesh guard. Fitted
-in sqrt space with hyperparameters chosen by marginal likelihood.
+**Value:** 43 usable cases across two campaigns. The interference model is
+wired in as a **penalty on the optimiser**, and is *not* used to correct
+predicted thrust.
 
-**The physics is settled and strongly layout dependent**, which was the whole
-justification for the tier. Download spans **+0.037% to +24.9%** and collapses
-as the arms lengthen and the discs clear the airframe.
+**How it got here.** The first 30-case campaign reported 0.82% mean LOO error
+and R2 = 0.946, which flattered it: 22 of 30 cases sat in the flat region where
+predicting "about zero" is nearly always right. A focused campaign then added
+cases drawn only from the band the geometric screen (SCR-01) says can
+interfere.
 
-**The headline accuracy is real but misleading.** Leave-one-out over all 30
-cases gives 0.82% mean error and R2 = 0.946. Broken down by regime:
+That fixed the band it targeted and exposed a worse one:
 
 ```
-flat  (loss < 1%)      22 cases   LOO mean 0.16%   worst 0.60%
-transition (1 - 15%)    5 cases   LOO mean 2.25%   worst 5.21%
-steep (> 15%)           3 cases   LOO mean 3.31%   worst 4.60%
+regime                 n   LOO mean    worst      (30 cases, before)
+flat  (<1%)           22     0.41%     2.67%      0.16% / 0.60%
+transition (1-15%)     9     1.28%     2.27%      2.25% / 5.21%
+steep (>15%)          12     9.25%    48.77%      3.31% / 4.60%
 ```
 
-Twenty-two of thirty cases sit in the flat region, where predicting "about
-zero" is nearly always right. The aggregate is dominated by them. In the
-transition band -- the only region where the correction changes a design
-decision -- the error is 2 to 3 percentage points on values of 1 to 15%.
+The transition band improved as intended. The steep band got much worse --
+because the focused cases pushed the observed range from 24.9% to **66.3%**,
+sampling a regime the first campaign never reached. The earlier R2 was partly
+an artifact of a narrow range, which is worth remembering the next time a
+cross-validation score looks good.
 
-The baseline layout demonstrates it: the model predicts **+3.50% +- 1.69%**
-where an independent CFD run measured **+0.19%**. The response is nearly
-exponential in disc overlap (at ~140 mm arms: R = 56 mm gives 0.07%,
-R = 63.5 mm gives 0.19%, R = 86 mm gives 6.14%), and a GP interpolating that
-gap overshoots. Worse, its reported uncertainty does not cover the error, so
-the model is *overconfident* precisely where it is weakest.
+**Why it is nonetheless usable.** The optimiser does not need the magnitude of
+the download; it needs to know which layouts are unacceptable. Measured on all
+43 cases:
 
-**Why, and the fix.** The sampling was a one-shot Latin hypercube over the
-whole box, which spends most of its budget confirming that widely-spaced
-rotors do not interfere. `next_case()` -- uncertainty sampling, written in
-CAL-01 and still unused -- exists for exactly this: it would put the next
-batch in the transition band instead. About fifteen adaptively chosen cases
-should do more than the thirty already run.
+```
+pairwise ordering correct :  620/669 = 92.7%
+classification at 2%      :  95% correct, ZERO false-clears
+classification at 5%      :  98% correct, 1 false-clear
+```
 
-**Status:** the correction stays **off by default**. It is trustworthy for
-screening a layout as "clear of interference" (the flat region, 0.16% error)
-and not for quantifying interference once a design is in the steep band.
+It never wrongly clears a bad layout at the 2% threshold, and that asymmetry is
+the property that matters: a design flagged as interfering can be re-checked
+with CFD, while one wrongly cleared reaches a build.
+
+**So the model enters the optimiser as a constraint and not as a thrust
+correction.** Quoting a corrected thrust from it would imply an accuracy it
+does not have in the steep band. `installed_thrust()` remains available and
+remains clamped, but the recommended use is `correction()` as a penalty.
+
+**Still open, separately:** the solver failure rate. Four of twenty runs in the
+focused campaign died inside `simpleFoam`, and three more were dropped by the
+mesh-resolution guard -- 35% of the budget lost. Both are worth diagnosing
+before a larger campaign, and neither is a modelling problem.
 
 ### CAL-01 · A Gaussian process over four physical features — `FIXED`
 
