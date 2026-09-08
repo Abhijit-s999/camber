@@ -277,20 +277,54 @@ leaves this machine.
 **How to apply:** do not run `git remote add`, `gh repo create`, or `git push`.
 If a remote is ever wanted, it is created private, by Abhijit, deliberately.
 
-### LIC-01 · GPL-3.0 for code; catalogue licensing is separate — `FIXED` / `OPEN`
+### LIC-01 · GPL-3.0 for code; no source data is redistributed — `RESOLVED`
 
-**Value:** GPL-3.0-or-later for Camber. Catalogue redistribution: **OPEN**.
+**Value:** GPL-3.0-or-later for Camber. **No third-party measurements ship with
+it.** The catalogue is built on the user's machine from the originals;
+`camber catalogue fetch` downloads them, `camber catalogue sources` prints the
+terms, and `NOTICE` carries the citations.
 
-**Reasoning:** GPL matches the ecosystem Camber orchestrates (OpenFOAM is
-GPL-3.0; CalculiX and XFOIL are GPL-2.0) and removes any argument about whether
-tight OpenFOAM coupling creates a derivative work.
+**Checked, 2026-09-09, and the answer is the same for all four:**
 
-The code licence says nothing about whether third-party *measurements* may be
-redistributed. UIUC, APC and Tyto Robotics each set their own terms, and AI-08
-has us shipping a compiled database of them. Verify per source before any
-catalogue ships; where redistribution is not permitted, ship the build script
-and fetch on first run. ThrustCurve is the encouraging precedent — OpenRocket
-already redistributes a compiled database built from it.
+| source | terms as published | redistributable |
+|---|---|---|
+| UIUC Propeller Database | (c) 1994-2026 UIUC, citation requested, **no licence** | no |
+| APC performance files | no licence statement at all | no |
+| Tyto Robotics database | (c) 2026; terms of service silent on reuse | no |
+| ThrustCurve.org | licences declared **per file**, some restricted | no |
+
+None grants a redistribution right, and silence is not permission -- under
+copyright the default is reserved. Raw measurements may not be copyrightable
+everywhere, but a *compiled* database attracts protection for its selection and
+arrangement in most jurisdictions, and more strongly under a sweat-of-the-brow
+doctrine than under US law. So AI-08's original plan -- ship a signed, compiled
+catalogue -- cannot be done.
+
+**What ships instead is the builder.** That costs a network connection once, at
+setup, which is the single place AI-07's offline guarantee does not hold. The
+distinction that keeps it honest is setup versus runtime: fetching is a one-off
+step the user initiates, and everything afterwards is offline and
+deterministic.
+
+Three of the four have no bulk download, and Camber does **not** scrape them.
+It names the source and asks the user to gather it, because writing a scraper
+for data whose terms forbid redistribution would be doing indirectly what the
+licence forbids directly.
+
+**Enforced, not merely intended.** `tests/test_licensing.py` fails the build if
+any source data becomes tracked, if a large data blob appears, if a source is
+marked redistributable without someone checking, or if `NOTICE` drifts from the
+recorded terms. A licence obligation that depends on remembering is one a
+`git add -A` will eventually break.
+
+**What is safe to ship, and why:** `data/interference.json` holds 25 rows of
+four *derived* design descriptors -- blockage, spacing, offset, disc loading --
+fitted from Camber's own OpenFOAM runs. No third-party measurement is in it.
+`data/validation_summary.json` is aggregate error statistics.
+
+**Consequence: the repository can be made public whenever Abhijit wants**,
+which was the only thing this decision was blocking. It remains private by
+LIC-02, which is a separate choice and his alone.
 
 ### ENV-01 · Other projects are off-limits, including the shared OpenFOAM install — `FIXED`
 

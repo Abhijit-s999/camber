@@ -280,6 +280,33 @@ def cmd_ui(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_catalogue(args: argparse.Namespace) -> int:
+    """Fetch source datasets, or print their terms."""
+    from .catalogue.fetch import FetchError, fetch_all
+    from .catalogue.sources import SOURCES, notice, redistributable
+
+    if args.action == "sources":
+        print(notice())
+        print(f"{len(redistributable())} of {len(SOURCES)} may be redistributed "
+              f"with Camber.")
+        return 0
+
+    print("Fetching source datasets. None of these is redistributed with")
+    print("Camber; each is downloaded from its origin (see `catalogue sources`).\n")
+    failed = 0
+    for r in fetch_all(args.root, force=args.force):
+        name = SOURCES[r.source].name
+        if r.path is None:
+            print(f"  --  {name}\n      {r.message}")
+            failed += 1
+        else:
+            mark = ("verified" if r.verified else
+                    "UNVERIFIED" if r.verified is False else "no checksum")
+            print(f"  ok  {name}  {r.bytes/2**20:.1f} MiB  "
+                  f"{'cached' if r.cached else 'downloaded'}, {mark}")
+    return 1 if failed else 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(prog="camber", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -346,6 +373,12 @@ def main() -> int:
     ui.add_argument("--port", type=int, default=5173)
     ui.add_argument("--no-browser", action="store_true")
     ui.set_defaults(func=cmd_ui)
+
+    cat = sub.add_parser("catalogue", help="fetch component data, or show terms")
+    cat.add_argument("action", choices=["fetch", "sources"])
+    cat.add_argument("--root", type=Path, default=Path("data/raw"))
+    cat.add_argument("--force", action="store_true")
+    cat.set_defaults(func=cmd_catalogue)
 
     args = p.parse_args()
     return args.func(args)
