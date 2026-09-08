@@ -720,100 +720,48 @@ z = -14 mm with the camera top at -13.5 mm, half a millimetre of clearance. A
 assertion caught a modelling error in the input, which is the argument for
 making it fatal rather than a warning.
 
-### CAL-02 · Use it as a constraint, not as a correction — `RESOLVED`
+### CAL-02 · The loop closes; the correction is usable — `RESOLVED`
 
-**Value:** 43 usable cases across two campaigns. The interference model is
-wired in as a **penalty on the optimiser**, and is *not* used to correct
-predicted thrust.
+**Value:** 25 cases, all usable, zero failures. Leave-one-out mean error
+**1.34%**, R2 **0.952**, pairwise ordering **95.5%**, no false clears at a 2%
+threshold. `as_penalty()` remains the conservative interface; `correction()`
+and `installed_thrust()` are now defensible as quantitative outputs.
 
-**How it got here.** The first 30-case campaign reported 0.82% mean LOO error
-and R2 = 0.946, which flattered it: 22 of 30 cases sat in the flat region where
-predicting "about zero" is nearly always right. A focused campaign then added
-cases drawn only from the band the geometric screen (SCR-01) says can
-interfere.
-
-That fixed the band it targeted and exposed a worse one:
-
-```
-regime                 n   LOO mean    worst      (30 cases, before)
-flat  (<1%)           22     0.41%     2.67%      0.16% / 0.60%
-transition (1-15%)     9     1.28%     2.27%      2.25% / 5.21%
-steep (>15%)          12     9.25%    48.77%      3.31% / 4.60%
-```
-
-The transition band improved as intended. The steep band got much worse --
-because the focused cases pushed the observed range from 24.9% to **66.3%**,
-sampling a regime the first campaign never reached. The earlier R2 was partly
-an artifact of a narrow range, which is worth remembering the next time a
-cross-validation score looks good.
-
-**Why it is nonetheless usable.** The optimiser does not need the magnitude of
-the download; it needs to know which layouts are unacceptable. Measured on all
-43 cases:
+**The history matters more than the numbers.** This decision was resolved once
+before, on data that was wrong, and the earlier conclusion -- "accurate where it
+is boring, weak where it matters" -- was an artifact of CFD-08. Two-thirds of a
+cell of disc thickness produced 2-cell momentum sources, point-force jets, and
+downloads reported as 66-70%. Re-run with the meshing fixed:
 
 ```
-pairwise ordering correct :  620/669 = 92.7%
-classification at 2%      :  95% correct, ZERO false-clears
-classification at 5%      :  98% correct, 1 false-clear
+regime                   n   LOO mean    worst      contaminated
+flat  (<1%)              2     0.54%     0.84%      0.41% /  2.67%
+transition (1-15%)      15     0.90%     2.31%      1.28% /  2.27%
+steep (>15%)             8     2.35%     3.85%      9.25% / 48.77%
+aggregate                     1.34%                 3.06%
+R2                            0.952                 0.527
 ```
 
-It never wrongly clears a bad layout at the 2% threshold, and that asymmetry is
-the property that matters: a design flagged as interfering can be re-checked
-with CFD, while one wrongly cleared reaches a build.
+The steep band improved fourfold in mean and thirteenfold in worst case. The
+regime I had described as intrinsically hard to model was not hard; the
+measurements were broken. The true maximum download is **26%**, and the 66-70%
+figures never existed.
 
-**So the model enters the optimiser as a constraint and not as a thrust
-correction.** Quoting a corrected thrust from it would imply an accuracy it
-does not have in the steep band. `installed_thrust()` remains available and
-remains clamped, but the recommended use is `correction()` as a penalty.
+Three other things the fix bought: **zero solver failures** where the previous
+campaign lost 4 of 20 to floating-point exceptions, **zero cases dropped** by
+the mesh-resolution guard where 3 more had gone, and meshes of 137k to 379k
+cells instead of 37k to 90k.
 
-**Still open, separately:** the solver failure rate. Four of twenty runs in the
-focused campaign died inside `simpleFoam`, and three more were dropped by the
-mesh-resolution guard -- 35% of the budget lost. Both are worth diagnosing
-before a larger campaign, and neither is a modelling problem.
+**What this cost.** Two campaigns and roughly three hours of compute produced
+data that had to be discarded. The tell was visible early -- a cell count of
+exactly 37,034 recurring across three different geometries -- and I noted it
+twice before investigating. An identical derived quantity across different
+inputs is not a curiosity; it is proof that something ignored the input.
 
-### CFD-08 · The near-field cell must be finer than the disc is thick — `FIXED`
-
-**Value:** disc thickness `min(R/3, 1.6 x clearance)`, and near-field cell
-`min(0.25 R, thickness / 2)`.
-
-**Reasoning — this invalidated a third of two campaigns.** Disc thickness was
-`R/6` while the near-field cell was `R/4`, so the disc was **two thirds of a
-cell thick**. snappyHexMesh cannot refine a region thinner than the cells it is
-refining, so it silently left those regions alone. The consequence:
-
-```
-disc cellZone size          2 cells   (should be ~1300)
-total mesh                 37,034     (should be ~126,000)
-reported download          +70.6%     (actually +26.7%)
-```
-
-A momentum source spread over two cells is a point force, and a point force
-where a disc belongs produces a violent local jet: the affected cases reported
-download of 66-70%, and several tripped floating-point exceptions and died.
-That accounts for both failure modes -- 4 of 20 solver deaths and 3 more
-dropped by the mesh guard, 35% of a campaign budget.
-
-It hit large-radius layouts specifically, because both the cell size and the
-thickness scale with R, so the *ratio* was constant and wrong everywhere but
-only produced an unresolvable region once R was large enough for the near-field
-cell to exceed the disc.
-
-Two things made it hard to see. The tell was a cell count of exactly **37,034**
-recurring across three different geometries -- identical totals for different
-vehicles can only mean the mesh ignored the vehicle. And the affected cases did
-not look broken: they converged, produced smooth fields, and returned plausible
-large numbers in a regime where large numbers were expected.
-
-An earlier attempt at the fix capped the *background* cell to the disc
-thickness, which applied a 14 mm cell to the whole 2 m domain and asked for
-4 to 27 million cells. The background may stay coarse; it is the near-field
-cell, the one the refinement region actually has to grip, that must be finer
-than the disc.
-
-**Consequence for the data:** every large-radius case in both campaigns is
-suspect and the steep band of CAL-02 is contaminated. The conclusion that the
-model was weak above 15% download was drawn from bad measurements, not a hard
-regime.
+**Remaining honest limits.** 25 cases, one airframe family, hover only. The
+model has never seen forward flight, a different rotor count, or a body shape
+that is not a stack of boxes. It should be re-fitted, not extrapolated, for any
+of those.
 
 ### CAL-01 · A Gaussian process over four physical features — `FIXED`
 
