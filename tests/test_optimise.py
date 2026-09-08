@@ -164,3 +164,52 @@ class TestSearch:
         p = DesignProblem(vehicle, position_variables(vehicle))
         res = minimise(p, population=14, generations=5, seed=0)
         assert len(res.evaluations) == 14
+
+
+class TestInterferenceCorrection:
+    """The closed loop: CFD corrects L1, the optimiser searches corrected L1."""
+
+    @pytest.fixture
+    def model(self):
+        from pathlib import Path
+
+        from camber.calibrate import load_model
+        p = Path(__file__).resolve().parent.parent / "data" / "interference.json"
+        if not p.exists():
+            pytest.skip("no calibrated model")
+        return load_model(p)
+
+    def test_correction_reaches_the_objective(self, vehicle, model):
+        """It must change the answer, or it is not wired in."""
+        from camber.optimise.problem import battery_capacity_variable
+        var = [battery_capacity_variable(vehicle, "battery", 0.8, 3.0)]
+        plain = DesignProblem(vehicle, var)
+        corrected = DesignProblem(vehicle, var, interference=model)
+        x = [(v.lower + v.upper) / 2 for v in var]
+        assert "interference_loss" in corrected.evaluate(x).detail
+        assert plain.evaluate(x).detail.get("interference_loss", 0.0) == 0.0
+
+    def test_heavy_interference_is_penalised(self, vehicle, model):
+        """Above 15% download the layout is treated as a constraint breach."""
+        from camber.optimise.problem import arm_length_variable
+        var = [arm_length_variable(vehicle, 0.02, 0.30)]
+        p = DesignProblem(vehicle, var, interference=model)
+        tight = p.evaluate([0.02])     # rotors piled onto the airframe
+        wide = p.evaluate([0.30])
+        assert tight.detail.get("interference_loss", 0) >= \
+               wide.detail.get("interference_loss", 0)
+
+    def test_loss_is_clamped_to_a_physical_range(self, vehicle, model):
+        from camber.optimise.problem import arm_length_variable
+        p = DesignProblem(vehicle, [arm_length_variable(vehicle, 0.01, 0.5)],
+                          interference=model)
+        for x in (0.01, 0.05, 0.2, 0.5):
+            loss = p.evaluate([x]).detail.get("interference_loss", 0.0)
+            assert 0.0 <= loss <= 0.5, f"loss {loss} outside the clamp"
+
+    def test_model_round_trips_through_disk(self, tmp_path, vehicle, model):
+        from camber.calibrate import load_model, save_model
+        out = save_model(model, tmp_path / "m.json")
+        again = load_model(out)
+        assert again.correction(vehicle)[0] == pytest.approx(
+            model.correction(vehicle)[0])

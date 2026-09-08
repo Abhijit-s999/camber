@@ -141,6 +141,11 @@ class DesignProblem:
     #: rejected outright rather than penalised. See the module docstring.
     min_control_margin: float = 1e-3
     min_rank: int = 4
+    #: Calibrated interference correction (camber/calibrate.py). When present
+    #: the optimiser searches the *corrected* cheap model, which is the whole
+    #: point of the fidelity ladder (ARCH-01): CFD never evaluates a candidate,
+    #: it only teaches L1 where L1 is wrong.
+    interference: object | None = None
 
     @property
     def n_var(self) -> int:
@@ -204,7 +209,20 @@ class DesignProblem:
                 violation += amount
 
         mp = vehicle.mass_properties()
-        objectives = self._objectives(vehicle, hover, mp, c)
+
+        # Interference makes the rotors work harder for the same lift: to hold
+        # the aircraft up they must produce weight / (1 - loss) of *isolated*
+        # thrust, because the airframe gives some of it back as download. That
+        # extra thrust costs current, which costs endurance -- so the
+        # correction reaches the objective through the physics rather than
+        # being bolted on as a fudge factor.
+        loss = 0.0
+        if self.interference is not None:
+            loss, _ = self.interference.correction(vehicle)
+            loss = min(max(loss, 0.0), 0.5)
+            violation += max(0.0, loss - 0.15)   # heavy overlap is a bad design
+
+        objectives = self._objectives(vehicle, hover, mp, c, loss)
 
         return Evaluation(
             objectives=objectives,
@@ -213,16 +231,19 @@ class DesignProblem:
             reason="" if violation <= 1e-9 else
                    "; ".join(f"{k} {v:.3g}" for k, v in breaches.items()),
             detail={"mass_kg": mp.mass, "control_margin": c.margin,
+                    "interference_loss": loss,
                     "max_utilisation": float(np.nanmax(hover.utilisation))
                     if hover.utilisation is not None else float("nan")},
         )
 
-    def _objectives(self, vehicle, hover, mp, control) -> np.ndarray:
+    def _objectives(self, vehicle, hover, mp, control,
+                    interference_loss: float = 0.0) -> np.ndarray:
         obj = vehicle.mission.objective
 
         if obj is Objective.MAX_ENDURANCE:
             if self.endurance_model is not None:
-                endurance = self.endurance_model(vehicle)
+                endurance = self.endurance_model(
+                    vehicle, thrust_scale=1.0 / (1.0 - interference_loss))
             else:
                 # Without the physics tier wired in, fall back to stored energy
                 # per unit hover power estimated from momentum theory. Crude,
@@ -321,7 +342,7 @@ def physics_endurance_model(prop_key: str,
     blade = BladeDefinition.from_uiuc(reference, blades).resample(20)
     base_map = PropellerMap.from_blade(blade, name=prop_key)
 
-    def endurance(v: Vehicle) -> float:
+    def endurance(v: Vehicle, thrust_scale: float = 1.0) -> float:
         rotors = [t for t in v.thrusters if isinstance(t, Rotor)]
         packs = [b for b in v.all_bodies() if isinstance(b, Battery)]
         if not rotors or not packs:
@@ -340,7 +361,10 @@ def physics_endurance_model(prop_key: str,
                     resistance_ohm=0.018, max_c_rate=pack_spec.max_c_rate or 50.0)
 
         mp = v.mass_properties()
-        per_rotor = mp.mass * G / len(rotors)
+        # thrust_scale > 1 when interference is being accounted for: the
+        # rotors must make more isolated thrust than the weight, because the
+        # airframe takes some of it back.
+        per_rotor = mp.mass * G / len(rotors) * thrust_scale
         try:
             op = thrust_for(motor, scaled, pack, per_rotor, v_inf=0.0)
         except ValueError:

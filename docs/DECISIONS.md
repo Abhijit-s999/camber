@@ -323,6 +323,40 @@ correction to L1, fitted as a Gaussian process over the residual and folded back
 in — multi-fidelity trust-region model management. L3 is not optional: three of
 the four mission objectives are properties of a trajectory, not a hover point.
 
+### ARCH-04 · The ladder is closed: the optimiser searches corrected L1 — `FIXED`
+
+**Value:** `DesignProblem(interference=...)`. The calibrated model lives in
+`data/interference.json` and is loaded, not refitted.
+
+**Reasoning:** ARCH-01 has said since the plan that CFD corrects the cheap model
+and the optimiser searches the correction. Until now that was only half true --
+the model was measured, validated and never connected, so the optimiser had
+been searching an uncorrected L1 the whole time. A validated correction nobody
+consumes is a result, not a feature.
+
+The correction enters through the physics rather than as a fudge on the answer.
+Interference means the rotors must produce `weight / (1 - loss)` of *isolated*
+thrust to hold the aircraft up, because the airframe gives some of it back as
+download. That extra thrust costs current, which costs endurance. Above 15%
+loss the layout also takes a constraint penalty, since at that point the
+geometry is bad for reasons beyond efficiency.
+
+**What it changes, measured.** On the unconstrained design space, almost
+nothing -- both fronts converge on ~170 mm arms, where the discs clear the
+airframe entirely and interference is 0.05%. That is the right answer and worth
+stating plainly: given freedom, the optimiser avoids the interference regime
+without being told to.
+
+It bites when the envelope is constrained. Forced to arms of 85-125 mm:
+
+```
+uncorrected : arm 115.5 mm,  7.75 min,  interference not modelled
+corrected   : arm 124.7 mm,  8.02 min,  interference 0.76%
+```
+
+The corrected search pushes the arms to the edge of the allowed envelope to
+escape download. The uncorrected one has no reason to and stops short.
+
 ### ARCH-02 · Constraints are declarative data in the vehicle spec — `PROVISIONAL`
 
 **Value:** `fixed`, `relative(a, b, offset)`, `min_distance(a, b, d)`,

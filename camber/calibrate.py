@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 
@@ -286,6 +287,49 @@ class InterferenceModel:
             return list(np.argsort(-np.linalg.norm(spread, axis=1))[:n])
         stds = [self.correction(v)[1] for v in candidates]
         return list(np.argsort(-np.asarray(stds))[:n])
+
+
+def save_model(model: InterferenceModel, path: str | Path) -> Path:
+    """Persist a fitted model with the data it was fitted on.
+
+    The training inputs are stored alongside the hyperparameters rather than
+    just the fitted state, because a correction is only meaningful within the
+    region it was measured in, and a future reader needs to be able to ask
+    whether their design is inside it.
+    """
+    import json
+
+    path = Path(path)
+    if not model.fitted:
+        raise ValueError("refusing to save an unfitted model")
+    path.write_text(json.dumps({
+        "length_scale": model.gp.length_scale,
+        "variance": model.gp.variance,
+        "noise": model.gp.noise,
+        "sqrt_space": model._sqrt_space,
+        "n_observations": model.n_observations,
+        "x": np.asarray(model.gp.x_train).tolist(),
+        "y": np.asarray(model.gp.y_train).tolist(),
+        "x_mean": np.asarray(model.gp._mean).tolist(),
+        "x_scale": np.asarray(model.gp._scale).tolist(),
+    }, indent=2))
+    return path
+
+
+def load_model(path: str | Path) -> InterferenceModel:
+    """Rebuild a saved model. Refits from the stored data, which is cheap and
+    avoids serialising a Cholesky factor that may not survive a numpy change."""
+    import json
+
+    d = json.loads(Path(path).read_text())
+    gp = GaussianProcess(d["length_scale"], d["variance"], d["noise"])
+    xs = np.asarray(d["x"]) * np.asarray(d["x_scale"]) + np.asarray(d["x_mean"])
+    gp.fit(xs, np.asarray(d["y"]))
+    model = InterferenceModel(gp=gp)
+    model.fitted = True
+    model.n_observations = d["n_observations"]
+    model._sqrt_space = d["sqrt_space"]
+    return model
 
 
 def loss_fraction(isolated_total_n: float, body_force_z_n: float) -> float:
