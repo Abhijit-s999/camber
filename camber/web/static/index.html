@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camber</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground:   #0d1319;
+    --panel:    #151e26;
+    --panel-2:  #1c2832;
+    --rule:     #26333f;
+    --ink:      #dfe7ed;
+    --ink-soft: #93a5b4;
+    --ink-dim:  #61738233;
+    --accent:   #62aeea;
+    --good:     #6fc79a;
+    --warn:     #e8a05a;
+    --bad:      #e8735a;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --sans: "IBM Plex Sans", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); overflow: hidden;
+    display: grid; grid-template-columns: 1fr 22rem;
+  }
+  #view { position: relative; }
+  #view canvas { display: block; }
+
+  .hud {
+    position: absolute; left: 1rem; top: 1rem;
+    font-family: var(--mono); font-size: 0.72rem;
+    color: var(--ink-soft); letter-spacing: 0.04em; line-height: 1.7;
+    pointer-events: none; text-shadow: 0 1px 3px #000a;
+  }
+  .hud b { color: var(--ink); font-weight: 500; }
+  .hint {
+    position: absolute; left: 1rem; bottom: 1rem;
+    font-family: var(--mono); font-size: 0.7rem; color: var(--ink-soft);
+    pointer-events: none; text-shadow: 0 1px 3px #000a;
+  }
+
+  aside {
+    background: var(--panel); border-left: 1px solid var(--rule);
+    overflow-y: auto; padding: 1rem 1.1rem 3rem;
+  }
+  h1 {
+    font-size: 1.05rem; margin: 0 0 0.15rem; font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .sub {
+    font-family: var(--mono); font-size: 0.68rem; color: var(--ink-soft);
+    letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 1.1rem;
+  }
+  section { margin-bottom: 1.1rem; }
+  h2 {
+    font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink-soft); font-weight: 500;
+    margin: 0 0 0.45rem; padding-bottom: 0.3rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .row {
+    display: flex; justify-content: space-between; gap: 0.75rem;
+    font-size: 0.82rem; padding: 0.16rem 0;
+  }
+  .row span:first-child { color: var(--ink-soft); }
+  .row span:last-child {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+  }
+  .good { color: var(--good); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+
+  .part {
+    display: grid; grid-template-columns: 0.6rem 1fr auto; gap: 0.5rem;
+    align-items: center; padding: 0.3rem 0.4rem; border-radius: 3px;
+    font-size: 0.8rem; cursor: pointer; border: 1px solid transparent;
+  }
+  .part:hover { background: var(--panel-2); }
+  .part.sel { background: var(--panel-2); border-color: var(--accent); }
+  .swatch { width: 0.6rem; height: 0.6rem; border-radius: 2px; }
+  .part .num {
+    font-family: var(--mono); font-size: 0.72rem; color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .bar {
+    height: 3px; background: var(--rule); border-radius: 2px; overflow: hidden;
+    margin-top: 0.2rem;
+  }
+  .bar > i { display: block; height: 100%; background: var(--accent); }
+  .note {
+    font-size: 0.74rem; color: var(--ink-soft); line-height: 1.5;
+    margin-top: 0.35rem;
+  }
+  button {
+    font-family: var(--sans); font-size: 0.78rem; color: var(--ink);
+    background: var(--panel-2); border: 1px solid var(--rule);
+    border-radius: 3px; padding: 0.35rem 0.7rem; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  #status {
+    font-family: var(--mono); font-size: 0.7rem; color: var(--ink-soft);
+    margin-top: 0.5rem; min-height: 1rem;
+  }
+</style>
+</head>
+<body>
+  <div id="view">
+    <div class="hud" id="hud"></div>
+    <div class="hint">drag a part to move it &middot; scroll to zoom &middot; right-drag to pan</div>
+  </div>
+
+  <aside>
+    <h1 id="name">loading</h1>
+    <div class="sub" id="mission"></div>
+
+    <section>
+      <h2>Mass</h2>
+      <div class="row"><span>total</span><span id="mass"></span></div>
+      <div class="row"><span>centre of gravity</span><span id="cg"></span></div>
+      <div class="row"><span>inertia, diag</span><span id="inertia"></span></div>
+      <div class="row"><span>stored energy</span><span id="energy"></span></div>
+    </section>
+
+    <section>
+      <h2>Control</h2>
+      <div class="row"><span>rank</span><span id="rank"></span></div>
+      <div class="row"><span>commandable</span><span id="axes"></span></div>
+      <div class="row"><span>margin</span><span id="margin"></span></div>
+      <div class="note" id="underact"></div>
+    </section>
+
+    <section>
+      <h2>Hover</h2>
+      <div class="row"><span>weight</span><span id="weight"></span></div>
+      <div class="row"><span>peak rotor use</span><span id="util"></span></div>
+      <div id="rotors"></div>
+    </section>
+
+    <section>
+      <h2>Interference screen</h2>
+      <div class="row"><span>airframe under a disc</span><span id="overlap"></span></div>
+      <div class="row"><span>disc loading</span><span id="loading"></span></div>
+      <div class="note" id="screennote"></div>
+    </section>
+
+    <section>
+      <h2>Constraints</h2>
+      <div id="constraints"></div>
+    </section>
+
+    <section>
+      <h2>Parts</h2>
+      <div id="parts"></div>
+    </section>
+
+    <section>
+      <button id="save">Save as JSON</button>
+      <div id="status"></div>
+    </section>
+  </aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script>
+// ---------------------------------------------------------------------------
+// Frame conversion. Camber is NED: x forward, y right, z DOWN (GEOM-02).
+// three.js is y-up. Everything drawn goes through here exactly once, so the
+// viewport never disagrees with the engine about which way is down.
+// ---------------------------------------------------------------------------
+const toView   = ([x, y, z]) => new THREE.Vector3(y, -z, -x);
+const toModel  = (v) => [-v.z, v.x, -v.y];
+
+const COLOURS = {
+  body:    0x7d8f9e,
+  battery: 0x62aeea,
+  camera:  0xe8a05a,
+  frame:   0x4a5a68,
+  rotor:   0x6fc79a,
+};
+
+const view = document.getElementById('view');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d1319);
+scene.fog = new THREE.Fog(0x0d1319, 1.2, 4.0);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+camera.position.set(0.42, 0.30, 0.46);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+view.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 1.6);
+key.position.set(0.6, 1.0, 0.5); scene.add(key);
+const rim = new THREE.DirectionalLight(0x62aeea, 0.5);
+rim.position.set(-0.7, 0.2, -0.6); scene.add(rim);
+
+const grid = new THREE.GridHelper(1.0, 20, 0x2a3945, 0x1b262f);
+grid.position.y = -0.09; scene.add(grid);
+
+const parts = new THREE.Group(); scene.add(parts);
+const cgMarker = new THREE.Mesh(
+  new THREE.SphereGeometry(0.006, 20, 16),
+  new THREE.MeshBasicMaterial({ color: 0xffffff }));
+scene.add(cgMarker);
+
+// --- orbit / pan / zoom (hand-rolled: three's OrbitControls is a separate
+// --- file and this needs three behaviours, not thirty) ----------------------
+let target = new THREE.Vector3(0, 0, 0);
+let sph = { r: 0.72, theta: Math.PI * 0.25, phi: Math.PI * 0.32 };
+function place() {
+  camera.position.set(
+    target.x + sph.r * Math.sin(sph.phi) * Math.sin(sph.theta),
+    target.y + sph.r * Math.cos(sph.phi),
+    target.z + sph.r * Math.sin(sph.phi) * Math.cos(sph.theta));
+  camera.lookAt(target);
+}
+place();
+
+let mode = null, prev = { x: 0, y: 0 }, dragging = null, dragPlane = new THREE.Plane();
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+
+function pick(ev) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+  ndc.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+  ray.setFromCamera(ndc, camera);
+  return ray.intersectObjects(parts.children, true)[0];
+}
+
+renderer.domElement.addEventListener('pointerdown', (ev) => {
+  prev = { x: ev.clientX, y: ev.clientY };
+  if (ev.button === 2) { mode = 'pan'; return; }
+  const hit = pick(ev);
+  if (hit) {
+    const obj = hit.object.userData.name ? hit.object : hit.object.parent;
+    select(obj.userData.name);
+    dragging = obj;
+    // Drag in the horizontal plane through the part: vertical dragging is
+    // rarely what someone means and is impossible to aim with one mouse axis.
+    dragPlane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), obj.position);
+    mode = 'drag';
+  } else { mode = 'orbit'; }
+});
+
+addEventListener('pointermove', (ev) => {
+  if (!mode) return;
+  const dx = ev.clientX - prev.x, dy = ev.clientY - prev.y;
+  prev = { x: ev.clientX, y: ev.clientY };
+  if (mode === 'orbit') {
+    sph.theta -= dx * 0.006;
+    sph.phi = Math.max(0.08, Math.min(Math.PI - 0.08, sph.phi - dy * 0.006));
+    place();
+  } else if (mode === 'pan') {
+    const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+    target.addScaledVector(right, -dx * sph.r * 0.0015);
+    target.addScaledVector(up, dy * sph.r * 0.0015);
+    place();
+  } else if (mode === 'drag' && dragging) {
+    const r = renderer.domElement.getBoundingClientRect();
+    ndc.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+    ndc.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+    ray.setFromCamera(ndc, camera);
+    const at = new THREE.Vector3();
+    if (ray.ray.intersectPlane(dragPlane, at)) {
+      dragging.position.copy(at);
+      queueMove(dragging.userData.name, toModel(at));
+    }
+  }
+});
+addEventListener('pointerup', () => { mode = null; dragging = null; });
+renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+renderer.domElement.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  sph.r = Math.max(0.15, Math.min(3.0, sph.r * (1 + Math.sign(e.deltaY) * 0.1)));
+  place();
+}, { passive: false });
+
+// --- moves are throttled: the engine recomputes mass properties, control
+// --- allocation, hover trim and the screen on every one -----------------------
+let pending = null, inflight = false;
+function queueMove(name, position) { pending = { name, position }; flush(); }
+async function flush() {
+  if (inflight || !pending) return;
+  inflight = true;
+  const body = pending; pending = null;
+  try {
+    const res = await fetch('/api/move', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body) });
+    render(await res.json());
+  } catch (e) { status('move failed: ' + e.message); }
+  inflight = false;
+  if (pending) flush();
+}
+
+let selected = null;
+function select(name) { selected = name; drawParts(latest); }
+let latest = null;
+
+function fit(d) {
+  // Frame the vehicle rather than guessing a distance. A 5-inch quad and a
+  // heavy-lift airframe differ by an order of magnitude in span, and a fixed
+  // camera makes one of them a speck.
+  let reach = 0.05;
+  for (const t of d.thrusters)
+    reach = Math.max(reach, Math.hypot(t.position[0], t.position[1]) + t.radius);
+  for (const b of d.bodies) {
+    const s = b.shape;
+    const half = s.kind === 'box' ? Math.max(s.lx, s.ly) / 2
+               : s.kind === 'cylinder' ? Math.max(s.radius, s.length / 2)
+               : s.radius || 0;
+    reach = Math.max(reach, Math.hypot(b.position[0], b.position[1]) + half);
+  }
+  sph.r = reach * 3.4;
+  camera.near = reach / 50; camera.far = reach * 60;
+  camera.updateProjectionMatrix();
+  scene.fog.near = reach * 4; scene.fog.far = reach * 14;
+  grid.position.y = -reach * 0.75;
+  grid.scale.setScalar(reach * 4.5);
+  place();
+}
+
+function build(d) {
+  parts.clear();
+  for (const b of d.bodies) {
+    const s = b.shape;
+    let geo;
+    if (s.kind === 'box') geo = new THREE.BoxGeometry(s.ly, s.lz, s.lx);
+    else if (s.kind === 'cylinder') geo = new THREE.CylinderGeometry(s.radius, s.radius, s.length, 24);
+    else if (s.kind === 'sphere') geo = new THREE.SphereGeometry(s.radius, 20, 16);
+    else geo = new THREE.SphereGeometry(0.004, 8, 6);
+    const colour = b.frame ? COLOURS.frame : COLOURS[b.kind];
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+      color: colour, roughness: 0.55, metalness: 0.1,
+      transparent: true, opacity: b.frame ? 0.55 : 0.92 }));
+    mesh.position.copy(toView(b.position));
+    mesh.userData.name = b.name;
+    parts.add(mesh);
+  }
+  for (const t of d.thrusters) {
+    const g = new THREE.Group();
+    const disc = new THREE.Mesh(
+      new THREE.CylinderGeometry(t.radius, t.radius, 0.002, 40),
+      new THREE.MeshStandardMaterial({ color: COLOURS.rotor, roughness: 0.4,
+        transparent: true, opacity: 0.30, side: THREE.DoubleSide }));
+    g.add(disc);
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(t.radius, 0.0016, 8, 48),
+      new THREE.MeshBasicMaterial({ color: COLOURS.rotor }));
+    ring.rotation.x = Math.PI / 2; g.add(ring);
+    g.position.copy(toView(t.position));
+    g.userData.name = t.name;
+    parts.add(g);
+  }
+}
+
+function fmt(v, n = 3) { return Number(v).toFixed(n); }
+function status(t) { document.getElementById('status').textContent = t; }
+
+function render(d) {
+  latest = d;
+  if (parts.children.length !== d.bodies.length + d.thrusters.length) build(d);
+  else {
+    let i = 0;
+    for (const b of d.bodies) parts.children[i++].position.copy(toView(b.position));
+    for (const t of d.thrusters) parts.children[i++].position.copy(toView(t.position));
+  }
+  cgMarker.position.copy(toView(d.mass.cg));
+
+  document.getElementById('name').textContent = d.name;
+  document.getElementById('mission').textContent = d.mission.replace(/_/g, ' ');
+  document.getElementById('mass').textContent = (d.mass.total_kg * 1000).toFixed(1) + ' g';
+  document.getElementById('cg').textContent =
+    d.mass.cg.map(v => (v * 1000).toFixed(1)).join(', ') + ' mm';
+  document.getElementById('inertia').textContent =
+    d.mass.inertia_diag.map(v => v.toExponential(2)).join(' ');
+  document.getElementById('energy').textContent = fmt(d.mass.energy_wh, 1) + ' Wh';
+
+  const rank = document.getElementById('rank');
+  rank.textContent = d.control.rank + '/6';
+  rank.className = d.control.rank >= 4 ? 'good' : 'bad';
+  document.getElementById('axes').textContent = d.control.commandable.join(' ') || 'none';
+  document.getElementById('margin').textContent = fmt(d.control.margin, 4);
+  document.getElementById('underact').textContent = d.control.uncommandable.length
+    ? 'cannot command ' + d.control.uncommandable.join(', ')
+      + ' — underactuated, so it must tilt to translate'
+    : '';
+
+  document.getElementById('weight').textContent = fmt(d.hover.weight_n, 3) + ' N';
+  const util = document.getElementById('util');
+  if (d.hover.feasible && d.hover.max_utilisation != null) {
+    util.textContent = (d.hover.max_utilisation * 100).toFixed(1) + ' %';
+    util.className = d.hover.max_utilisation > 0.8 ? 'warn' : 'good';
+  } else { util.textContent = '—'; util.className = 'bad'; }
+
+  const rotors = document.getElementById('rotors');
+  rotors.innerHTML = '';
+  for (const t of d.thrusters) {
+    const el = document.createElement('div');
+    el.className = 'row';
+    const u = t.utilisation == null ? null : t.utilisation;
+    el.innerHTML = `<span>${t.name}</span><span>${
+      t.thrust == null ? '—' : fmt(t.thrust, 3) + ' N'}${
+      u == null ? '' : '  ' + (u * 100).toFixed(0) + '%'}</span>`;
+    rotors.appendChild(el);
+    if (u != null) {
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      bar.innerHTML = `<i style="width:${Math.min(100, u * 100).toFixed(0)}%"></i>`;
+      rotors.appendChild(bar);
+    }
+  }
+
+  document.getElementById('overlap').textContent = (d.screen.overlap * 100).toFixed(1) + ' %';
+  document.getElementById('loading').textContent = fmt(d.screen.disc_loading, 0) + ' N/m²';
+  document.getElementById('screennote').textContent = d.screen.worth_solving
+    ? 'enough airframe sits under the discs that interference is likely — this layout is worth a CFD run'
+    : d.screen.reason;
+
+  const cons = document.getElementById('constraints');
+  cons.innerHTML = '';
+  for (const c of d.constraints) {
+    const el = document.createElement('div');
+    el.className = 'row';
+    el.innerHTML = `<span>${c.type}</span><span class="${c.ok ? 'good' : 'bad'}">${
+      c.ok ? 'ok' : (c.violation == null ? 'error' : fmt(c.violation, 4))}</span>`;
+    cons.appendChild(el);
+  }
+
+  drawParts(d);
+  document.getElementById('hud').innerHTML =
+    `<b>${(d.mass.total_kg * 1000).toFixed(0)} g</b> &middot; rank <b>${d.control.rank}/6</b>`
+    + ` &middot; hover <b>${d.hover.feasible ? 'yes' : 'no'}</b>`
+    + ` &middot; overlap <b>${(d.screen.overlap * 100).toFixed(1)}%</b>`;
+}
+
+function drawParts(d) {
+  if (!d) return;
+  const list = document.getElementById('parts');
+  list.innerHTML = '';
+  const all = [
+    ...d.bodies.map(b => ({ n: b.name, c: b.frame ? COLOURS.frame : COLOURS[b.kind], m: b.mass })),
+    ...d.thrusters.map(t => ({ n: t.name, c: COLOURS.rotor, m: null })),
+  ];
+  for (const p of all) {
+    const el = document.createElement('div');
+    el.className = 'part' + (p.n === selected ? ' sel' : '');
+    el.innerHTML = `<span class="swatch" style="background:#${p.c.toString(16).padStart(6, '0')}"></span>`
+      + `<span>${p.n}</span>`
+      + `<span class="num">${p.m == null ? '' : (p.m * 1000).toFixed(1) + ' g'}</span>`;
+    el.onclick = () => select(p.n);
+    list.appendChild(el);
+  }
+}
+
+document.getElementById('save').onclick = async () => {
+  const res = await fetch('/api/save', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: 'vehicle.json' }) });
+  const d = await res.json();
+  status(d.saved ? 'saved ' + d.saved : 'save failed');
+};
+
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+(function loop() { requestAnimationFrame(loop); renderer.render(scene, camera); })();
+
+fetch('/api/vehicle').then(r => r.json()).then(d => { render(d); fit(d); })
+  .catch(e => status('could not load: ' + e.message));
+</script>
+</body>
+</html>

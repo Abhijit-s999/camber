@@ -269,6 +269,17 @@ def cmd_optimise(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ui(args: argparse.Namespace) -> int:
+    """Serve the drag-to-place viewport on loopback."""
+    from .web.server import serve
+    try:
+        serve(args.spec, port=args.port, open_browser=not args.no_browser)
+    except OSError as exc:
+        print(f"could not start the server: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(prog="camber", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -329,6 +340,12 @@ def main() -> int:
     opt.add_argument("--capacity-max", type=float, default=4.0)
     opt.add_argument("--verbose", action="store_true")
     opt.set_defaults(func=cmd_optimise)
+
+    ui = sub.add_parser("ui", help="3D viewport: drag payloads and rotors")
+    ui.add_argument("spec", type=Path)
+    ui.add_argument("--port", type=int, default=5173)
+    ui.add_argument("--no-browser", action="store_true")
+    ui.set_defaults(func=cmd_ui)
 
     args = p.parse_args()
     return args.func(args)

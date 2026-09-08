@@ -968,3 +968,49 @@ blade-resolved AMI certainly would.
 FP32 is worth noting for that eventual work: on this card it halves wall clock
 for a given cell count (3.4 ms against 7.0 ms on the triad) and doubles the
 capacity ceiling, and screening-quality accuracy does not need FP64.
+
+---
+
+## 10. The viewport (P6)
+
+### UI-01 · The browser owns the view and nothing else — `FIXED`
+
+**Value:** every number the panel displays is computed by the same Python the
+CLI and the optimiser call. The JavaScript positions meshes and formats text.
+
+**Reasoning:** the usual way a GUI and its engine drift apart is that the GUI
+grows a convenient local copy of some calculation -- a mass sum here, a centre
+of gravity there -- and the two answers diverge quietly until someone trusts
+the wrong one. There is no second implementation of mass properties in
+JavaScript, and a test asserts the payload matches `mass_properties()`,
+`controllability()` and `solve_hover()` exactly.
+
+The cost is a round trip per drag. It is worth paying: dragging a rotor
+outboard re-solves hover trim, the allocation matrix and the interference
+screen, and watching those three numbers move together is the entire point of
+the tool.
+
+### UI-02 · Standard library only on the server side — `FIXED`
+
+**Value:** `http.server`, bound to loopback. No Flask, no FastAPI.
+
+**Reasoning:** AI-07 says Camber must work with nothing installed, and a GUI is
+exactly where a framework dependency creeps in and quietly becomes mandatory.
+A single user on one machine does not need routing, templating or an ASGI
+server. three.js from a CDN is the only external piece, and it is confined to
+the browser.
+
+There is no authentication or CSRF protection, deliberately: the server binds
+to 127.0.0.1 and refuses to bind elsewhere, so those would be theatre around a
+tool that never leaves the machine.
+
+### UI-03 · Dragging happens in the horizontal plane — `PROVISIONAL`
+
+**Reasoning:** a pointer supplies two numbers and a position needs three, so
+something has to be assumed. Height is the right thing to fix: payload layout
+is overwhelmingly a plan-view problem, and vertical dragging is both rarely
+intended and impossible to aim. Height stays editable in the spec file.
+
+The camera frames itself from the vehicle's own span rather than a fixed
+distance, because a 5-inch quad and a heavy-lift airframe differ by an order of
+magnitude and a fixed camera renders one of them as a speck.
