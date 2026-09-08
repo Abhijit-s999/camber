@@ -192,20 +192,30 @@ def _filter_matrix(domain: Domain, radius: float) -> sp.csr_matrix:
     """
     nx, ny, nz = domain.shape
     r = int(math.ceil(radius)) - 1
-    rows, cols, vals = [], [], []
     idx = np.arange(domain.n_elements).reshape(nx, ny, nz)
-    for i in range(nx):
-        for j in range(ny):
-            for k in range(nz):
-                e = idx[i, j, k]
-                for ii in range(max(i-r, 0), min(i+r+1, nx)):
-                    for jj in range(max(j-r, 0), min(j+r+1, ny)):
-                        for kk in range(max(k-r, 0), min(k+r+1, nz)):
-                            w = radius - math.dist((i, j, k), (ii, jj, kk))
-                            if w > 0:
-                                rows.append(e); cols.append(idx[ii, jj, kk])
-                                vals.append(w)
-    H = sp.coo_matrix((vals, (rows, cols)),
+
+    # One vectorised pass per offset rather than a quadruple Python loop over
+    # every (element, neighbour) pair. The frame domain has 33,124 elements and
+    # a radius-2.4 stencil reaches about a hundred of them each, so the loop
+    # form is three million Python iterations of `math.dist` before the first
+    # solve; there are only a hundred distinct offsets.
+    rows, cols, vals = [], [], []
+    for di in range(-r, r + 1):
+        for dj in range(-r, r + 1):
+            for dk in range(-r, r + 1):
+                w = radius - math.sqrt(di*di + dj*dj + dk*dk)
+                if w <= 0:
+                    continue
+                a = idx[max(di, 0):nx + min(di, 0),
+                        max(dj, 0):ny + min(dj, 0),
+                        max(dk, 0):nz + min(dk, 0)]
+                b = idx[max(-di, 0):nx + min(-di, 0),
+                        max(-dj, 0):ny + min(-dj, 0),
+                        max(-dk, 0):nz + min(-dk, 0)]
+                rows.append(a.ravel()); cols.append(b.ravel())
+                vals.append(np.full(a.size, w))
+    H = sp.coo_matrix((np.concatenate(vals),
+                       (np.concatenate(rows), np.concatenate(cols))),
                       shape=(domain.n_elements, domain.n_elements)).tocsr()
     return H
 

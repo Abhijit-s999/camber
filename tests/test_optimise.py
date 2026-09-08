@@ -274,3 +274,32 @@ class TestMaxSpeedObjectives:
         big = problem.evaluate([2.8]).objectives
         assert -big[1] > -small[1], "more energy must mean more endurance"
         assert -big[0] < -small[0], "more mass must mean less thrust margin"
+
+
+class TestObjectiveColumns:
+    """Every objective a mission can produce must be printable.
+
+    OPT-07 changed what MAX_SPEED optimises and the front table went on
+    printing thrust margin under a "mass" heading, in grams, negative. The
+    table is now keyed by `objective_names`, and this is what keeps the two
+    from drifting apart again.
+    """
+
+    def test_every_mission_objective_has_a_column(self):
+        from camber.cli import _OBJECTIVE_COLUMNS
+        from camber.spec.vehicle import Objective
+
+        for objective in Objective:
+            spec = {**MINIMAL, "mission": {"objective": objective.value}}
+            p = DesignProblem(io.from_dict(spec), [])
+            for name in p.objective_names:
+                assert name in _OBJECTIVE_COLUMNS, (
+                    f"{objective.value} produces {name!r}, which the front "
+                    f"table cannot render")
+
+    def test_the_formatters_run(self):
+        from camber.cli import _OBJECTIVE_COLUMNS
+
+        for header, width, fmt in _OBJECTIVE_COLUMNS.values():
+            assert isinstance(fmt(-123.4), str)
+            assert len(header) <= width

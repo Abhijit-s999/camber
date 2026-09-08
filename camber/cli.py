@@ -199,6 +199,19 @@ def cmd_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+#: How to render each objective on the front. Keyed by the names
+#: `DesignProblem.objective_names` returns, because hardcoding "endurance" and
+#: "mass" here meant that changing the MAX_SPEED objective pair (OPT-07) left
+#: the table printing thrust margin under a "mass" heading, in grams, negative.
+_OBJECTIVE_COLUMNS = {
+    "-endurance_s":   ("endurance", 10, lambda v: f"{-v / 60:.2f}m"),
+    "mass_kg":        ("mass", 9, lambda v: f"{v * 1000:.1f}g"),
+    "-thrust_margin": ("T:W", 8, lambda v: f"{-v:.2f}"),
+    "time_to_target_s": ("time", 9, lambda v: f"{v:.1f}s"),
+    "min_stable_speed": ("min speed", 10, lambda v: f"{v:.2f}m/s"),
+}
+
+
 def cmd_optimise(args: argparse.Namespace) -> int:
     """Search the design space and print the Pareto front."""
     import time
@@ -253,19 +266,36 @@ def cmd_optimise(args: argparse.Namespace) -> int:
     names = [d.name for d in problem.variables]
     interesting = [n for n in names
                    if n.endswith(("capacity_ah", "radius", "length"))]
-    header = f"{'endurance':>10} {'mass':>8}  " + "  ".join(f"{n:>16}" for n in interesting)
+    cols = [_OBJECTIVE_COLUMNS.get(n, (n, 10, lambda v: f"{v:.4g}"))
+            for n in problem.objective_names]
+    header = "  ".join(f"{c[0]:>{c[1]}}" for c in cols) + "  " \
+        + "  ".join(f"{n:>16}" for n in interesting)
     print(header)
     print("-" * len(header))
     seen = set()
     for obj, x in sorted(zip(result.front_objectives, result.front_x),
-                         key=lambda t: t[0][1]):
-        key = (round(-obj[0] / 60, 2), round(obj[1] * 1000))
+                         key=lambda t: tuple(t[0])):
+        cells = [c[2](v) for c, v in zip(cols, obj)]
+        key = tuple(cells)
         if key in seen:
             continue
         seen.add(key)
         d = dict(zip(names, x))
-        cells = "  ".join(f"{d[n]:16.4f}" for n in interesting)
-        print(f"{-obj[0]/60:9.2f}m {obj[1]*1000:7.1f}g  {cells}")
+        print("  ".join(f"{t:>{c[1]}}" for c, t in zip(cols, cells)) + "  "
+              + "  ".join(f"{d[n]:16.4f}" for n in interesting))
+
+    if args.out:
+        # A front is not an answer until one point on it can be handed to the
+        # next stage. Without this the chain breaks at the CLI: the optimiser
+        # prints a table and `camber generate` needs a spec file.
+        best = min(range(len(result.front_objectives)),
+                   key=lambda i: result.front_objectives[i][0])
+        chosen = problem.build(result.front_x[best])
+        chosen.name = f"{v.name}_optimised"
+        io.save_json(chosen, args.out)
+        obj = result.front_objectives[best]
+        print(f"\nwrote {args.out}: best on {problem.objective_names[0]}, "
+              + ", ".join(f"{c[0]} {c[2](o)}" for c, o in zip(cols, obj)))
     return 0
 
 
@@ -431,6 +461,9 @@ def main() -> int:
     opt.add_argument("--capacity-min", type=float, default=0.8)
     opt.add_argument("--capacity-max", type=float, default=4.0)
     opt.add_argument("--verbose", action="store_true")
+    opt.add_argument("--out", type=Path,
+                     help="write the front's best design on the primary "
+                          "objective, as a spec `camber generate` can read")
     opt.set_defaults(func=cmd_optimise)
 
     ui = sub.add_parser("ui", help="3D viewport: drag payloads and rotors")
