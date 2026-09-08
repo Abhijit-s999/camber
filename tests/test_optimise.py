@@ -213,3 +213,64 @@ class TestInterferenceCorrection:
         again = load_model(out)
         assert again.correction(vehicle)[0] == pytest.approx(
             model.correction(vehicle)[0])
+
+
+class TestMaxSpeedObjectives:
+    """MAX_SPEED pairs thrust margin against endurance, not against mass.
+
+    Installed thrust is fixed by the chosen motors, so ``thrust_margin`` is
+    ``T / (m g)`` -- a function of mass alone. Pairing it with ``mass_kg``
+    states the same preference twice: every design that is lighter is also
+    higher-margin, nothing ever dominates anything on one axis and loses on
+    the other, and the "Pareto front" is one point. This is the same
+    degeneracy `battery_capacity_variable` was written to cure for endurance.
+    """
+
+    @pytest.fixture
+    def problem(self):
+        spec = {**MINIMAL, "mission": {"objective": "max_speed"}}
+        v = io.from_dict(spec)
+        return DesignProblem(
+            v, [battery_capacity_variable(v, "battery", 0.5, 3.0)])
+
+    def _front_size(self, points):
+        """Non-dominated count, minimising both columns."""
+        n = 0
+        for i, a in enumerate(points):
+            if not any(all(b <= a) and any(b < a)
+                       for j, b in enumerate(points) if i != j):
+                n += 1
+        return n
+
+    def test_the_objective_names_say_so(self, problem):
+        assert problem.objective_names == ["-thrust_margin", "-endurance_s"]
+
+    def test_margin_and_mass_would_be_the_same_axis(self, problem):
+        """The degeneracy, demonstrated rather than asserted."""
+        rows = []
+        for ah in np.linspace(0.5, 3.0, 8):
+            e = problem.evaluate([ah])
+            assert e.feasible
+            rows.append((-e.objectives[0], problem.build([ah])
+                         .mass_properties().mass))
+        margins, masses = zip(*rows)
+        # Heavier is always lower-margin: a single monotone axis.
+        assert all(m1 > m2 for m1, m2 in zip(margins, margins[1:]))
+        assert all(k1 < k2 for k1, k2 in zip(masses, masses[1:]))
+        collapsed = self._front_size(
+            [np.array([-m, k]) for m, k in rows])
+        assert collapsed == 1, "the old pairing should admit exactly one point"
+
+    def test_margin_against_endurance_is_a_real_trade(self, problem):
+        points = [problem.evaluate([ah]).objectives
+                  for ah in np.linspace(0.5, 3.0, 8)]
+        assert all(np.isfinite(p).all() for p in points)
+        assert self._front_size(points) > 1, (
+            "a bigger pack must buy endurance and cost acceleration; if the "
+            "front is still one point the objectives are still colinear")
+
+    def test_a_bigger_pack_flies_longer_and_accelerates_worse(self, problem):
+        small = problem.evaluate([0.6]).objectives
+        big = problem.evaluate([2.8]).objectives
+        assert -big[1] > -small[1], "more energy must mean more endurance"
+        assert -big[0] < -small[0], "more mass must mean less thrust margin"

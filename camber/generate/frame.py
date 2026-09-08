@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 
 from ..manufacture import Feature, Process
 from ..spec.shapes import Box, Cylinder
+from ..spec.rotation import Rotation
 from ..spec.units import Vec3
 from ..spec.vehicle import Body, Placement, Rotor, Vehicle
 from ..structure import (
@@ -144,10 +145,17 @@ def generate_frame(vehicle: Vehicle, spec: FrameSpec | None = None,
         midpoint = Vec3(r.position.x * (1 - arm_length / (2 * radial)),
                         r.position.y * (1 - arm_length / (2 * radial)),
                         r.position.z / 2.0)
+        # A Cylinder's axis is its local z, which in this frame points DOWN.
+        # An arm that is not rotated is therefore a vertical post rather than a
+        # horizontal boom -- visibly wrong, and wrong in the inertia tensor
+        # too, since a rod along z contributes nothing to yaw inertia while a
+        # radial one contributes most of it.
+        direction = Vec3(r.position.x / radial, r.position.y / radial, 0.0)
         arms.append(Body(
             f"arm_{r.name}", mass=per_arm,
             shape=Cylinder(radius=section.a / 2, length=arm_length),
-            placement=Placement(midpoint),
+            placement=Placement(midpoint,
+                                Rotation.aligning(Vec3(0.0, 0.0, 1.0), direction)),
         ))
 
     features = [

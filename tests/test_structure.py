@@ -217,3 +217,73 @@ class TestGeneratedFrame:
         f = generate_frame(vehicle)
         assert f.governing_case in {"hover", "manoeuvre", "landing"}
         assert f.margin >= 1.0
+
+
+class TestArmOrientation:
+    """A Cylinder's axis is its local z, which in this frame points DOWN.
+
+    Generated arms were left unrotated and came out as vertical posts. It was
+    visible the moment the frame was rendered, and it was wrong in the physics
+    too: a rod along z contributes almost nothing to yaw inertia, while a
+    radial one contributes most of it.
+    """
+
+    @pytest.fixture
+    def vehicle(self):
+        return io.load(__import__("pathlib").Path(__file__).resolve().parent.parent
+                       / "examples" / "quad5.toml")
+
+    def test_arms_lie_in_the_horizontal_plane(self, vehicle):
+        from camber.spec.units import Vec3
+        for arm in generate_frame(vehicle).arms:
+            axis = arm.placement.rotation.apply(Vec3(0.0, 0.0, 1.0))
+            assert abs(axis.z) < 1e-6, f"{arm.name} is a vertical post"
+
+    def test_each_arm_points_at_its_rotor(self, vehicle):
+        import math
+
+        from camber.spec.units import Vec3
+        f = generate_frame(vehicle)
+        for arm in f.arms:
+            rotor = vehicle.thruster(arm.name.removeprefix("arm_"))
+            axis = arm.placement.rotation.apply(Vec3(0.0, 0.0, 1.0))
+            radial = math.hypot(rotor.position.x, rotor.position.y)
+            want = (rotor.position.x / radial, rotor.position.y / radial)
+            assert axis.x == pytest.approx(want[0], abs=1e-6)
+            assert axis.y == pytest.approx(want[1], abs=1e-6)
+
+    def test_orientation_changes_the_inertia_tensor(self, vehicle):
+        """Proof the bug was physical, not cosmetic.
+
+        The arm positions are identical either way, so the parallel-axis terms
+        cancel and the whole difference is the arms' own tensors. A cylinder
+        lying radially presents ``m(3R^2 + L^2)/12`` to the yaw axis; standing
+        vertically it presents ``mR^2/2``. So the difference is exactly
+        ``sum m(L^2 - 3R^2)/12`` and there is no reason to assert anything
+        vaguer. An earlier version of this test demanded the difference exceed
+        half a percent of Izz, which it does not -- the arms are 1.9 g each and
+        the real figure is 0.23%. That threshold was invented, and inventing a
+        threshold is how a correct implementation gets "disproved".
+        """
+        import copy
+
+        import numpy as np
+
+        from camber.spec.vehicle import Placement
+        correct = copy.deepcopy(vehicle)
+        correct.frame.members = generate_frame(correct).members
+        broken = copy.deepcopy(vehicle)
+        members = generate_frame(broken).members
+        for b in members:
+            if b.name.startswith("arm_"):
+                b.placement = Placement(b.position)      # un-rotate: vertical
+        broken.frame.members = members
+
+        arms = [b for b in correct.frame.members if b.name.startswith("arm_")]
+        expected = sum(a.mass * (a.shape.length ** 2 - 3 * a.shape.radius ** 2)
+                       / 12.0 for a in arms)
+        assert expected > 0
+
+        iz_ok = np.diag(correct.mass_properties().inertia)[2]
+        iz_bad = np.diag(broken.mass_properties().inertia)[2]
+        assert iz_ok - iz_bad == pytest.approx(expected, rel=1e-9)

@@ -307,6 +307,71 @@ def cmd_catalogue(args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
+def cmd_generate(args: argparse.Namespace) -> int:
+    """Grow an airframe by topology optimisation, and mesh it.
+
+    This is the generative path: nothing here decides that a frame is a plate
+    and four tubes. It states where load enters, where the structure is held,
+    and how much carbon there is to spend, and the FEA decides the rest.
+    """
+    import time
+
+    from .generate import topology
+
+    try:
+        v = io.load(args.spec)
+    except io.SpecError as exc:
+        print(f"spec error: {exc}", file=sys.stderr)
+        return 2
+
+    problem = topology.frame_problem(
+        v, element=args.element, thickness=args.thickness,
+        target_mass=args.mass / 1000.0, material_density=args.density)
+    d = problem.domain
+    print(f"domain {d.nx}x{d.ny}x{d.nz} = {d.n_elements:,} elements "
+          f"at {d.element * 1000:.1f} mm, volume fraction "
+          f"{problem.volume_fraction:.4f}")
+    print(f"{len(problem.fixed):,} fixed dof, "
+          f"{int(np.count_nonzero(problem.load)):,} loaded dof")
+
+    t0 = time.time()
+    result = topology.optimise(
+        problem, iterations=args.iterations, filter_radius=args.filter,
+        penalty_start=args.penalty if args.no_continuation else 1.0,
+        penalty=args.penalty, verbose=args.verbose)
+    seconds = time.time() - t0
+
+    c0, c1 = result.compliance_history[0], result.compliance_history[-1]
+    islands, connected = result.connectivity()
+    grey = float(((result.density > 0.05) & (result.density < 0.95)).mean())
+    print(f"\n{result.iterations} iterations in {seconds:.0f} s, "
+          f"converged={result.converged}")
+    print(f"  compliance   {c0:.3e} -> {c1:.3e}  ({c0 / c1:.0f}x stiffer)")
+    print(f"  grey         {grey:.1%} of elements")
+    print(f"  islands      {islands}, largest holds {connected:.1%} "
+          f"of the material")
+    if connected < 0.95:
+        print("  WARNING: material is stranded in islands that carry no load; "
+              "the meshed part will weigh less than the target", file=sys.stderr)
+
+    if args.density_out:
+        np.save(args.density_out, result.density)
+        print(f"  wrote {args.density_out}")
+
+    try:
+        mesh = topology.to_mesh(result, d)
+    except ImportError as exc:
+        print(f"meshing needs scikit-image and trimesh: {exc}", file=sys.stderr)
+        return 3
+    mass = mesh.volume * args.density
+    print(f"  mesh         {len(mesh.faces):,} facets, "
+          f"watertight={mesh.is_watertight}, {mesh.body_count} body, "
+          f"{mesh.volume * 1e6:.2f} cm^3 = {mass * 1000:.1f} g")
+    mesh.export(args.out)
+    print(f"  wrote {args.out}")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(prog="camber", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -373,6 +438,29 @@ def main() -> int:
     ui.add_argument("--port", type=int, default=5173)
     ui.add_argument("--no-browser", action="store_true")
     ui.set_defaults(func=cmd_ui)
+
+    gen = sub.add_parser("generate",
+                         help="grow a frame by topology optimisation")
+    gen.add_argument("spec", type=Path)
+    gen.add_argument("--out", type=Path, default=Path("frame.stl"))
+    gen.add_argument("--mass", type=float, default=40.0,
+                     help="structural mass budget, grams (default 40)")
+    gen.add_argument("--element", type=float, default=0.003,
+                     help="element edge, metres (default 0.003)")
+    gen.add_argument("--thickness", type=float, default=0.012,
+                     help="design domain thickness, metres")
+    gen.add_argument("--density", type=float, default=1550.0,
+                     help="material density, kg/m^3 (default: carbon)")
+    gen.add_argument("--iterations", type=int, default=80)
+    gen.add_argument("--filter", type=float, default=2.4,
+                     help="sensitivity filter radius, elements")
+    gen.add_argument("--penalty", type=float, default=3.0)
+    gen.add_argument("--no-continuation", action="store_true",
+                     help="start at the final penalty instead of ramping")
+    gen.add_argument("--density-out", type=Path,
+                     help="save the raw density field as .npy")
+    gen.add_argument("--verbose", action="store_true")
+    gen.set_defaults(func=cmd_generate)
 
     cat = sub.add_parser("catalogue", help="fetch component data, or show terms")
     cat.add_argument("action", choices=["fetch", "sources"])

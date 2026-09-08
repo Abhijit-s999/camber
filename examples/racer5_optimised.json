@@ -1,0 +1,256 @@
+{
+  "name": "racer5",
+  "mission": {
+    "objective": "max_speed",
+    "payload_mass": 0.0,
+    "min_endurance": 120.0
+  },
+  "bodies": [
+    {
+      "name": "stack",
+      "mass": 0.028,
+      "shape": {
+        "kind": "box",
+        "lx": 0.03,
+        "ly": 0.03,
+        "lz": 0.011
+      },
+      "position": [
+        0.025,
+        0.018493417522380443,
+        0.006927831922875137
+      ],
+      "type": "body"
+    },
+    {
+      "name": "battery",
+      "mass": 0.0849372197468442,
+      "shape": {
+        "kind": "box",
+        "lx": 0.068,
+        "ly": 0.034,
+        "lz": 0.026
+      },
+      "position": [
+        0.010417381664818308,
+        0.011370229555563226,
+        0.0025457010850338767
+      ],
+      "type": "battery",
+      "capacity_ah": 1.0330202401643214,
+      "nominal_voltage": 14.8,
+      "max_c_rate": 120.0
+    },
+    {
+      "name": "camera",
+      "mass": 0.009,
+      "shape": {
+        "kind": "box",
+        "lx": 0.016,
+        "ly": 0.016,
+        "lz": 0.016
+      },
+      "position": [
+        0.04923503406775381,
+        -0.007485665472190733,
+        -0.01932662900312663
+      ],
+      "rotation_deg": [
+        0.0,
+        39.99999999999999,
+        0.0
+      ],
+      "type": "camera",
+      "view_direction": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "horizontal_fov_deg": 150.0
+    },
+    {
+      "name": "vtx",
+      "mass": 0.01,
+      "shape": {
+        "kind": "box",
+        "lx": 0.022,
+        "ly": 0.018,
+        "lz": 0.006
+      },
+      "position": [
+        -0.04334112651023931,
+        -0.014097404362912147,
+        -0.001250296764709104
+      ],
+      "type": "body"
+    }
+  ],
+  "thrusters": [
+    {
+      "name": "front_right",
+      "type": "rotor",
+      "mass": 0.031,
+      "position": [
+        0.09237578471652196,
+        0.09237578471652196,
+        -0.042
+      ],
+      "radius": 0.055,
+      "pitch": 0.109,
+      "blades": 3,
+      "ducted": false,
+      "spin": "cw",
+      "torque_coefficient": 0.016,
+      "static_thrust_n": 12.3
+    },
+    {
+      "name": "rear_right",
+      "type": "rotor",
+      "mass": 0.031,
+      "position": [
+        -0.09237578471652196,
+        0.09237578471652196,
+        -0.042
+      ],
+      "radius": 0.055,
+      "pitch": 0.109,
+      "blades": 3,
+      "ducted": false,
+      "spin": "ccw",
+      "torque_coefficient": 0.016,
+      "static_thrust_n": 12.3
+    },
+    {
+      "name": "rear_left",
+      "type": "rotor",
+      "mass": 0.031,
+      "position": [
+        -0.09237578471652196,
+        -0.09237578471652196,
+        -0.042
+      ],
+      "radius": 0.055,
+      "pitch": 0.109,
+      "blades": 3,
+      "ducted": false,
+      "spin": "cw",
+      "torque_coefficient": 0.016,
+      "static_thrust_n": 12.3
+    },
+    {
+      "name": "front_left",
+      "type": "rotor",
+      "mass": 0.031,
+      "position": [
+        0.09237578471652196,
+        -0.09237578471652196,
+        -0.042
+      ],
+      "radius": 0.055,
+      "pitch": 0.109,
+      "blades": 3,
+      "ducted": false,
+      "spin": "ccw",
+      "torque_coefficient": 0.016,
+      "static_thrust_n": 12.3
+    }
+  ],
+  "frame": [
+    {
+      "name": "plate",
+      "mass": 0.03356462387018426,
+      "shape": {
+        "kind": "box",
+        "lx": 0.13047006813550763,
+        "ly": 0.08298683504476088,
+        "lz": 0.002
+      },
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "type": "body"
+    },
+    {
+      "name": "arm_front_right",
+      "mass": 0.0013139993311610185,
+      "shape": {
+        "kind": "cylinder",
+        "radius": 0.004,
+        "length": 0.07195853377160277
+      },
+      "position": [
+        0.0669346011194512,
+        0.0669346011194512,
+        -0.021
+      ],
+      "rotation_deg": [
+        -90.0,
+        45.00000000000001,
+        -45.0
+      ],
+      "type": "body"
+    },
+    {
+      "name": "arm_rear_right",
+      "mass": 0.0013139993311610185,
+      "shape": {
+        "kind": "cylinder",
+        "radius": 0.004,
+        "length": 0.07195853377160277
+      },
+      "position": [
+        -0.0669346011194512,
+        0.0669346011194512,
+        -0.021
+      ],
+      "rotation_deg": [
+        -90.0,
+        -45.00000000000001,
+        45.0
+      ],
+      "type": "body"
+    },
+    {
+      "name": "arm_rear_left",
+      "mass": 0.0013139993311610185,
+      "shape": {
+        "kind": "cylinder",
+        "radius": 0.004,
+        "length": 0.07195853377160277
+      },
+      "position": [
+        -0.0669346011194512,
+        -0.0669346011194512,
+        -0.021
+      ],
+      "rotation_deg": [
+        90.0,
+        -45.00000000000001,
+        -45.0
+      ],
+      "type": "body"
+    },
+    {
+      "name": "arm_front_left",
+      "mass": 0.0013139993311610185,
+      "shape": {
+        "kind": "cylinder",
+        "radius": 0.004,
+        "length": 0.07195853377160277
+      },
+      "position": [
+        0.0669346011194512,
+        -0.0669346011194512,
+        -0.021
+      ],
+      "rotation_deg": [
+        90.0,
+        45.00000000000001,
+        45.0
+      ],
+      "type": "body"
+    }
+  ]
+}

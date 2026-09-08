@@ -668,6 +668,29 @@ now pins the arithmetic. The lesson generalises past this bug -- a green suite
 licenses delegated code only as far as the suite actually constrains it, and
 tests written to describe a shape will accept any implementation of that shape.
 
+### OPT-07 · MAX_SPEED trades thrust margin against endurance, not mass — `FIXED`
+
+**The bug:** the objectives were `[-thrust_margin, mass_kg]`. Installed thrust
+is fixed by the chosen motors, so thrust margin is `T / (m g)` -- a function of
+mass and nothing else. The pair states the same preference twice: every lighter
+design is also higher-margin, no design ever wins on one axis and loses on the
+other, and the front is one point however long the search runs.
+
+This is OPT-04's failure wearing a different hat. There it was a variable set
+that could not move an objective; here it is two objectives that are the same
+axis. Both look identical from outside -- a degenerate front -- and neither
+raises anything.
+
+**Value:** `[-thrust_margin, -endurance_s]`, which is the trade a racer
+actually makes: a bigger pack flies longer and accelerates worse.
+`TestMaxSpeedObjectives` demonstrates the old degeneracy rather than asserting
+it, by evaluating eight pack sizes and showing the old pairing admits exactly
+one non-dominated point while the new one admits several.
+
+**Worth stating generally:** before pairing two objectives, check they are not
+functions of the same variable. It is easy to write down two things you care
+about and not notice one determines the other.
+
 ---
 
 ## 6. The CFD tier and the closed loop (P4)
@@ -903,7 +926,7 @@ cutter cannot produce an internal corner sharper than its own radius -- a
 geometric impossibility rather than a tolerance, and the constraint most often
 missed by people designing for milling for the first time.
 
-### GEN-01 · Straight tubular arms, deliberately — `PROVISIONAL`
+### GEN-01 · Straight tubular arms, deliberately — `SUPERSEDED by GEN-02`
 
 **Value:** the generated frame is a centre plate sized to the payload envelope
 plus one straight tube per rotor, each sized by STR-01.
@@ -918,6 +941,140 @@ lighter one it can only approximate.
 chassis in the example, and that gap is not all savings: it is a plate and four
 tubes with no standoffs, fasteners, camera mount or crash margin. Treat it as a
 structural lower bound, not a bill of materials.
+
+**Why it was superseded.** The reasoning above is sound and the conclusion did
+not follow from it. "No closed-form model can check the result" is an argument
+for putting a model that *can* check it in the loop, not for declining to
+generate the shape. The honest description of what GEN-01 produces is that a
+human -- me -- decided a frame is a plate and four tubes, and the optimiser was
+allowed to choose their diameter. That is sizing, not generation. GEN-02
+replaces it. GEN-01's output remains available and remains the right default
+when a beam-checkable frame is what is wanted.
+
+### GEN-02 · The frame is grown by topology optimisation — `PROVISIONAL`
+
+**Value:** `camber/generate/topology.py`. SIMP -- Solid Isotropic Material with
+Penalisation -- over a voxelised design domain, with an 8-node hexahedral
+finite-element solve inside every iteration. `camber generate` runs it.
+
+Nothing in it decides what a frame looks like. The inputs are where load enters
+(the rotor mounts), where the structure is held (the stack and battery
+mounting), how much material there is to spend, and the mission's element size.
+Everything between those is chosen by the compliance sensitivities.
+
+**On the racing quad**, 40 g of carbon over a 91x91x3 domain at 3 mm elements
+(24,843 elements, volume fraction 0.038), 60 iterations: compliance fell from
+9.561e8 to 5.466e6, a factor of 175. The shape that came out is a central hub
+with four tapered diagonal struts, each of which *forks into a Y* approaching
+the rotor mount. Nobody drew that fork. It is what a single strut becomes when
+the load it carries has to reach a mount wider than the strut is.
+
+**Why the element matrix is integrated, not transcribed.** `hex8_stiffness`
+does 2x2x2 Gauss quadrature. Published closed-form 24x24 tables exist and would
+have been faster to type; two attempts to transcribe one produced a matrix that
+was still square, still symmetric, still assembled without complaint, and had
+negative eigenvalues -- a different physics problem, failing silently. The
+quadrature version is checkable against the property that defines the element:
+six zero eigenvalues, the rigid-body modes of an unconstrained brick, and
+nothing else. `tests/test_topology.py` asserts exactly that.
+
+**What this costs.** The FEA is a direct sparse solve at 126,960 degrees of
+freedom, about 19 s per iteration on this machine after GEN-05, so a run is
+half an hour rather than the seconds GEN-01 takes. It is not in the NSGA-II
+inner loop and must not be: it runs once, on a layout the optimiser has already
+chosen.
+
+### GEN-03 · Continuation on the penalty, and connectivity is reported — `PROVISIONAL`
+
+**The failure.** The first GEN-02 run looked like a success -- compliance down
+175x, density field 96% binary, a plausible organic shape -- and had scattered
+**35% of its material budget into 106 disconnected islands**. At threshold 0.4
+the largest connected component held 65.3% of the material. The only symptom
+downstream was that the meshed part weighed 26.3 g against a 40 g budget.
+Pruning the islands is correct, since a disconnected island carries no load and
+cannot be manufactured, but pruning a third of the structure means a third of
+the budget was never spent on structure at all.
+
+**Why it happens.** At `p = 3` an element at density 0.3 is worth 2.7% of solid
+stiffness. Joining two members through a thin grey neck is therefore priced
+almost as dearly as leaving them apart, and at a volume fraction of 0.038 there
+is very little material to form necks with. The optimiser is free to park mass
+where it does nothing.
+
+**Value:** the penalty ramps from 1.0 to 3.0 in quarter steps over the first
+half of the iteration budget. At `p = 1` the problem is convex and grey is
+honestly priced, so a connected layout forms first; raising `p` then hardens
+that layout rather than choosing a new one. `Result.connectivity()` reports the
+island count and the fraction of material in the largest, and `camber generate`
+warns when that fraction drops below 95%.
+
+**The reporting matters as much as the fix.** This failure did not raise, did
+not warn, and did not look wrong in the viewer. It was found by counting
+connected components on a hunch. Anything that can be lost that quietly should
+be measured every run.
+
+### GEN-04 · Convergence needs the objective, not just the density field — `FIXED`
+
+**The bug, found by running a control.** The standard SIMP stopping rule is
+"the largest density change fell below 1%". Run without continuation, this
+optimiser satisfied that rule at iteration 4 and reported `converged=True` with
+compliance at 3.922e10 against the 9.958e8 it started from -- **forty times
+worse than the uniform field**, declared converged.
+
+The rule is wrong at low volume fractions for a specific reason: a few hundred
+solid elements spread over thirty thousand can connect or sever a load path
+while no single element moves much. Compliance is at its most violent precisely
+where the density criterion goes quiet.
+
+**Value:** `_has_settled`. Convergence requires both that the field has stopped
+moving *and* that compliance has been flat over the last five iterations. The
+window is what catches oscillation -- consecutive iterations differing little
+while the run flips between two layouts, which is what the history
+`[9.958e8, 1.3067e11, 2.6754e10, 3.9221e10]` actually was. That history is now
+a test case.
+
+Convergence is also not tested during the continuation ramp, since every
+penalty increase moves the field on purpose.
+
+### GEN-05 · The stiffness matrix is assembled once and refilled — `FIXED`
+
+**Measured on the racing frame**, 33,124 elements and 126,960 DOF:
+
+```
+                          before      after
+assemble K (per iter)     0.47 s      0.17 s
+linear solve              37.04 s     18.67 s
+                          -------     -------
+per iteration             37.5 s      18.8 s        2.0x
+structure (once)              --      1.7 s
+```
+
+Same displacement field to 4.4e-9 relative, which is the point: this is a
+speed change, not a modelling change, and it is only worth having if it can be
+shown to compute the same thing. `TestAssembly` asserts the fast path produces
+a matrix identical to the obvious COO-and-slice one.
+
+**Two separate things were wasteful.**
+
+*Assembly.* The mesh does not move between iterations, so the sparsity pattern
+of K never changes -- only the values do. The naive loop built a COO matrix of
+19.1 million entries and converted it every iteration, which re-sorts all 19.1
+million and re-sums duplicates for an answer that was already known. Then it
+took `K[free, :][:, free]`: two fancy-index passes over a 127,000-square
+sparse matrix, each allocating a full copy, to remove 1,014 rows. Now the sort
+happens once, fixed DOFs are dropped at the index level rather than sliced out
+afterwards, and each iteration is one gather-multiply and a `reduceat`.
+
+*The solve.* `spsolve` defaults to COLAMD ordering and an unsymmetric
+factorisation. K is symmetric positive definite, and saying so --
+`permc_spec="MMD_AT_PLUS_A"` with `SymmetricMode` -- halves the time by cutting
+fill-in, which is what dominates a 3D elasticity factorisation.
+
+**Not moved to the GPU.** CuPy is installed and GPU-01 measured 11x the memory
+bandwidth, which would suit a Krylov solver. It does not suit this one: SIMP
+spans nine orders of magnitude of stiffness between void and solid, and an
+unpreconditioned CG on that conditioning does not converge in any useful number
+of iterations. A GPU path here needs algebraic multigrid first, not a port.
 
 ---
 

@@ -17,6 +17,7 @@ $ camber inspect examples/quad5.toml     # mass, control, hover, constraints
 $ camber optimise examples/quad5.toml --prop gwsdd_5x4.3
 $ camber endurance examples/quad5.toml   # predicted flight time
 $ camber cad examples/quad5.toml out.step
+$ camber generate examples/racer5.toml --mass 40 --out frame.stl
 $ camber ui examples/quad5.toml          # drag payloads and rotors in 3D
 $ camber validate                        # model vs UIUC wind-tunnel data
 $ camber catalogue fetch                 # get the source datasets
@@ -38,6 +39,7 @@ back as input.
 | CFD | actuator discs, RANS | momentum theory to 1.6% |
 | calibration | interference GP | **25 CFD cases, LOO 1.34%, R2 0.952** |
 | structure | cantilever sizing, 3-axis CNC rules | closed forms; stock section ladder |
+| generation | SIMP topology optimisation, hex8 FEA | element has exactly 6 rigid-body modes |
 
 Known limits, stated rather than buried: the interference model has seen 25
 cases of one airframe family in hover only; static thrust (J = 0) is not

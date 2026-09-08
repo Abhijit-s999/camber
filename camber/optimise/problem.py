@@ -162,7 +162,7 @@ class DesignProblem:
         if obj is Objective.MAX_ENDURANCE:
             return ["-endurance_s", "mass_kg"]
         if obj is Objective.MAX_SPEED:
-            return ["-thrust_margin", "mass_kg"]
+            return ["-thrust_margin", "-endurance_s"]
         if obj is Objective.MIN_TIME_TO_TARGET:
             return ["time_to_target_s", "mass_kg"]
         return ["min_stable_speed", "mass_kg"]
@@ -260,7 +260,19 @@ class DesignProblem:
                     installed = float("nan")
                     break
             margin = installed / (mp.mass * G) if installed == installed else 0.0
-            return np.array([-margin, mp.mass])
+
+            # Thrust-to-weight against *endurance*, not against mass. Installed
+            # thrust is fixed by the chosen motors, so minimising mass is
+            # exactly maximising T:W -- the same axis twice, and the front
+            # collapses to a single point. Pairing it with endurance is the
+            # trade a racer actually makes: a bigger pack flies longer and
+            # accelerates worse.
+            if self.endurance_model is not None:
+                endurance = self.endurance_model(
+                    vehicle, thrust_scale=1.0 / (1.0 - interference_loss))
+            else:
+                endurance = self._momentum_endurance(vehicle, mp)
+            return np.array([-margin, -endurance])
 
         return np.array([0.0, mp.mass])
 
