@@ -1027,7 +1027,35 @@ capacity ceiling, and screening-quality accuracy does not need FP64.
 
 ## 9b. Machine manners
 
-### RUN-01 · Simulations take 80% of the machine, not all of it — `FIXED`
+### RUN-02 · One wide case beats several narrow ones — `FIXED`
+
+**Value:** run cases sequentially at the full rank count. Do not run campaign
+cases concurrently.
+
+**Reasoning — measured, and it refuted the hypothesis it was testing.** The
+solve is memory-bandwidth bound (GPU-01), and an earlier strong-scaling run
+showed only 1.40x going from 2 ranks to 4 -- 70% efficiency. From that I
+expected extra ranks on one case to be nearly worthless and concurrent cases to
+win, since each would at least keep its own working set.
+
+The opposite, by a wide margin, on identical 150-iteration runs:
+
+```
+1 case  x 16 ranks : 37.9 s   0.026 cases/s
+2 cases x  8 ranks : 220.2 s  0.009 cases/s   0.34x
+4 cases x  4 ranks : 494.9 s  0.008 cases/s   0.30x
+```
+
+Checked before believing it: all runs completed exactly 150 iterations with no
+early convergence, so the comparison is fair rather than an artifact of
+different decompositions converging at different points.
+
+The lesson is about the earlier measurement, not this one. That 70% figure came
+from a different and much larger case, and I generalised a scaling curve from
+one mesh to a workload it did not describe. Concurrent cases evidently contend
+for cache and memory far worse than extra ranks on a single case do.
+
+### RUN-01 · Simulations take 80% of the machine, not all of it — `SUPERSEDED`
 
 **Value:** `CPU_BUDGET = 0.8` (12 of 16 ranks here) and `nice +10` on every
 OpenFOAM command. Both overridable with `CAMBER_CPU_BUDGET` and `CAMBER_NICE`.

@@ -33,12 +33,12 @@ from ..spec.vehicle import Rotor, Vehicle
 #: cores contend for the same DRAM channels rather than adding throughput.
 #: Measured on this machine, 4 ranks gave 1.40x the throughput of 2 -- already
 #: only 70% efficient -- so the top 20% of cores are close to free to give up.
-CPU_BUDGET = float(os.environ.get("CAMBER_CPU_BUDGET", "0.8"))
+CPU_BUDGET = float(os.environ.get("CAMBER_CPU_BUDGET", "1.0"))
 
 #: Scheduler niceness for solver processes. Positive means "yield to
 #: everything else", so a long campaign stays in the background where it
 #: belongs rather than making the desktop stutter.
-SOLVER_NICE = int(os.environ.get("CAMBER_NICE", "10"))
+SOLVER_NICE = int(os.environ.get("CAMBER_NICE", "5"))
 
 
 def budgeted_ranks(budget: float = None) -> int:
