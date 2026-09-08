@@ -429,6 +429,70 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
     return result
 
 
+def compliance(problem: Problem, density: np.ndarray, penalty: float = 3.0,
+               E0: float = 1.0, Emin: float = 1e-9, nu: float = 0.3) -> float:
+    """Compliance of a given density field under the problem's load.
+
+    One FEA evaluation, no optimisation. This is what makes "the grown frame
+    is stiffer" a measurement rather than a claim: voxelise the straight-tube
+    frame into the same domain, apply the same load through the same element,
+    and read off the same number the optimiser was minimising.
+    """
+    d = problem.domain
+    KE = hex8_stiffness(E0, nu)
+    dofs = d.element_dofs()
+    asm = _Assembly(dofs, problem.fixed, 3 * d.n_nodes, KE)
+    x = np.clip(density.ravel(), 0.0, 1.0)
+    stiff = Emin + x ** penalty * (E0 - Emin)
+    u = np.zeros(3 * d.n_nodes)
+    u[asm.free] = splu(asm.matrix(stiff), permc_spec="MMD_AT_PLUS_A",
+                       options={"SymmetricMode": True}).solve(
+                           problem.load[asm.free])
+    ue = u[dofs]
+    return float((stiff * np.einsum("ij,jk,ik->i", ue, KE, ue)).sum())
+
+
+def voxelise(bodies, domain: Domain, samples: int = 2) -> np.ndarray:
+    """Rasterise placed Box and Cylinder bodies into the design domain.
+
+    `samples` supersampling points per axis within each element, so a tube
+    narrower than an element still registers as partial density rather than
+    vanishing or snapping to solid. Without it a 8 mm arm in a 3 mm grid
+    aliases badly enough to change the comparison it exists to make.
+    """
+    from ..spec.shapes import Box, Cylinder
+
+    nx, ny, nz = domain.shape
+    e = domain.element
+    offs = (np.arange(samples) + 0.5) / samples - 0.5
+    gi, gj, gk, si, sj, sk = np.meshgrid(
+        np.arange(nx), np.arange(ny), np.arange(nz), offs, offs, offs,
+        indexing="ij")
+    # Element centres, in vehicle coordinates (the domain is origin-centred).
+    px = (gi + 0.5 + si) * e - nx * e / 2.0
+    py = (gj + 0.5 + sj) * e - ny * e / 2.0
+    pz = (gk + 0.5 + sk) * e - nz * e / 2.0
+    pts = np.stack([px.ravel(), py.ravel(), pz.ravel()], axis=1)
+
+    inside = np.zeros(pts.shape[0], dtype=bool)
+    for b in bodies:
+        origin = np.array([b.position.x, b.position.y, b.position.z])
+        local = pts - origin
+        rot = getattr(b.placement, "rotation", None)
+        if rot is not None:
+            # Rotation.matrix maps body axes into parent, so the inverse --
+            # right-multiplying the row vectors -- takes points the other way.
+            local = local @ np.asarray(rot.matrix)
+        if isinstance(b.shape, Box):
+            h = np.array([b.shape.lx, b.shape.ly, b.shape.lz]) / 2.0
+            inside |= np.all(np.abs(local) <= h, axis=1)
+        elif isinstance(b.shape, Cylinder):
+            radial = np.hypot(local[:, 0], local[:, 1])
+            inside |= ((radial <= b.shape.radius)
+                       & (np.abs(local[:, 2]) <= b.shape.length / 2.0))
+    return inside.reshape(nx, ny, nz, -1).mean(axis=3)
+
+
 def volume_fraction_for_mass(domain: Domain, target_mass: float,
                              material_density: float) -> float:
     """Volume fraction that yields a given structural mass.

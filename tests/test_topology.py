@@ -448,3 +448,84 @@ class TestAssembly:
         assert abs(K - K.T).max() < 1e-9 * abs(K).max()
         w = np.linalg.eigvalsh(K.toarray())
         assert w.min() > 0, "supports do not remove every rigid-body mode"
+
+
+class TestVoxelise:
+    def _body(self, shape, position=(0.0, 0.0, 0.0), rotation=None):
+        from camber.spec.units import Vec3
+        from camber.spec.vehicle import Body, Placement
+        return Body("b", mass=0.1, shape=shape,
+                    placement=Placement(Vec3(*position), rotation)
+                    if rotation else Placement(Vec3(*position)))
+
+    def test_a_box_recovers_its_own_volume(self):
+        from camber.spec.shapes import Box
+        d = T.Domain(20, 20, 6, 0.005)
+        v = T.voxelise([self._body(Box(0.05, 0.05, 0.01))], d, samples=3)
+        assert v.sum() * d.element ** 3 == pytest.approx(0.05 * 0.05 * 0.01,
+                                                         rel=0.02)
+
+    def test_a_cylinder_recovers_its_own_volume(self):
+        import math
+
+        from camber.spec.shapes import Cylinder
+        d = T.Domain(20, 20, 8, 0.005)
+        v = T.voxelise([self._body(Cylinder(0.008, 0.03))], d, samples=4)
+        want = math.pi * 0.008 ** 2 * 0.03
+        assert v.sum() * d.element ** 3 == pytest.approx(want, rel=0.06)
+
+    def test_rotation_is_applied_the_right_way_round(self):
+        """A rod aligned to +x must be long in x and narrow across it. Getting
+        the inverse backwards still produces a rod, just the wrong one."""
+        from camber.spec.rotation import Rotation
+        from camber.spec.shapes import Cylinder
+        from camber.spec.units import Vec3
+        d = T.Domain(20, 20, 6, 0.005)
+        rod = self._body(Cylinder(0.008, 0.06),
+                         rotation=Rotation.aligning(Vec3(0, 0, 1), Vec3(1, 0, 0)))
+        v = T.voxelise([rod], d, samples=4)
+        assert np.ptp(np.flatnonzero(v.sum(axis=(1, 2)))) + 1 == 12
+        assert np.ptp(np.flatnonzero(v.sum(axis=(0, 2)))) + 1 <= 5
+
+    def test_density_stays_in_bounds_where_bodies_overlap(self):
+        from camber.spec.shapes import Box
+        d = T.Domain(10, 10, 4, 0.005)
+        two = [self._body(Box(0.02, 0.02, 0.01)),
+               self._body(Box(0.02, 0.02, 0.01))]
+        assert T.voxelise(two, d).max() <= 1.0
+
+    def test_supersampling_captures_partial_elements(self):
+        """A single sample per element snaps a thin member to solid or to
+        nothing; the comparison this exists for needs the fraction."""
+        from camber.spec.shapes import Box
+        d = T.Domain(10, 10, 4, 0.010)
+        thin = [self._body(Box(0.004, 0.05, 0.04))]      # 0.4 of one element
+        coarse = T.voxelise(thin, d, samples=1)
+        fine = T.voxelise(thin, d, samples=6)
+        assert set(np.unique(coarse)) <= {0.0, 1.0}
+        assert ((fine > 0.0) & (fine < 1.0)).any()
+
+
+class TestComplianceOfAGivenField:
+    def test_more_material_is_stiffer(self):
+        p = cantilever(nx=8, ny=3, nz=2)
+        thin = np.full(p.domain.shape, 0.3)
+        thick = np.full(p.domain.shape, 0.9)
+        assert T.compliance(p, thick) < T.compliance(p, thin)
+
+    def test_it_agrees_with_the_optimiser_s_own_number(self):
+        """Same field, same element, same load: the standalone evaluation must
+        reproduce what `optimise` reported, or the comparison it enables is
+        against a different physics problem."""
+        p = cantilever(nx=8, ny=3, nz=2, vf=0.5)
+        r = T.optimise(p, iterations=1, penalty_start=3.0)
+        uniform = np.full(p.domain.shape, 0.5)
+        assert T.compliance(p, uniform) == pytest.approx(
+            r.compliance_history[0], rel=1e-9)
+
+    def test_it_does_not_optimise(self):
+        p = cantilever(nx=6, ny=3, nz=2)
+        field = np.full(p.domain.shape, 0.4)
+        before = field.copy()
+        T.compliance(p, field)
+        assert np.array_equal(field, before)
