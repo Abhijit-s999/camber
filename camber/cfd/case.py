@@ -153,9 +153,14 @@ class CaseBuilder:
         self.span = rotor_span(vehicle)
         radius = max((getattr(t, "radius", 0.0) for t in vehicle.thrusters),
                      default=0.05)
-        self.cell = radius * self.config.base_cell_per_radius
+        thickness = self._safe_thickness(radius)
+        # The near-field cell must be smaller than the disc is thick, or the
+        # refinement region is thinner than the cells it is trying to refine
+        # and snappy silently leaves it alone -- which is how disc zones ended
+        # up holding two cells (CFD-08).
+        self.cell = min(radius * self.config.base_cell_per_radius, thickness / 2.0)
         self.discs = discs_from(vehicle, thrusts, self.cell,
-                                max_thickness=self._safe_thickness(radius))
+                                max_thickness=thickness)
         self._check_disc_clearance()
 
     @property
@@ -191,7 +196,20 @@ class CaseBuilder:
             clearance = plane - body_hi
         else:
             clearance = 0.0
-        return max(min(radius / 6.0, 1.6 * clearance), radius / 40.0)
+        # R/3, not R/6. An actuator disc is a numerical device and its
+        # thickness only sets how the momentum is spread axially, so it should
+        # be chosen to be *resolvable* rather than to look thin.
+        #
+        # At R/6 the disc was one sixth of a background cell thick, and
+        # snappyHexMesh's region refinement could not grip something smaller
+        # than the cells it was refining: the zones came out holding **2 cells**
+        # instead of ~150, the momentum source became a point force, and those
+        # cases reported 66-70% download and tripped floating-point exceptions.
+        # Every large-radius case in both campaigns failed this way.
+        #
+        # The clearance cap still binds first whenever the body is close, which
+        # is what CFD-07 guarantees.
+        return max(min(radius / 3.0, 1.6 * clearance), radius / 20.0)
 
     def _check_disc_clearance(self) -> None:
         body_lo, body_hi = self._body_z_extent()

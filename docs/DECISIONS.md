@@ -771,6 +771,50 @@ focused campaign died inside `simpleFoam`, and three more were dropped by the
 mesh-resolution guard -- 35% of the budget lost. Both are worth diagnosing
 before a larger campaign, and neither is a modelling problem.
 
+### CFD-08 · The near-field cell must be finer than the disc is thick — `FIXED`
+
+**Value:** disc thickness `min(R/3, 1.6 x clearance)`, and near-field cell
+`min(0.25 R, thickness / 2)`.
+
+**Reasoning — this invalidated a third of two campaigns.** Disc thickness was
+`R/6` while the near-field cell was `R/4`, so the disc was **two thirds of a
+cell thick**. snappyHexMesh cannot refine a region thinner than the cells it is
+refining, so it silently left those regions alone. The consequence:
+
+```
+disc cellZone size          2 cells   (should be ~1300)
+total mesh                 37,034     (should be ~126,000)
+reported download          +70.6%     (actually +26.7%)
+```
+
+A momentum source spread over two cells is a point force, and a point force
+where a disc belongs produces a violent local jet: the affected cases reported
+download of 66-70%, and several tripped floating-point exceptions and died.
+That accounts for both failure modes -- 4 of 20 solver deaths and 3 more
+dropped by the mesh guard, 35% of a campaign budget.
+
+It hit large-radius layouts specifically, because both the cell size and the
+thickness scale with R, so the *ratio* was constant and wrong everywhere but
+only produced an unresolvable region once R was large enough for the near-field
+cell to exceed the disc.
+
+Two things made it hard to see. The tell was a cell count of exactly **37,034**
+recurring across three different geometries -- identical totals for different
+vehicles can only mean the mesh ignored the vehicle. And the affected cases did
+not look broken: they converged, produced smooth fields, and returned plausible
+large numbers in a regime where large numbers were expected.
+
+An earlier attempt at the fix capped the *background* cell to the disc
+thickness, which applied a 14 mm cell to the whole 2 m domain and asked for
+4 to 27 million cells. The background may stay coarse; it is the near-field
+cell, the one the refinement region actually has to grip, that must be finer
+than the disc.
+
+**Consequence for the data:** every large-radius case in both campaigns is
+suspect and the steep band of CAL-02 is contaminated. The conclusion that the
+model was weak above 15% download was drawn from bad measurements, not a hard
+regime.
+
 ### CAL-01 · A Gaussian process over four physical features — `FIXED`
 
 **Value:** `camber/calibrate.py`. Features: blockage (body planform / disc
