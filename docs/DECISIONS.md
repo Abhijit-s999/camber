@@ -1006,7 +1006,55 @@ weak and reliable claim. It does not say how much there is, and
 `estimated_loss()` raises rather than returning a number for any layout it did
 not rule out.
 
-### GPU-03 · GPU acceleration is deferred, not rejected — `OPEN`
+### GPU-04 · The GPU path works, is validated, and is slower — `FIXED`
+
+**Built:** CUDA 13.3, PETSc 3.25.5 configured `--with-cuda --with-cuda-arch=120`
+(Blackwell), and `petsc4Foam` compiled against v2606 into
+`FOAM_USER_LIBBIN`. ENV-01 verified afterwards: nothing under
+`~/.local/opt/OpenFOAM-v2606` was modified.
+
+**Correct.** CPU GAMG and GPU PETSc give an identical answer -- max |U| of
+15.335 m/s from both, agreeing to 0.00%. The integration is sound.
+
+**And slower.** On a 126k-cell case, 200 outer iterations, 4 ranks:
+
+```
+OpenFOAM GAMG (CPU)    30.5 s     <- best
+PETSc jacobi  (GPU)    59.2 s     1.9x slower
+PETSc gamg    (GPU)    83.2 s     2.7x slower
+PETSc bjacobi (GPU)   200.4 s     did not finish
+```
+
+Single rank, whole mesh on one device: GPU 93.5 s against CPU 97.1 s -- a tie.
+GPU utilisation sat at **4%**, so the device was idle rather than saturated.
+
+**Why, given the pressure solve is 87% of runtime.** That fraction was measured
+directly, by slackening the pressure tolerance until the solve was nearly free
+and seeing 29.2 s fall to 3.7 s. Amdahl's law therefore permits a large win --
+up to 6.6x if the linear solve were 38x faster, as the synthetic CuPy benchmark
+in GPU-01 suggested it could be.
+
+It is not realised because the problem is too small. At 126k cells over 4 ranks
+each device solve is 31k unknowns, where kernel launch and host-device transfer
+dominate, and the pressure equation converges in 1 to 7 iterations from a good
+SIMPLE initial guess -- there is little iteration to accelerate. OpenFOAM's
+GAMG is also extremely well tuned, so the honest comparison was never CG
+against CG.
+
+**Kept anyway, off by default.** The stack is built, validated and costs
+nothing when unused: `libs (petscFoam);` plus `solver petsc;` in a case turns
+it on. It should be revisited for blade-resolved AMI, which is the tier that
+would produce meshes in the millions of cells where published 4-8x results
+were obtained -- though 8 GiB of VRAM caps that at roughly 4-6M cells.
+
+**What this cost and what it bought.** About an hour of build time for a
+negative result, and the negative result is worth having: it replaces "GPU
+should help, published results say 4-8x" with a measurement on this machine, at
+this problem size, with the answer validated against the CPU baseline. The
+synthetic 38x in GPU-01 was real and irrelevant -- it measured a regime this
+workload never enters.
+
+### GPU-03 · GPU acceleration is deferred, not rejected — `SUPERSEDED by GPU-04`
 
 **Reasoning:** the measurements in GPU-01 stand -- the solve is bandwidth bound
 and VRAM is 11 to 38x faster depending on what is measured. But the realistic

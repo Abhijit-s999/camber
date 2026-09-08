@@ -47,6 +47,17 @@ set +e
 source "$FOAM_INSTALL/etc/bashrc" >/dev/null 2>&1
 set -e
 
+# PETSc (GPU linear solvers) lives in a userland build. Adding it here rather
+# than to the OpenFOAM installation keeps ENV-01 intact: the install shared
+# with that study is never modified, and a shell without this wrapper sees no
+# change at all.
+PETSC_DIR="${PETSC_DIR:-$HOME/.local/opt/src/petsc}"
+PETSC_ARCH="${PETSC_ARCH:-arch-cuda-opt}"
+if [ -d "$PETSC_DIR/$PETSC_ARCH/lib" ]; then
+    export PETSC_DIR PETSC_ARCH
+    export LD_LIBRARY_PATH="$PETSC_DIR/$PETSC_ARCH/lib:${LD_LIBRARY_PATH}"
+fi
+
 if ! command -v simpleFoam >/dev/null 2>&1; then
     echo "ERROR: sourced $FOAM_INSTALL but simpleFoam is not on PATH" >&2
     return 1 2>/dev/null || exit 1
