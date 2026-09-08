@@ -292,12 +292,15 @@ class TestFrameProblem:
         assert np.count_nonzero(p.load) > 0
         assert len(p.fixed) > 0
 
-    def test_load_and_support_do_not_overlap(self, vehicle):
-        """Loading a fixed dof puts force straight into ground and the
-        optimiser sees no reason to build anything between them."""
+    def test_the_restraint_does_not_short_circuit_the_load(self, vehicle):
+        """The 3-2-1 restraint sits on a loaded stack pad, which would be a
+        bug under a grounded formulation -- force straight into ground, and no
+        reason to build anything between load and support. It is fine here
+        only because the load set is self-equilibrated, so the reactions are
+        zero; `TestTheFrameIsAFreeBody` measures that rather than assuming it."""
         p = T.frame_problem(vehicle, element=0.006)
-        loaded = set(np.nonzero(p.load)[0].tolist())
-        assert not (loaded & set(p.fixed.tolist()))
+        assert len(p.fixed) == 6
+        assert np.allclose(p.load.reshape(-1, 3).sum(axis=0), 0.0, atol=1e-9)
 
     def test_rotor_mounts_are_forced_solid(self, vehicle):
         p = T.frame_problem(vehicle, element=0.006)
@@ -577,17 +580,94 @@ class TestMountsAreNotBillets:
         held = len(p.fixed) / 3
         assert held < 0.02 * p.domain.n_nodes
 
-    def test_the_load_totals_the_manoeuvre_case(self, vehicle):
+    def test_the_thrust_totals_the_manoeuvre_case(self, vehicle):
         from camber.control import G
         p = T.frame_problem(vehicle, element=0.003, thickness=0.012)
         rotors = vehicle.thrusters
         mass = vehicle.mass_properties().mass
         per = max(max(r.max_thrust() for r in rotors),
                   mass * G * 10.0 / len(rotors))
-        assert -p.load.sum() == pytest.approx(per * len(rotors), rel=1e-9)
+        up = -p.load.reshape(-1, 3)[:, 2].clip(max=0.0).sum()
+        assert up == pytest.approx(per * len(rotors), rel=1e-9)
 
     def test_the_reduced_system_is_not_singular(self, vehicle):
         """Four separated pads must remove every rigid-body mode."""
         p = T.frame_problem(vehicle, element=0.012, thickness=0.036)
         c = T.compliance(p, np.full(p.domain.shape, 0.5))
         assert np.isfinite(c) and c > 0
+
+
+class TestTheFrameIsAFreeBody:
+    """A flying airframe has no ground, and pretending it does changes the
+    answer completely.
+
+    Holding all four stack pads rigidly makes each bolt an independent,
+    infinitely stiff support. The optimiser then correctly answers *that*
+    question: four separate arms, each from its motor to its own bolt, never
+    meeting in the middle because nothing requires them to. Connectivity
+    reporting called it fragmentation -- 28 islands, largest holding 22.7% --
+    and the structure was fine. The supports were wrong.
+    """
+
+    @pytest.fixture
+    def problem(self):
+        import pathlib
+
+        from camber.spec import io
+        v = io.load(pathlib.Path(__file__).resolve().parent.parent
+                    / "examples" / "racer5.toml")
+        return T.frame_problem(v, element=0.003, thickness=0.012,
+                               target_mass=0.040)
+
+    def _nodes(self, d):
+        n = np.arange(d.n_nodes)
+        k, rem = divmod(n, (d.nx + 1) * (d.ny + 1))
+        j, i = divmod(rem, d.nx + 1)
+        return np.stack([i * d.element - d.nx * d.element / 2,
+                         j * d.element - d.ny * d.element / 2,
+                         k * d.element - d.nz * d.element / 2], axis=1)
+
+    def test_the_restraint_is_exactly_six_dof(self, problem):
+        """3-2-1: enough to remove the rigid-body modes and no more. Any
+        seventh constraint starts carrying load the structure should carry."""
+        assert len(problem.fixed) == 6
+
+    def test_the_load_set_is_in_force_equilibrium(self, problem):
+        assert np.allclose(problem.load.reshape(-1, 3).sum(axis=0), 0.0,
+                           atol=1e-9)
+
+    def test_the_load_set_is_in_moment_equilibrium(self, problem):
+        L = problem.load.reshape(-1, 3)
+        moments = np.cross(self._nodes(problem.domain), L).sum(axis=0)
+        assert np.allclose(moments, 0.0, atol=1e-9)
+
+    def test_thrust_pulls_up_and_the_payload_pulls_down(self, problem):
+        """z is down in the body frame (GEOM-02), so thrust is negative."""
+        fz = problem.load.reshape(-1, 3)[:, 2]
+        assert fz.min() < 0 and fz.max() > 0
+        assert -fz.clip(max=0.0).sum() == pytest.approx(fz.clip(min=0.0).sum())
+
+    def test_the_supports_carry_essentially_nothing(self, problem):
+        """The point of a self-equilibrated load: the reactions are numerical
+        noise, so the load travels through the structure, not into ground."""
+        d = problem.domain
+        rho = np.full(d.shape, 0.6)
+        KE = T.hex8_stiffness()
+        dofs = d.element_dofs()
+        asm = T._Assembly(dofs, problem.fixed, 3 * d.n_nodes, KE)
+        from scipy.sparse.linalg import splu
+        stiff = 1e-9 + rho.ravel() ** 3
+        u = np.zeros(3 * d.n_nodes)
+        u[asm.free] = splu(asm.matrix(stiff), permc_spec="MMD_AT_PLUS_A",
+                           options={"SymmetricMode": True}).solve(
+                               problem.load[asm.free])
+        # Reaction is Ku - f, not Ku: the restrained nodes carry applied load
+        # too, and forgetting the subtraction reports the applied load back as
+        # if it were a reaction.
+        internal = np.zeros(3 * d.n_nodes)
+        ue = u[dofs]
+        contrib = np.einsum("ij,kj->ki", KE, ue) * stiff[:, None]
+        np.add.at(internal, dofs.ravel(), contrib.ravel())
+        reaction = internal[problem.fixed] - problem.load[problem.fixed]
+        applied = np.abs(problem.load).sum()
+        assert np.abs(reaction).sum() < 1e-6 * applied

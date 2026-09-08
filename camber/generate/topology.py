@@ -586,21 +586,41 @@ def frame_problem(vehicle, domain_margin: float = 0.012, thickness: float = 0.01
         for n in nodes:
             load[3 * n + 2] -= tip_load / len(nodes)   # z is down; thrust is -z
 
-    # Flight stack: four M3 pads on a square pattern, at the bottom face, and
-    # held there. Fixing the whole centre plan area instead would make the hub
-    # rigid by decree and hide whatever the optimiser would have built.
+    # Flight stack: four M3 pads on a square pattern, at the bottom face. The
+    # payload's weight enters here -- it does not leave here.
     b = stack_pattern / 2.0
-    for sx in (-b, b):
-        for sy in (-b, b):
-            cols, rows = pad_cells(sx, sy)
-            cols, rows = list(cols), list(rows)
-            for i in cols:
-                for j in rows:
-                    keep[i, j, 0] = True
-            for i in cols + [cols[-1] + 1]:
-                for j in rows + [rows[-1] + 1]:
-                    n = domain.node_id(i, j, 0)
-                    fixed += [3 * n, 3 * n + 1, 3 * n + 2]
+    corners = [(-b, -b), (b, -b), (-b, b), (b, b)]
+    pad_nodes = []
+    for sx, sy in corners:
+        cols, rows = pad_cells(sx, sy)
+        cols, rows = list(cols), list(rows)
+        for i in cols:
+            for j in rows:
+                keep[i, j, 0] = True
+        nodes = [domain.node_id(i, j, 0)
+                 for i in cols + [cols[-1] + 1]
+                 for j in rows + [rows[-1] + 1]]
+        pad_nodes.append(nodes)
+        for n in nodes:
+            load[3 * n + 2] += tip_load * len(rotors) / (4 * len(nodes))
+
+    # A flying airframe is a free body. Holding all four stack pads rigidly --
+    # which is what this did first -- makes each bolt an independent, infinitely
+    # stiff ground, and the optimiser correctly answers that question: four
+    # separate arms, each running from its motor to its own bolt, never meeting
+    # in the middle because nothing requires them to. It looks like the
+    # structure fragmented. It did not; the supports were wrong.
+    #
+    # Thrust up at the motors and the payload's weight down at the stack pads
+    # is a self-equilibrated load set, so all the restraint has to do is remove
+    # the six rigid-body modes. 3-2-1: one node pinned, a second held against
+    # two axes, a third against one. The reactions come out at zero, and the
+    # load has to travel from the payload out to the rotors through whatever
+    # the optimiser builds -- which is the actual structural problem.
+    a, bb, c = (pad_nodes[0][0], pad_nodes[1][0], pad_nodes[2][0])
+    fixed += [3 * a, 3 * a + 1, 3 * a + 2,      # x, y, z
+              3 * bb + 1, 3 * bb + 2,           # y, z   (offset from a in x)
+              3 * c + 2]                        # z      (off the a-b line)
 
     if target_mass is not None:
         volume_fraction = volume_fraction_for_mass(domain, target_mass,
