@@ -910,3 +910,61 @@ would suit an actuator disc in a box, but it is licensed *free for
 non-commercial use*, which is not open source and is incompatible with the
 GPL-3.0 chosen in LIC-01. If a GPU-native rewrite is ever wanted, OpenLB (GPL,
 CUDA) is the licence-compatible option.
+
+---
+
+## 9. Screening before solving
+
+### SCR-01 · A geometric screen decides which layouts get a CFD run — `FIXED`
+
+**Value:** `camber/cfd/screen.py`. Project each rotor disc straight down, measure
+the fraction of body planform beneath it, and skip the run below 5% overlap.
+Roughly 7 ms per layout, no flow solved.
+
+**Reasoning:** Abhijit's suggestion, and it is better than the GPU work it
+replaced. His framing was to use cheap compute where the quality difference does
+not matter. The question those cheap runs answer -- *is any part of the airframe
+underneath a disc at all* -- turns out not to need a flow solver, because it is
+geometry.
+
+**Validated against the 30 labelled CFD cases** from the 40-case campaign:
+
+```
+correlation, overlap x disc loading vs measured download :  +0.991
+threshold overlap < 5%  ->  22 of 30 cases skipped
+                            0 interference cases missed
+                            73% of CFD budget freed
+```
+
+This directly addresses CAL-02. That campaign spent 22 of 30 runs, about
+45 minutes, establishing that widely spaced rotors do not interfere -- runs that
+landed in the flat region, taught the model nothing, and inflated its aggregate
+accuracy. Sampling now draws only from the region the screen says can
+interfere, so the whole budget lands where download actually varies.
+
+**The threshold is deliberately asymmetric.** 5% sits well below the smallest
+overlap of any case that showed measurable download, because the two errors do
+not cost the same: a needless CFD run wastes a minute, while a missed
+interference case silently poisons the calibration the optimiser then trusts.
+
+**What the screen is not.** It says where interference *cannot* be, which is a
+weak and reliable claim. It does not say how much there is, and
+`estimated_loss()` raises rather than returning a number for any layout it did
+not rule out.
+
+### GPU-03 · GPU acceleration is deferred, not rejected — `OPEN`
+
+**Reasoning:** the measurements in GPU-01 stand -- the solve is bandwidth bound
+and VRAM is 11 to 38x faster depending on what is measured. But the realistic
+end-to-end gain from AmgX in OpenFOAM is about **2x**, it is blocked on a system
+CUDA install (GPU-02), and the screen in SCR-01 delivers roughly **4x** on
+campaign throughput for free, today, with no new dependency.
+
+Cheaper and larger, so it goes first. GPU work becomes worthwhile again when
+the screen has already removed the wasted runs and the remaining cases are the
+bottleneck -- or when meshes grow past what 16 CPU cores can chew, which
+blade-resolved AMI certainly would.
+
+FP32 is worth noting for that eventual work: on this card it halves wall clock
+for a given cell count (3.4 ms against 7.0 ms on the triad) and doubles the
+capacity ceiling, and screening-quality accuracy does not need FP64.

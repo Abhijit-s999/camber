@@ -25,6 +25,7 @@ from ..control import solve_hover
 from ..optimise.problem import arm_length_variable, rotor_radius_variable
 from ..spec.vehicle import Vehicle
 from .case import CaseBuilder, CaseConfig
+from .screen import SKIP_THRESHOLD, screen
 from .run import FoamError, cell_count, mesh, read_body_force, solve
 
 
@@ -41,6 +42,9 @@ class CaseResult:
     seconds: float
     ok: bool
     message: str = ""
+    #: True when geometry ruled the layout out and no CFD was run.
+    screened: bool = False
+    overlap: float = 0.0
 
 
 @dataclass
@@ -68,6 +72,42 @@ class Campaign:
 
     def done(self, name: str) -> bool:
         return any(r.name == name and r.ok for r in self.results)
+
+
+def sample_interesting(template: Vehicle, n: int,
+                       arm_range: tuple[float, float],
+                       radius_range: tuple[float, float],
+                       seed: int = 0, oversample: int = 40,
+                       threshold: float = SKIP_THRESHOLD) -> list[tuple[float, float]]:
+    """Sample layouts the geometric screen thinks are worth solving.
+
+    The first campaign sampled the whole box uniformly and spent 22 of 30 runs
+    in the flat region, where the answer is "about zero" and the model learns
+    nothing (CAL-02). Screening candidates first costs microseconds each and
+    puts the entire CFD budget in the band where download actually varies.
+
+    Oversamples the parameter box and keeps the survivors, rather than trying
+    to invert the geometry -- the feasible region is an awkward shape and
+    rejection sampling against a 7 ms test is far simpler than describing it.
+    """
+    rng = np.random.default_rng(seed)
+    keep: list[tuple[float, float]] = []
+    seen: set[tuple[int, int]] = set()
+    for _ in range(n * oversample):
+        if len(keep) >= n:
+            break
+        arm = rng.uniform(*arm_range)
+        radius = rng.uniform(*radius_range)
+        if 2.0 * radius > 1.90 * arm:
+            continue
+        key = (int(arm * 2000), int(radius * 2000))   # 0.5 mm buckets
+        if key in seen:
+            continue
+        variant = build_variant(template, arm, radius)
+        if screen(variant, threshold, samples=4000).worth_solving:
+            seen.add(key)
+            keep.append((arm, radius))
+    return keep
 
 
 def sample_layouts(n: int, arm_range: tuple[float, float],
@@ -112,8 +152,14 @@ def run_campaign(template: Vehicle, root: Path, n: int = 12,
                  radius_range: tuple[float, float] = (0.050, 0.085),
                  iterations: int = 400, seed: int = 0,
                  stl_dir: Path | None = None,
-                 verbose: bool = True) -> Campaign:
-    """Measure `n` layouts. Safe to interrupt and re-run."""
+                 verbose: bool = True,
+                 focus: bool = True) -> Campaign:
+    """Measure `n` layouts. Safe to interrupt and re-run.
+
+    With `focus` (the default) the layouts are drawn from the region the
+    geometric screen says can actually interfere, so the CFD budget is not
+    spent confirming that widely spaced rotors do not.
+    """
     from ..geometry import cad
 
     root = Path(root)
@@ -121,7 +167,13 @@ def run_campaign(template: Vehicle, root: Path, n: int = 12,
     stl_dir.mkdir(parents=True, exist_ok=True)
     campaign = Campaign(template, root).load()
 
-    for index, (arm, radius) in enumerate(sample_layouts(n, arm_range, radius_range, seed)):
+    layouts = (sample_interesting(template, n, arm_range, radius_range, seed)
+               if focus else sample_layouts(n, arm_range, radius_range, seed))
+    if verbose and focus:
+        print(f"{len(layouts)} layouts selected by the geometric screen "
+              f"(the flat region is skipped, not solved)", flush=True)
+
+    for index, (arm, radius) in enumerate(layouts):
         name = f"case{index:02d}"
         if campaign.done(name):
             if verbose:
@@ -130,6 +182,20 @@ def run_campaign(template: Vehicle, root: Path, n: int = 12,
 
         started = time.monotonic()
         vehicle = build_variant(template, arm, radius)
+
+        verdict = screen(vehicle)
+        if not verdict.worth_solving:
+            campaign.results.append(CaseResult(
+                name, arm, radius, list(design_features(vehicle)), 0.0,
+                0.0, 0.0, None, time.monotonic() - started, True,
+                f"screened: {verdict.reason}", screened=True,
+                overlap=verdict.overlap))
+            campaign.save()
+            if verbose:
+                print(f"{name}: screened out ({verdict.overlap:.1%} overlap), "
+                      f"no CFD run", flush=True)
+            continue
+
         hover = solve_hover(vehicle)
         if not hover.feasible:
             campaign.results.append(CaseResult(
@@ -158,7 +224,7 @@ def run_campaign(template: Vehicle, root: Path, n: int = 12,
             result = CaseResult(
                 name, arm, radius, list(design_features(vehicle)), isolated,
                 force["fz"], loss, cell_count(case_dir),
-                time.monotonic() - started, True)
+                time.monotonic() - started, True, overlap=verdict.overlap)
         except Exception as exc:  # noqa: BLE001
             result = CaseResult(
                 name, arm, radius, list(design_features(vehicle)), isolated,
@@ -190,11 +256,18 @@ def usable(campaign: Campaign, min_cell_ratio: float = 0.35) -> list[CaseResult]
     depends on the layout: a case far below its cohort's median is suspicious
     whatever the number.
     """
-    good = [r for r in campaign.results if r.ok and r.loss is not None and r.cells]
+    # Screened cases carry no mesh and are excluded from the resolution test;
+    # they are legitimate data points, just not CFD ones.
+    good = [r for r in campaign.results
+            if r.ok and r.loss is not None and (r.cells or r.screened)]
     if len(good) < 3:
         return good
-    median = float(np.median([r.cells for r in good]))
-    return [r for r in good if r.cells >= min_cell_ratio * median]
+    solved = [r for r in good if r.cells]
+    if len(solved) < 3:
+        return good
+    median = float(np.median([r.cells for r in solved]))
+    return ([r for r in solved if r.cells >= min_cell_ratio * median]
+            + [r for r in good if r.screened])
 
 
 def fit(campaign: Campaign, transform: str = "sqrt") -> InterferenceModel | None:
