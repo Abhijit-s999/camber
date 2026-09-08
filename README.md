@@ -8,60 +8,50 @@ other end.
 Design plan and full rationale:
 <https://claude.ai/code/artifact/c48a6764-85d8-4645-b309-0f73e68d70c8>
 
-> **Status: P2.** Vehicle schema, geometry, mass properties, control
-> allocation, CAD export — and the physics tier: blade-element propeller
-> aerodynamics, motor and pack models, validated against 115 propellers in the
-> UIUC wind-tunnel database.
+> **All phases delivered.** Vehicle model, physics validated against 115
+> wind-tunnel propellers, multi-objective optimiser, CFD calibration loop,
+> generated structure, and a 3D viewport.
 
 ```console
-$ camber endurance examples/quad5.toml --prop gwsdd_5x4.3
-quad5: 460 g, 4.51 N on 4 rotors -> 1.13 N each
-
-  hover rpm            9233
-  per-rotor current    4.29 A     motor eta 63.2%
-  thrust per watt    0.0507 N/W
-  endurance            4.20 min   capacity-limited
-  mission needs        8.00 min   -> MISSES
-
-$ camber validate
-section e63: 115 propellers, 9322 points
-  CT  median   +7.1%  mean|err|  14.3%  within10%  51%
-  CP  median   +6.3%  mean|err|  14.4%  within10%  49%
+$ camber inspect examples/quad5.toml     # mass, control, hover, constraints
+$ camber optimise examples/quad5.toml --prop gwsdd_5x4.3
+$ camber endurance examples/quad5.toml   # predicted flight time
+$ camber cad examples/quad5.toml out.step
+$ camber ui examples/quad5.toml          # drag payloads and rotors in 3D
+$ camber validate                        # model vs UIUC wind-tunnel data
+$ camber catalogue fetch                 # get the source datasets
 ```
 
-The validation numbers are the point. Until a model reproduces measurements it
-has no standing, and `camber validate` is the gate — errors are scaled by each
-run's peak coefficient, never by the local value, for reasons in
-`DECISIONS.md` PHYS-03.
+The whole chain, spec to manufacturable output, is exercised by
+`tests/test_end_to_end.py`: optimise a real vehicle, generate an airframe for
+the winner, confirm it still flies, export STEP and STL, and load the result
+back as input.
 
-```console
-$ camber inspect examples/quad5.toml
-quad5   mission: max_endurance
+## What it does, and how far to trust it
 
-mass properties
-  mass             460.0 g
-  cg            (-0.0025, +0.0000, +0.0035) m
-  inertia diag  (1.4097e-03, 1.7655e-03, 2.9757e-03) kg m^2
+| tier | what it is | validated against |
+|---|---|---|
+| geometry | exact analytic mass properties, CAD | closed forms, the triangle inequality |
+| control | allocation matrix, hover trim | hand arithmetic; a flat quad is correctly rank 4/6 |
+| physics | blade-element propellers, motors, packs | **115 UIUC propellers, CT median +7.1%** |
+| optimiser | NSGA-II with constrained domination | Pareto fronts, not a weighted score |
+| CFD | actuator discs, RANS | momentum theory to 1.6% |
+| calibration | interference GP | **25 CFD cases, LOO 1.34%, R2 0.952** |
+| structure | cantilever sizing, 3-axis CNC rules | closed forms; stock section ladder |
 
-control
-  rank          4/6
-  commandable   Fz, Mx, My, Mz
-  NOT           Fx, Fy   (underactuated: it must tilt to translate)
+Known limits, stated rather than buried: the interference model has seen 25
+cases of one airframe family in hover only; static thrust (J = 0) is not
+claimed; blade count is assumed to be two; the generated frame is a structural
+lower bound with no fasteners or crash margin.
 
-hover
-  weight           4.511 N
-    front_right     1.099 N  10.7% of rated
-    rear_right      1.156 N  11.2% of rated     <- CG is aft, so the rear works harder
-  thrust:weight     9.13 : 1
+## Data, and what is not shipped
 
-constraints
-  ok   CGBox / ViewCone / MinDistance
-```
-
-```fish
-camber cad examples/quad5.toml quad5.step   # STEP for CNC
-camber cad examples/quad5.toml quad5.stl    # STL for printing
-```
+**No third-party measurements are redistributed.** None of the four sources --
+UIUC, APC, Tyto Robotics, ThrustCurve -- grants a redistribution right, so
+Camber ships the *builder*: `camber catalogue fetch` downloads from the
+originals, `camber catalogue sources` prints the terms, and `NOTICE` carries the
+citations. `tests/test_licensing.py` fails the build if any source data ever
+enters the tree. See `DECISIONS.md` LIC-01.
 
 ## The two halves, and the wall between them
 
