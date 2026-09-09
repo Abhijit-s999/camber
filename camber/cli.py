@@ -374,12 +374,21 @@ def cmd_generate(args: argparse.Namespace) -> int:
     print(f"{len(problem.fixed):,} fixed dof, "
           f"{int(np.count_nonzero(problem.load)):,} loaded dof")
 
+    if args.min_feature:
+        # The filter radius is the length scale: a density filter of radius R
+        # cannot produce a member much thinner than R, which is the whole
+        # mechanism. Quoting it in millimetres rather than elements means the
+        # number stays meaningful when the grid changes.
+        args.filter = max(1.5, args.min_feature / 1000.0 / args.element)
+        print(f"minimum feature {args.min_feature:g} mm "
+              f"-> filter radius {args.filter:.2f} elements")
+
     t0 = time.time()
     result = topology.optimise(
         problem, iterations=args.iterations, filter_radius=args.filter,
         penalty_start=args.penalty if args.no_continuation else 1.0,
         penalty=args.penalty, E0=args.modulus, Emin=args.modulus * 1e-9,
-        solver=args.solver, verbose=args.verbose)
+        beta=args.beta, solver=args.solver, verbose=args.verbose)
     seconds = time.time() - t0
 
     c0, c1 = result.compliance_history[0], result.compliance_history[-1]
@@ -559,8 +568,16 @@ def main(argv: list[str] | None = None) -> int:
                           "load, mm (default 1.0). Only used by --price, as "
                           "the scale stiffness is charged against")
     gen.add_argument("--iterations", type=int, default=80)
+    gen.add_argument("--min-feature", type=float, dest="min_feature",
+                     help="smallest structural member the design may contain, "
+                          "mm. Sets the density filter radius, which is what "
+                          "stops the optimiser building one-element webs")
     gen.add_argument("--filter", type=float, default=2.4,
-                     help="sensitivity filter radius, elements")
+                     help="density filter radius in elements; --min-feature "
+                          "is the same knob in millimetres")
+    gen.add_argument("--beta", type=float, default=16.0,
+                     help="projection sharpness. 0 disables it, leaving the "
+                          "grey band the filter creates")
     gen.add_argument("--penalty", type=float, default=3.0)
     gen.add_argument("--no-continuation", action="store_true",
                      help="start at the final penalty instead of ramping")

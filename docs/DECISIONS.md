@@ -1362,6 +1362,56 @@ Order matters in the cleanup too: welding has to precede dropping degenerate
 faces, because a zero-area triangle between unwelded vertices is still holding
 two patches together and deleting it punctures the surface.
 
+### GEN-14 · The density filter was half-applied — `FIXED`
+
+**The bug.** Sensitivities were transformed by `dc = H @ (dc / Hs)`. That is
+the chain rule *for a density filter* -- and the density field was never
+filtered. Nothing filtered anything. The optimiser was told about a smoothing
+that was not happening: it could place a one-element-wide web, and the
+sensitivity it read for doing so was the one it would have had if webs were
+smoothed.
+
+It was found by looking at a side view of an arm, which was a ragged lattice
+of single-element skins and stringy webs -- structure with no length scale at
+all, because nothing in the formulation had one.
+
+**Value:** a real density filter, `xPhys = H x / Hs`, with the analysis run on
+`xPhys` rather than on the design variables, plus a smoothed Heaviside
+projection to put the edges back. A density filter of radius R cannot produce a
+member much thinner than R, which is the mechanism that gives a minimum
+thickness; the projection restores the crisp boundary the filter costs.
+`--min-feature` quotes the radius in millimetres so the number stays meaningful
+when the grid changes.
+
+**Measured on a test cantilever**, 60 iterations, same problem both ways:
+
+```
+                 stiffness     grey elements
+no projection      3.5x            32.5%
+beta = 16          5.5x            10.0%
+```
+
+Crisper *and* stiffer, which is the expected direction: grey material is
+structurally inefficient by construction, so a formulation that avoids it
+spends the same volume better.
+
+**Sharpening has to wait for the field to settle.** On a fixed schedule this
+oscillates: every doubling of beta multiplies the projection gradient, the
+optimality-criteria step saturates at the move limit, and the design flips
+between two states -- compliance alternating between 4.09e7 and 1.89e12 on
+consecutive iterations, forever. `should_sharpen` doubles beta only once the
+design has stopped moving, or after a fixed number of iterations if it never
+does. The move limit is also damped as `move / sqrt(beta)`, to keep each step
+inside the range where the linearised sensitivity is still a guide.
+
+That is the third time on this project that a schedule ignoring what the run
+was actually doing drove it somewhere useless: GEN-03's penalty ramp and
+GEN-04's stopping rule were the same lesson.
+
+**The projection gradient is easy to omit** and its absence is not an error --
+it is a run that never settles. `TestProjection` checks it against finite
+differences at three sharpnesses.
+
 The assembly was trimmed to suit: storing which entry of the 24x24 element
 matrix each non-zero carries, as int16, rather than the value as float64. At
 265,000 elements that is 152 million entries, so it is 300 MB instead of

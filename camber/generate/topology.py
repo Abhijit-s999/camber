@@ -216,6 +216,8 @@ class Result:
     converged: bool = False
     #: Penalty the run finished at, which continuation makes worth recording.
     penalty: float = 3.0
+    #: Projection sharpness it finished at, likewise.
+    beta: float = 0.0
 
     @property
     def volume_fraction(self) -> float:
@@ -315,6 +317,50 @@ def _filter_matrix(domain: Domain, radius: float) -> sp.csr_matrix:
                        (np.concatenate(rows), np.concatenate(cols))),
                       shape=(domain.n_elements, domain.n_elements)).tocsr()
     return H
+
+
+def project(x: np.ndarray, beta: float, eta: float = 0.5) -> np.ndarray:
+    """Smoothed Heaviside: push a filtered field back towards solid or void.
+
+    A density filter is what gives a design a length scale -- no member can be
+    thinner than the filter reaches -- but it also leaves a grey band at every
+    boundary as wide as the filter. Projection puts the edge back: above `eta`
+    towards 1, below towards 0, with `beta` setting how sharply. At beta near 0
+    it is the identity; at large beta it is a step, and the length scale
+    survives because what gets projected is the *filtered* field.
+    """
+    if beta <= 1e-6:
+        return x.copy()
+    t = math.tanh(beta * eta)
+    return (t + np.tanh(beta * (x - eta))) / (t + math.tanh(beta * (1.0 - eta)))
+
+
+def project_gradient(x: np.ndarray, beta: float, eta: float = 0.5) -> np.ndarray:
+    """d(project)/dx, which the chain rule needs and is easy to leave out."""
+    if beta <= 1e-6:
+        return np.ones_like(x)
+    t = math.tanh(beta * eta)
+    return (beta * (1.0 - np.tanh(beta * (x - eta)) ** 2)
+            / (t + math.tanh(beta * (1.0 - eta))))
+
+
+def should_sharpen(change: float, since: int, every: int,
+                   settled: float = 0.02) -> bool:
+    """Whether to double the projection sharpness now.
+
+    On a schedule alone this oscillates. Every doubling of `beta` multiplies
+    the projection gradient, so the optimality-criteria step saturates at the
+    move limit and the design flips between two states: measured on a test
+    cantilever, compliance alternating between 4.09e7 and 1.89e12 on
+    consecutive iterations, forever. Sharpening only once the field has settled
+    -- or after `every` iterations if it never does -- lets each level of
+    sharpness be absorbed before the next arrives.
+
+    This is the same lesson as the penalty ramp in GEN-03, and the same lesson
+    as GEN-04's stopping rule: a schedule that ignores what the run is actually
+    doing will happily drive it somewhere useless.
+    """
+    return change < settled or since >= every
 
 
 def penalty_at(iteration: int, iterations: int, final: float,
@@ -507,6 +553,7 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
              E0: float = 1.0, Emin: float = 1e-9, nu: float = 0.3,
              tol: float = 0.01, verbose: bool = False,
              penalty_start: float = 1.0, warmup: int = 12,
+             beta: float = 16.0, eta: float = 0.5,
              solver: str = "auto", on_iteration=None) -> Result:
     """Run SIMP until the density field stops moving.
 
@@ -536,10 +583,32 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
     Hs = np.asarray(H.sum(axis=1)).ravel()
 
     x = np.full(d.n_elements, problem.volume_fraction)
-    if problem.keep is not None:
-        x[problem.keep.ravel()] = 1.0
-    if problem.void is not None:
-        x[problem.void.ravel()] = 0.0
+    keep_i = problem.keep.ravel() if problem.keep is not None else None
+    void_i = problem.void.ravel() if problem.void is not None else None
+
+    def physical(design: np.ndarray, sharpness: float) -> np.ndarray:
+        """Design variables -> the density the structure actually has.
+
+        **The filter was half-applied.** Sensitivities were transformed by
+        `H @ (dc / Hs)`, which is the chain rule *for a density filter*, while
+        the density field itself was never filtered. The optimiser was told
+        about a smoothing that was not happening: it could still place a
+        one-element web, and the sensitivity it read for doing so was the one
+        it would have had if webs were smoothed. That is where the stringy
+        single-element structure came from.
+        """
+        rho = (H @ design) / Hs
+        rho = project(rho, sharpness, eta)
+        if keep_i is not None:
+            rho[keep_i] = 1.0
+        if void_i is not None:
+            rho[void_i] = 0.0
+        return rho
+
+    if keep_i is not None:
+        x[keep_i] = 1.0
+    if void_i is not None:
+        x[void_i] = 0.0
 
     asm = _Assembly(dofs, problem.fixed, n_dof, KE)
     free = asm.free
@@ -555,9 +624,13 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
     lam_ref = None                     # exchange rate, measured in the warm start
 
     p_final = penalty
+    sharp, since_sharpen = 1.0, 0
+    sharpen_every = max(15, iterations // 6)
     for it in range(iterations):
         penalty = penalty_at(it, iterations, p_final, penalty_start)
-        stiff = Emin + x ** penalty * (E0 - Emin)
+        xf = (H @ x) / Hs                    # filtered
+        xp = physical(x, sharp)              # filtered and projected
+        stiff = Emin + xp ** penalty * (E0 - Emin)
         u = np.zeros(n_dof)
         try:
             u[free] = _solve(asm.matrix(stiff), f_free, d, free, how,
@@ -576,13 +649,24 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
         if c_ref is None:
             c_ref = compliance if compliance > 0 else 1.0
 
-        dc = -penalty * x ** (penalty - 1.0) * (E0 - Emin) * ce
+        # Chain rule all the way back to the design variables: through the
+        # projection, then through the filter. Dropping the projection term is
+        # the classic way to get a run that oscillates and never settles.
+        dproj = project_gradient(xf, sharp, eta)
+        dc = -penalty * xp ** (penalty - 1.0) * (E0 - Emin) * ce
         dv = np.ones(d.n_elements)
-        dc = H @ (dc / Hs)
-        dv = H @ (dv / Hs)
+        dc = H @ (dc * dproj / Hs)
+        dv = H @ (dv * dproj / Hs)
+
+        # Every doubling of `beta` multiplies the projection gradient, so a
+        # fixed move limit lets the optimality-criteria step saturate and the
+        # design flips between two states. Shrinking the step as the projection
+        # sharpens keeps each iteration inside the range where the linearised
+        # sensitivity is still a good guide.
+        move_now = move / math.sqrt(sharp)
 
         def bounded(step: np.ndarray) -> np.ndarray:
-            step = np.clip(np.clip(step, x - move, x + move), 0.0, 1.0)
+            step = np.clip(np.clip(step, x - move_now, x + move_now), 0.0, 1.0)
             if problem.keep is not None:
                 step[problem.keep.ravel()] = 1.0
             if problem.void is not None:
@@ -598,7 +682,9 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
             while (hi - lo) / (lo + hi) > 1e-6:
                 mid = 0.5 * (lo + hi)
                 xnew = bounded(x * np.sqrt(np.maximum(-dc / (dv * mid), 0.0)))
-                if xnew.sum() > target:
+                # The constraint is on the material that exists, not on the
+                # design variables that generate it.
+                if physical(xnew, sharp).sum() > target:
                     lo = mid
                 else:
                     hi = mid
@@ -652,18 +738,27 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
 
         change = float(np.abs(xnew - previous).max())
         previous, x = xnew.copy(), xnew
-        result.density = x.reshape(d.shape)
+
+        since_sharpen += 1
+        if sharp < beta and should_sharpen(change, since_sharpen,
+                                           sharpen_every):
+            sharp, since_sharpen = min(beta, sharp * 2.0), 0
+        # The physical field is what was analysed and what gets meshed; the
+        # design variables are an intermediate nobody should see.
+        result.density = physical(x, sharp).reshape(d.shape)
         result.iterations = it + 1
         result.penalty = penalty
+        result.beta = sharp
         if verbose:
-            print(f"  it {it+1:3d}  p {penalty:4.2f}  "
+            print(f"  it {it+1:3d}  p {penalty:4.2f}  b {sharp:5.1f}  "
                   f"compliance {compliance:10.4e}  "
-                  f"vol {x.mean():.3f}  change {change:.4f}", flush=True)
+                  f"vol {result.density.mean():.3f}  change {change:.4f}",
+                  flush=True)
         if on_iteration:
-            on_iteration(it, compliance, x.reshape(d.shape))
+            on_iteration(it, compliance, result.density)
         # Only meaningful once the ramp is done: each penalty step moves the
         # field deliberately, so "it stopped moving" mid-ramp says nothing.
-        if (change < tol and penalty >= p_final
+        if (change < tol and penalty >= p_final and sharp >= beta
                 and _has_settled(result.compliance_history)):
             result.converged = True
             break

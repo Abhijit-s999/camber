@@ -1064,3 +1064,82 @@ class TestDrillingLeavesOneSolid:
         plate = trimesh.creation.box((0.08, 0.08, 0.004))
         out = T.drill(plate, [T.Fastener(0.0400, 0.0, hole=0.0017)])
         assert out.body_count == 1
+
+
+class TestProjection:
+    """Density filtering plus a smoothed Heaviside, which is what gives the
+    design a minimum thickness.
+
+    The filter alone was half-applied: sensitivities were transformed by
+    `H @ (dc / Hs)` -- the chain rule *for a density filter* -- while the
+    density field was never filtered. The optimiser was told about a smoothing
+    that was not happening, so it could still place a one-element web and read
+    the sensitivity it would have had if webs were smoothed. Stringy
+    single-element structure is exactly what that produces.
+    """
+
+    def test_it_fixes_the_ends(self):
+        x = np.array([0.0, 1.0])
+        assert T.project(x, 16.0) == pytest.approx([0.0, 1.0], abs=1e-9)
+
+    def test_it_is_the_identity_at_zero_sharpness(self):
+        x = np.linspace(0, 1, 11)
+        assert T.project(x, 0.0) == pytest.approx(x)
+
+    def test_it_is_monotone(self):
+        y = T.project(np.linspace(0, 1, 51), 12.0)
+        assert np.all(np.diff(y) > 0)
+
+    def test_it_pushes_away_from_the_threshold(self):
+        assert T.project(np.array([0.3]), 16.0)[0] < 0.3
+        assert T.project(np.array([0.7]), 16.0)[0] > 0.7
+
+    def test_the_threshold_is_a_fixed_point(self):
+        assert T.project(np.array([0.5]), 16.0, eta=0.5)[0] == pytest.approx(0.5)
+
+    def test_the_gradient_matches_finite_differences(self):
+        """The term that is easy to leave out of the chain rule, and whose
+        absence shows up as a run that never settles rather than as an error."""
+        x = np.linspace(0.05, 0.95, 19)
+        h = 1e-6
+        for beta in (1.0, 8.0, 16.0):
+            fd = (T.project(x + h, beta) - T.project(x - h, beta)) / (2 * h)
+            assert T.project_gradient(x, beta) == pytest.approx(fd, rel=1e-4)
+
+    def test_the_gradient_is_one_at_zero_sharpness(self):
+        assert T.project_gradient(np.linspace(0, 1, 5), 0.0) == pytest.approx(1.0)
+
+    def test_sharpening_waits_for_the_field_to_settle(self):
+        assert T.should_sharpen(change=0.005, since=1, every=20)
+        assert not T.should_sharpen(change=0.2, since=1, every=20)
+
+    def test_sharpening_happens_anyway_if_it_never_settles(self):
+        assert T.should_sharpen(change=0.2, since=20, every=20)
+
+    def test_a_projected_run_is_more_binary(self):
+        """The point of the projection, stated as a comparison rather than a
+        threshold: the same problem run both ways must come out crisper with
+        it than without."""
+        def grey(beta):
+            r = T.optimise(cantilever(), iterations=60, filter_radius=1.5,
+                           penalty_start=3.0, beta=beta)
+            return float(((r.density > 0.2) & (r.density < 0.8)).mean())
+
+        assert grey(16.0) < grey(1.0) / 2
+
+    def test_a_projected_run_is_not_softer(self):
+        def stiffness(beta):
+            r = T.optimise(cantilever(), iterations=60, filter_radius=1.5,
+                           penalty_start=3.0, beta=beta)
+            return 1.0 / r.compliance_history[-1]
+
+        assert stiffness(16.0) > stiffness(1.0)
+
+    def test_the_reported_field_is_physical_not_the_design_variables(self):
+        """`keep` is enforced on the density that exists, so a mount stays
+        solid however the filter smears the variables behind it."""
+        p = cantilever()
+        p.keep = np.zeros(p.domain.shape, dtype=bool)
+        p.keep[5, :, :] = True
+        r = T.optimise(p, iterations=8, penalty_start=3.0)
+        assert np.all(r.density[5] == 1.0)
