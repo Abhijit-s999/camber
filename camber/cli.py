@@ -373,16 +373,25 @@ def cmd_generate(args: argparse.Namespace) -> int:
 
     c0, c1 = result.compliance_history[0], result.compliance_history[-1]
     islands, connected = result.connectivity()
+    hinges = result.hinges()
     grey = float(((result.density > 0.05) & (result.density < 0.95)).mean())
     print(f"\n{result.iterations} iterations in {seconds:.0f} s, "
           f"converged={result.converged}")
-    print(f"  compliance   {c0:.3e} -> {c1:.3e}  ({c0 / c1:.0f}x stiffer)")
+    print(f"  compliance   {c0:.3e} -> {c1:.3e}  ({c0 / c1:.1f}x stiffer)")
     print(f"  grey         {grey:.1%} of elements")
     print(f"  islands      {islands}, largest holds {connected:.1%} "
           f"of the material")
+    print(f"  hinges       {hinges} joins that hold only at an edge")
     if connected < 0.95:
         print("  WARNING: material is stranded in islands that carry no load; "
               "the meshed part will weigh less than the target", file=sys.stderr)
+    if hinges:
+        # Different defect, different fix: islands mean wasted budget, hinges
+        # mean the element formulation is carrying load through a corner that
+        # carbon cannot. More material or a coarser grid, not more iterations.
+        print(f"  WARNING: {hinges} edge-only joins; members are about one "
+              f"element wide, so the discrete model is stiffer here than the "
+              f"part would be", file=sys.stderr)
 
     if args.density_out:
         np.save(args.density_out, result.density)
@@ -395,8 +404,13 @@ def cmd_generate(args: argparse.Namespace) -> int:
         return 3
     mass = mesh.volume * args.density
     print(f"  mesh         {len(mesh.faces):,} facets, "
-          f"watertight={mesh.is_watertight}, {mesh.body_count} body, "
+          f"watertight={mesh.is_watertight}, {mesh.body_count} "
+          f"{'body' if mesh.body_count == 1 else 'bodies'}, "
           f"{mesh.volume * 1e6:.2f} cm^3 = {mass * 1000:.1f} g")
+    if mesh.body_count > 1:
+        print(f"  WARNING: the mesh is {mesh.body_count} separate shells, not "
+              f"one part; a slicer will treat each as its own object",
+              file=sys.stderr)
     mesh.export(args.out)
     print(f"  wrote {args.out}")
     return 0

@@ -1120,6 +1120,69 @@ rigid by decree and hid whatever the optimiser would have built there.
 the budget, that pads occupy at most two layers, and that the support does not
 span the hub.
 
+### GEN-07 · A flying airframe is a free body — `FIXED`
+
+**Value:** thrust up at the motor pads, the payload's weight down at the stack
+pads, and a 3-2-1 restraint -- one node pinned, a second held against two axes,
+a third against one -- which removes the six rigid-body modes and nothing else.
+
+**What the grounded version did.** Holding all four stack pads rigidly makes
+each bolt an independent, infinitely stiff support, and the optimiser answers
+that question correctly: four separate arms, each running from its motor to its
+own bolt, never meeting in the middle because nothing requires them to. The
+connectivity report called it fragmentation -- 28 islands, largest holding
+22.7% -- and the structure was fine. The supports were wrong.
+
+A self-equilibrated load set makes the restraint carry nothing: the measured
+reactions are 1e-10 of the applied load. That is what makes it legitimate to
+restrain a node that is also loaded, which would be a bug under a grounded
+formulation. `TestTheFrameIsAFreeBody` measures the reactions rather than
+assuming them.
+
+The reaction check caught its own bug on the way, worth recording because it is
+easy to repeat: **reaction is `Ku - f`, not `Ku`.** The restrained nodes carry
+applied load too, and without the subtraction the test reports the applied load
+back as if it were a reaction -- three z-reactions of exactly 0.76875 N, which
+is exactly 49.2 N over 64 loaded nodes.
+
+### GEN-08 · Pruning used the wrong connectivity and was deleting the arms — `FIXED`
+
+**The bug.** `largest_connected` labelled with `scipy.ndimage`'s default
+structuring element, which is 6-connectivity: two voxels are joined only if
+they share a *face*. An airframe's arms run diagonally, and a diagonal in a
+Cartesian grid is a staircase whose voxels touch at their edges. So every voxel
+of every arm was its own island, pruning kept whatever happened to be
+blockiest, and the meshed part came out at **1.3 g of a requested 40 g**.
+
+```
+coarse racing frame, 172 solid elements
+  face-only (6)    96 components, largest holds   6.3%
+  edge     (18)     2 components, largest holds  56.1%
+  corner   (26)     1 component,  largest holds 100.0%
+```
+
+The same field is 96 pieces or one piece depending only on which rule you ask
+with. This is the second time the connectivity report has accused a sound
+structure: GEN-07's four arms were real too.
+
+**Value:** pruning and `connectivity()` default to 26-connectivity, which is
+what the element formulation itself uses -- elements meeting at an edge share
+two nodes and transmit load through them, so it is the right rule for *is this
+one structure*.
+
+**But the face count still means something,** so it is still reported, as
+`Result.hinges()`: the number of joins inside the structure that hold only at
+an edge. Zero means every join is a shared face and the part can be made. 95,
+which is what the coarse run scores, means members are about one element wide
+and the discrete model is stiffer there than carbon would be -- a known SIMP
+artefact, and a real manufacturability defect. It calls for more material or a
+coarser grid, not more iterations, which is why it is a separate warning from
+the stranded-material one.
+
+`camber generate` also now reports the meshed part's shell count, since a
+staircase that survives pruning can still reach the slicer as ninety-three
+separate objects.
+
 ---
 
 ## 8. GPU acceleration

@@ -148,6 +148,15 @@ class Problem:
     volume_fraction: float = 0.3
 
 
+def _structure(rule: str):
+    """Neighbourhood for labelling: face-only (6) or face/edge/corner (26)."""
+    from scipy import ndimage
+
+    if rule not in ("face", "full"):
+        raise ValueError(f"rule must be 'face' or 'full', got {rule!r}")
+    return ndimage.generate_binary_structure(3, 1 if rule == "face" else 3)
+
+
 @dataclass
 class Result:
     density: np.ndarray                  # (nx, ny, nz) in [0, 1]
@@ -161,7 +170,8 @@ class Result:
     def volume_fraction(self) -> float:
         return float(self.density.mean())
 
-    def connectivity(self, threshold: float = 0.4) -> tuple[int, float]:
+    def connectivity(self, threshold: float = 0.4,
+                     rule: str = "full") -> tuple[int, float]:
         """(number of solid islands, fraction of material in the largest).
 
         Reported rather than left to be discovered downstream. A run that
@@ -169,17 +179,53 @@ class Result:
         loudly -- compliance still fell, the field is still 96% binary -- and
         the only symptom is that the part you finally mesh weighs a third less
         than you asked for. The first run of this optimiser did exactly that.
+
+        `rule` picks what counts as a join, and the two answers mean different
+        things. "full" is 26-connectivity: voxels that share a face, an edge or
+        a corner. That is what the finite-element model sees, because elements
+        meeting at an edge share two nodes and transmit load through them, so
+        it is the right rule for *is this one structure*. "face" is
+        6-connectivity, which is the right rule for *could this be made*: a
+        real part cannot carry load through a corner.
+
+        On a diagonal arm the two disagree completely. A one-element-wide
+        diagonal is a staircase whose voxels touch only at edges, so face
+        connectivity reports one island per voxel -- 96 of them on a frame that
+        is topologically a single piece. Use `hinges()` for the gap between
+        them, which is the number that actually names the defect.
         """
         from scipy import ndimage
 
         solid = self.density >= threshold
         if not solid.any():
             return 0, 0.0
-        labels, n = ndimage.label(solid)
+        labels, n = ndimage.label(solid, structure=_structure(rule))
         if n <= 1:
             return n, 1.0
         mass = ndimage.sum(self.density, labels, range(1, n + 1))
         return n, float(mass.max() / mass.sum())
+
+    def hinges(self, threshold: float = 0.4) -> int:
+        """How many places the structure holds together only at an edge.
+
+        The count of face-connected pieces inside the largest fully-connected
+        one, less itself. Zero means every join is a shared face and the part
+        can be made. A large number means the optimiser has exploited the
+        element formulation: nodes shared at an edge carry load in the discrete
+        model that a corner cannot carry in carbon.
+        """
+        from scipy import ndimage
+
+        solid = self.density >= threshold
+        if not solid.any():
+            return 0
+        full, n = ndimage.label(solid, structure=_structure("full"))
+        if n == 0:
+            return 0
+        sizes = ndimage.sum(solid, full, range(1, n + 1))
+        biggest = full == (int(np.argmax(sizes)) + 1)
+        _, pieces = ndimage.label(biggest, structure=_structure("face"))
+        return max(0, pieces - 1)
 
 
 def _filter_matrix(domain: Domain, radius: float) -> sp.csr_matrix:
@@ -629,7 +675,8 @@ def frame_problem(vehicle, domain_margin: float = 0.012, thickness: float = 0.01
                    keep=keep, volume_fraction=volume_fraction)
 
 
-def largest_connected(density: np.ndarray, threshold: float = 0.4) -> np.ndarray:
+def largest_connected(density: np.ndarray, threshold: float = 0.4,
+                      rule: str = "full") -> np.ndarray:
     """Keep only material connected to the main structure.
 
     SIMP leaves isolated specks: elements that finished above the threshold but
@@ -638,14 +685,24 @@ def largest_connected(density: np.ndarray, threshold: float = 0.4) -> np.ndarray
     cannot be manufactured, since a printer has nothing to build them on and a
     mill has nothing to hold.
 
-    Removing them changes no physics. It is the same argument as the
-    sensitivity filter: what the optimiser produced is not automatically
-    something that can exist.
+    **This used face-only connectivity and was deleting real structure.** An
+    airframe's arms run diagonally, and a diagonal in a Cartesian grid is a
+    staircase whose voxels touch at their edges rather than their faces. Under
+    6-connectivity every voxel of such an arm is its own island, so pruning
+    removed the arms and kept whatever happened to be blockiest -- which is why
+    the meshed part kept coming out at a fraction of the mass budget, 1.3 g of
+    a requested 40 g in the worst case. The default is now 26-connectivity,
+    which is what the element formulation itself uses.
+
+    That does not make an edge-only join manufacturable; it makes it a
+    different problem, counted by `Result.hinges()` and reported separately.
+    Meshing bridges the staircase on its own, because marching cubes takes the
+    isosurface of the continuous field rather than the voxel boundary.
     """
     from scipy import ndimage
 
     solid = density >= threshold
-    labels, n = ndimage.label(solid)
+    labels, n = ndimage.label(solid, structure=_structure(rule))
     if n <= 1:
         return density
     sizes = ndimage.sum(solid, labels, range(1, n + 1))

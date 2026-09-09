@@ -671,3 +671,53 @@ class TestTheFrameIsAFreeBody:
         reaction = internal[problem.fixed] - problem.load[problem.fixed]
         applied = np.abs(problem.load).sum()
         assert np.abs(reaction).sum() < 1e-6 * applied
+
+
+class TestConnectivityRules:
+    """Face versus full connectivity, which disagree completely on a diagonal.
+
+    `largest_connected` used face-only connectivity and was deleting real
+    structure. An airframe's arms run diagonally, and a diagonal in a
+    Cartesian grid is a staircase whose voxels touch at their edges, not their
+    faces -- so 6-connectivity called every voxel its own island and pruning
+    removed the arms. The meshed part came out at 1.3 g of a requested 40 g.
+    """
+
+    def _staircase(self):
+        """A one-element-wide diagonal: 12 voxels, edge-adjacent only."""
+        rho = np.zeros((14, 14, 2))
+        for i in range(12):
+            rho[i + 1, i + 1, :] = 1.0
+        return rho
+
+    def test_a_diagonal_is_one_piece_under_full_connectivity(self):
+        n, frac = T.Result(density=self._staircase()).connectivity(rule="full")
+        assert (n, frac) == (1, 1.0)
+
+    def test_the_same_diagonal_is_twelve_pieces_under_face_connectivity(self):
+        n, _ = T.Result(density=self._staircase()).connectivity(rule="face")
+        assert n == 12
+
+    def test_hinges_counts_the_edge_only_joins(self):
+        assert T.Result(density=self._staircase()).hinges() == 11
+
+    def test_a_solid_block_has_no_hinges(self):
+        rho = np.zeros((8, 8, 3))
+        rho[2:6, 2:6, :] = 1.0
+        assert T.Result(density=rho).hinges() == 0
+
+    def test_pruning_keeps_the_diagonal(self):
+        """The regression that mattered: the arms must survive."""
+        rho = self._staircase()
+        rho[13, 0, :] = 1.0                       # a genuine speck
+        cleaned = T.largest_connected(rho)
+        assert cleaned[1:13, 1:13].sum() == 24, "the arm was pruned away"
+        assert cleaned[13, 0, 0] == 0.0, "the speck survived"
+
+    def test_face_pruning_destroys_it(self):
+        """Kept as the demonstration of what the old default did."""
+        assert T.largest_connected(self._staircase(), rule="face").sum() == 2
+
+    def test_an_unknown_rule_is_rejected(self):
+        with pytest.raises(ValueError, match="face"):
+            T.Result(density=np.ones((4, 4, 2))).connectivity(rule="diagonal")
