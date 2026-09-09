@@ -942,47 +942,135 @@ def largest_connected(density: np.ndarray, threshold: float = 0.4,
     return cleaned
 
 
+def _isolevel_for_volume(field: np.ndarray, target_cells: float,
+                         lo: float = 0.05, hi: float = 0.95) -> float:
+    """Isolevel enclosing a given number of cells, by bisection.
+
+    Meshing at a fixed 0.5 is only volume-preserving if the field is symmetric
+    about it, and a resampled, blurred field is not: blurring moves material
+    outward across the boundary, and a fixed level then returns a part heavier
+    than the one the optimiser designed. Choosing the level to hit the design
+    volume keeps the mass honest, which is the whole point of pricing it.
+    """
+    for _ in range(60):
+        mid = 0.5 * (lo + hi)
+        if float((field >= mid).sum()) > target_cells:
+            lo = mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi)
+
+
 def to_mesh(result: Result, domain: Domain, threshold: float = 0.5,
-            smooth: bool = True, prune: bool = True):
+            smooth: bool = True, prune: bool = True,
+            upsample: int = 2, blur: float = 0.5, taubin: int = 40):
     """Turn the density field into a watertight surface.
 
-    Marching cubes on the density field, at a threshold chosen so the enclosed
-    volume matches the optimiser's volume constraint. Taking the isosurface of
-    the *continuous* field rather than the voxel boundary is what produces the
-    smooth branching shapes: SIMP's intermediate densities carry sub-element
-    information about where the true boundary lies, and a voxel staircase
-    throws that away.
+    Marching cubes takes the isosurface of a *continuous* field, so in
+    principle the boundary carries sub-element information and the result is
+    smooth. In practice SIMP is built to destroy exactly that: the penalty
+    exists to drive every element to solid or void, and a field that is 99.3%
+    binary has no intermediate values left to interpolate. The isosurface then
+    has nowhere to go but along the voxel boundary, and the part comes out
+    faceted at the element scale -- visibly so, in a way that reads as a
+    rendering artefact and is really the geometry.
+
+    Three steps, in this order, fix it without touching the optimisation:
+
+    1. **Resample.** Cubic-spline zoom by `upsample` puts the isosurface on a
+       finer lattice than the elements. This does not invent detail; it stops
+       the mesh quantising the detail that is there.
+    2. **Blur.** A small Gaussian restores the intermediate band the penalty
+       removed. `blur` is in upsampled cells, so it is a fixed fraction of an
+       element whatever the grid.
+    3. **Re-level.** Blurring moves material outward across the boundary, so a
+       fixed 0.5 would return a heavier part than was designed. The level is
+       chosen instead to enclose the design volume.
+
+    `blur` is deliberately small. Holding the volume fixed means a stronger
+    blur has to be paid for with a higher isolevel, and a higher level cuts the
+    thinnest necks: at 0.9 this part went from one solid body to nine, purely
+    from meshing. 0.5 rounds the staircase and keeps the topology.
+
+    Taubin smoothing then runs on the mesh itself. It is used rather than
+    Laplacian because Laplacian shrinks a part toward its centroid a little
+    with every pass, and this is a part whose mass is the answer -- measured
+    here, 80 passes of Taubin cost 1% of volume while taking 2% off the surface
+    area, so the passes are close to free and the default is generous.
+
+    Set `upsample=1, blur=0` for the raw voxel isosurface.
     """
+    from scipy import ndimage
     from skimage import measure
     import trimesh
 
     field = (largest_connected(result.density, threshold) if prune
              else result.density)
-    rho = np.pad(field, 1, mode="constant", constant_values=0.0)
+    target = float(field.sum())                  # design volume, in elements
+    # The margin has to outlast the blur. One element of padding is enough for
+    # a raw isosurface and not for a blurred one: the Gaussian pushes material
+    # out past the boundary, the surface reaches the edge of the array, and
+    # marching cubes returns an open sheet -- which then reports a negative
+    # volume and is not watertight, so the inversion guard below cannot even
+    # tell it is inside-out. Three sigma of margin, in elements, plus one.
+    margin = 1 + int(math.ceil(3.0 * blur / max(upsample, 1)))
+    rho = np.pad(field, margin, mode="constant", constant_values=0.0)
+
+    if upsample > 1:
+        rho = ndimage.zoom(rho, upsample, order=3, mode="nearest")
+        rho = np.clip(rho, 0.0, 1.0)
+    if blur > 0:
+        rho = ndimage.gaussian_filter(rho, blur)
+
+    scale = upsample ** 3
+    level = (_isolevel_for_volume(rho, target * scale)
+             if (upsample > 1 or blur > 0) else threshold)
+
     # `descent` puts the normals on the outside of the solid. With the default
     # the mesh comes out inside-out: still watertight, still the right shape,
     # and with a *negative* enclosed volume -- which a slicer reads as a void,
     # so the part either fails to print or prints as its own negative.
-    verts, faces, normals, _ = measure.marching_cubes(
-        rho, level=threshold, gradient_direction="descent")
-    # Undo the pad, scale voxels to metres, and centre on the vehicle origin.
-    verts = (verts - 1.0) * domain.element
-    verts[:, 0] -= domain.nx * domain.element / 2.0
-    verts[:, 1] -= domain.ny * domain.element / 2.0
-    verts[:, 2] -= domain.nz * domain.element / 2.0
+    verts, faces, _, _ = measure.marching_cubes(
+        rho, level=level, gradient_direction="descent")
 
-    mesh = trimesh.Trimesh(vertices=verts, faces=faces, vertex_normals=normals)
-    # trimesh 5 renamed these; keep working on either.
+    # Built and cleaned in *voxel* coordinates, scaled to metres afterwards.
+    # `merge_vertices` welds by rounding to an absolute tolerance, so at metre
+    # scale a 1.5 mm grid puts distinct vertices close enough together to be
+    # collapsed into each other -- which makes non-manifold edges out of a
+    # surface that was closed when it arrived. In voxel units neighbouring
+    # vertices are order 1 apart and only genuine duplicates weld.
+    #
+    # No `vertex_normals=` and no processing on construction either: handing
+    # trimesh per-vertex normals makes its merge treat coincident vertices with
+    # different normals as distinct, so the merge silently does nothing.
+    mesh = trimesh.Trimesh(vertices=verts, faces=faces, process=False)
+    # Marching cubes emits a closed surface with duplicated vertices along
+    # every shared edge. Welding them is what makes it a solid rather than a
+    # pile of triangles, and it has to come *before* degenerate faces are
+    # dropped: a zero-area triangle between unwelded vertices is still holding
+    # two patches together, and deleting it punctures the surface.
+    mesh.merge_vertices()
     if hasattr(mesh, "nondegenerate_faces"):
         mesh.update_faces(mesh.nondegenerate_faces())
         mesh.update_faces(mesh.unique_faces())
     else:                                                # pragma: no cover
         mesh.remove_degenerate_faces()
         mesh.remove_duplicate_faces()
-    if smooth:
-        trimesh.smoothing.filter_taubin(mesh, iterations=8)
+    mesh.remove_unreferenced_vertices()
+    if not mesh.is_watertight:
+        trimesh.repair.fill_holes(mesh)
+
+    # Undo the upsample and the pad, scale to metres, centre on the origin.
+    mesh.apply_scale(domain.element / upsample)
+    mesh.apply_translation([
+        -(margin + domain.nx / 2.0) * domain.element,
+        -(margin + domain.ny / 2.0) * domain.element,
+        -(margin + domain.nz / 2.0) * domain.element])
+
+    if smooth and taubin:
+        trimesh.smoothing.filter_taubin(mesh, iterations=taubin)
     # Belt and braces: a negative volume means the winding is still inverted.
-    if mesh.is_watertight and mesh.volume < 0:
+    if mesh.volume < 0:
         mesh.invert()
     return mesh
 

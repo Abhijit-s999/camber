@@ -1318,6 +1318,50 @@ factorisation's displacement field to 1e-6.
 Above 150,000 unknowns `solver="auto"` switches over; the threshold is
 measured, and `--solver` forces either.
 
+### GEN-13 · The faceting is the geometry, not the render — `FIXED`
+
+Marching cubes takes the isosurface of a *continuous* field, so in principle
+the boundary carries sub-element information. SIMP is built to destroy exactly
+that: the penalty exists to drive every element to solid or void, and by the
+end the racing frame's field is 99.3% binary. With no intermediate values left
+to interpolate the isosurface has nowhere to go but along the voxel boundary,
+and the part comes out faceted at the element scale -- which reads as a
+rendering artefact and is really the shape.
+
+**Value:** resample, blur a little, and re-level. Cubic-spline zoom puts the
+surface on a finer lattice than the elements; a small Gaussian restores the
+intermediate band the penalty removed; and the isolevel is then chosen to
+enclose the *design* volume rather than fixed at 0.5. On the 1.5 mm frame the
+raw isosurface came out **11% light** -- 49.3 g of a 54.5 g design, mass the
+optimiser had paid for and the mesher threw away. Resampled, it lands at 53.1 g.
+
+**The blur is deliberately small, at 0.5.** Holding the volume fixed means a
+stronger blur is paid for with a higher isolevel, and a higher level cuts the
+thinnest material first: at 0.9 this part went from one solid body to nine,
+purely in meshing. Taubin passes are nearly free by comparison -- 80 of them
+cost 1% of volume and take 2% off the surface area -- so the smoothing budget
+is spent there instead.
+
+**Three mesh-handling bugs, all of which produced surfaces that were not
+watertight and, being open, could not even be tested for inverted winding:**
+
+- Padding was one element, which a blurred field spills straight through. The
+  surface then reaches the edge of the array and marching cubes returns an
+  open sheet. The margin now scales as three sigma of the blur.
+- The `Trimesh` constructor was handed per-vertex normals, which makes its
+  merge treat two coincident vertices with different normals as distinct -- so
+  the merge silently did nothing.
+- Vertices were merged *after* scaling to metres. `merge_vertices` welds by
+  rounding to an absolute tolerance, and at metre scale on a 1.5 mm grid that
+  collapses genuinely distinct vertices into each other, making non-manifold
+  edges out of a surface that arrived closed. Cleanup now happens in voxel
+  coordinates, where neighbours are order 1 apart, and the mesh is scaled
+  afterwards.
+
+Order matters in the cleanup too: welding has to precede dropping degenerate
+faces, because a zero-area triangle between unwelded vertices is still holding
+two patches together and deleting it punctures the surface.
+
 The assembly was trimmed to suit: storing which entry of the 24x24 element
 matrix each non-zero carries, as int16, rather than the value as float64. At
 265,000 elements that is 152 million entries, so it is 300 MB instead of
