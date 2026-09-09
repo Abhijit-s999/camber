@@ -721,3 +721,65 @@ class TestConnectivityRules:
     def test_an_unknown_rule_is_rejected(self):
         with pytest.raises(ValueError, match="face"):
             T.Result(density=np.ones((4, 4, 2))).connectivity(rule="diagonal")
+
+
+class TestModulusIsAppliedOnce:
+    """Stiffness must go as E, not as E squared.
+
+    `hex8_stiffness(E0)` and the SIMP interpolation `Emin + x^p (E0 - Emin)`
+    both scale by the modulus, so passing E0 to both applied it twice. At
+    E0 = 1 that is the identity, so it survived every test written while the
+    solve ran in arbitrary units -- and surfaced only when the run was moved
+    to a real 70 GPa and compliance came out at 1e-17 J.
+    """
+
+    def test_doubling_the_modulus_halves_compliance(self):
+        p = cantilever(nx=8, ny=3, nz=2, vf=0.6)
+        rho = np.full(p.domain.shape, 0.7)
+        soft = T.compliance(p, rho, E0=1e9, Emin=1.0)
+        stiff = T.compliance(p, rho, E0=2e9, Emin=1.0)
+        assert stiff == pytest.approx(soft / 2.0, rel=1e-6)
+
+    def test_compliance_is_inversely_proportional_across_decades(self):
+        p = cantilever(nx=6, ny=3, nz=2, vf=0.6)
+        rho = np.full(p.domain.shape, 0.8)
+        a = T.compliance(p, rho, E0=1e6, Emin=1e-3)
+        b = T.compliance(p, rho, E0=1e9, Emin=1.0)
+        assert a / b == pytest.approx(1000.0, rel=1e-5)
+
+    def test_the_optimiser_agrees_with_the_standalone_evaluation(self):
+        """Both paths must apply the modulus the same number of times."""
+        p = cantilever(nx=8, ny=3, nz=2, vf=0.5)
+        r = T.optimise(p, iterations=1, penalty_start=3.0,
+                       E0=70e9, Emin=70.0)
+        uniform = np.full(p.domain.shape, 0.5)
+        assert T.compliance(p, uniform, E0=70e9, Emin=70.0) == pytest.approx(
+            r.compliance_history[0], rel=1e-9)
+
+    def test_a_solid_cantilever_deflects_by_about_the_beam_formula(self):
+        """The sanity check the arbitrary-unit version could never make.
+
+        A solid block, end-loaded, against wL^3/(3EI). Not exact -- the block
+        is short and stubby, so shear matters and the built-in end is not a
+        perfect clamp -- but it must land within a factor of two, which an
+        E-squared error would miss by nine orders of magnitude.
+        """
+        nx, ny, nz, e = 20, 4, 4, 0.005
+        E = 70e9
+        d = T.Domain(nx, ny, nz, e)
+        fixed = [3 * d.node_id(0, j, k) + c
+                 for j in range(ny + 1) for k in range(nz + 1) for c in range(3)]
+        load = np.zeros(3 * d.n_nodes)
+        tip = [d.node_id(nx, j, k) for j in range(ny + 1) for k in range(nz + 1)]
+        F = 100.0
+        for n in tip:
+            load[3 * n + 2] = -F / len(tip)
+        p = T.Problem(domain=d, fixed=np.array(fixed), load=load)
+        c = T.compliance(p, np.ones(d.shape), E0=E, Emin=E * 1e-9)
+
+        L, b, h = nx * e, ny * e, nz * e
+        I = b * h ** 3 / 12.0
+        delta_beam = F * L ** 3 / (3 * E * I)
+        delta_fea = c / F                      # compliance is u.f at one load
+        assert 0.5 < delta_fea / delta_beam < 2.0, (
+            f"FEA {delta_fea * 1000:.4f} mm vs beam {delta_beam * 1000:.4f} mm")

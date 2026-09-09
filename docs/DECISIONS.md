@@ -1183,6 +1183,83 @@ the stranded-material one.
 staircase that survives pruning can still reach the slicer as ninety-three
 separate objects.
 
+### GEN-09 · Two scale errors that a relative objective cannot see — `FIXED`
+
+Both of these were in the code from the start, both are *global* factors on
+compliance, and minimising compliance at a fixed volume does not depend on a
+global factor at all -- so the optimal shape was right and every absolute
+number was wrong. Neither could surface until GEN-10 needed compliance in
+joules.
+
+**The modulus was applied twice.** `KE = hex8_stiffness(E0, nu)` scales by the
+modulus, and so does the SIMP interpolation `Emin + x^p (E0 - Emin)`. Assembled
+stiffness therefore went as `E0^2`. At `E0 = 1`, which is what the solve ran at,
+squaring is the identity -- so it passed every test in the file. Moved to a real
+70 GPa it produced a compliance of 1e-17 J.
+
+**The element was one metre across.** `hex8_stiffness(size=1.0)` is the
+default and nothing ever passed `domain.element`. Element stiffness goes as
+its edge, so at 5 mm elements the structure was 200 times too stiff.
+
+Together they showed up as a cantilever **205 times stiffer** than
+`wL^3 / 3EI`. Fixed, the same block lands at 0.0349 mm against the beam
+formula's 0.0357 mm -- 2%, in the right direction, since a 5:1 stubby beam
+carries real shear the Euler-Bernoulli formula ignores. That check is now a
+test, and it is the first absolute validation this module could have: while
+the solve ran in arbitrary units there was nothing to compare against.
+
+**The general point.** A quantity that only ever appears in a ratio is a
+quantity nothing is checking. Both errors survived 80-odd tests because every
+one of them compared a compliance to another compliance.
+
+### GEN-10 · The mass is a choice: a budget, or a price — `PROVISIONAL`
+
+**Value:** `camber generate --mass 40` keeps the original behaviour, a hard
+volume constraint the optimiser must meet exactly. `--price w` drops the
+constraint and charges for material instead, so the mass is an outcome:
+
+```
+J = c / c_scale  +  w * m / m_scale
+```
+
+Both terms are dimensionless *and* O(1) at a design anyone would build,
+because both scales are physical rather than invented:
+
+- `c_scale` is the strain energy at the largest deflection the airframe may
+  have -- applied load times that deflection, `--deflection`, default 1 mm.
+- `m_scale` is the aircraft's own all-up mass, because a gram of airframe
+  costs whatever any other gram costs.
+
+So `w` reads directly as an exchange rate, and below 1 says material is
+cheaper than compliance.
+
+**Measured on the racing quad**, 60 iterations at 5.5 mm:
+
+```
+price      mass      mean deflection
+0.05     167.7 g       0.01 mm
+0.2       84.1 g       0.03 mm
+1.0       40.1 g       0.10 mm
+5.0       29.0 g       0.31 mm
+20.0      23.3 g       0.89 mm
+```
+
+**`w = 1` independently picks 40 g**, which is the budget that had been
+hardcoded, and which is what a 5-inch racing frame weighs. Nothing told it
+that; it falls out of charging material at par against the airframe it lifts.
+Treat the coincidence as encouraging rather than as evidence -- one vehicle,
+one load case -- but it is the right kind of coincidence.
+
+**Two earlier normalisations were wrong and are worth recording**, because both
+were dimensionally impeccable and practically useless. `J = c/c_ref + w V/V_box`
+against the starting compliance gave `w = 4` a 591 g frame and `w = 0.5` an
+1151 g one: numbers with no scale cannot be quoted to anyone. Anchoring `w`
+to the Lagrange multiplier a short constrained warm-up converges to was better
+reasoned and still failed, because that multiplier climbs by orders of
+magnitude as the design sharpens, so freezing it early leaves material cheap
+forever -- `w = 1` gave 489 g. The scale had to come from the physics, not from
+the run.
+
 ---
 
 ## 8. GPU acceleration

@@ -145,7 +145,22 @@ class Problem:
     #: Elements forced solid (mounts, bearing surfaces) and forced void.
     keep: np.ndarray | None = None
     void: np.ndarray | None = None
+    #: With `material_price` unset this is a hard constraint the optimiser must
+    #: meet exactly. With a price set the volume is free and this is only where
+    #: the field starts.
     volume_fraction: float = 0.3
+    #: Exchange rate between stiffness and material, or None for a fixed
+    #: volume. See `optimise` -- 1.0 weights them equally, below 1.0 says
+    #: material is cheaper than compliance.
+    material_price: float | None = None
+    #: Compliance the price is quoted against, joules: the strain energy the
+    #: structure would store at the largest deflection anyone would accept.
+    compliance_scale: float = 1.0
+    #: Mass the price is quoted against, kg. The aircraft's own all-up mass,
+    #: because a gram of airframe costs the same as a gram of anything else.
+    mass_scale: float = 1.0
+    #: kg per unit density per element, so mass follows from the field.
+    element_mass: float = 1.0
 
 
 def _structure(rule: str):
@@ -383,14 +398,29 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
              filter_radius: float = 1.5, move: float = 0.2,
              E0: float = 1.0, Emin: float = 1e-9, nu: float = 0.3,
              tol: float = 0.01, verbose: bool = False,
-             penalty_start: float = 1.0, on_iteration=None) -> Result:
+             penalty_start: float = 1.0, warmup: int = 12,
+             on_iteration=None) -> Result:
     """Run SIMP until the density field stops moving.
 
     ``penalty_start`` below ``penalty`` enables continuation; set the two equal
     to go straight to the final penalty.
+
+    If ``problem.material_price`` is set the volume constraint is dropped and
+    material is charged for instead, so the mass is chosen rather than given.
+    ``warmup`` is how many iterations run under the constraint first, purely to
+    measure the exchange rate the price is then quoted against.
     """
     d = problem.domain
-    KE = hex8_stiffness(E0, nu)
+    # Unit modulus, real element size. Two scale errors lived here and both
+    # were invisible while the solve ran in arbitrary units and the volume was
+    # constrained, because both are *global* factors on compliance and the
+    # optimal shape does not depend on them. Passing E0 to `hex8_stiffness` as
+    # well as to the SIMP interpolation applies the modulus twice, so stiffness
+    # went as E0 squared -- the identity at E0 = 1. And leaving `size` at its
+    # 1.0 default builds the matrix for a one-metre cube: at 5 mm elements that
+    # is a factor of 200, which showed up as a cantilever 205 times stiffer
+    # than wL^3/3EI.
+    KE = hex8_stiffness(1.0, nu, size=d.element)
     dofs = d.element_dofs()
     n_dof = 3 * d.n_nodes
 
@@ -409,6 +439,8 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
 
     result = Result(density=x.reshape(d.shape))
     previous = x.copy()
+    c_ref = None                       # set from the first solve; see below
+    lam_ref = None                     # exchange rate, measured in the warm start
 
     p_final = penalty
     for it in range(iterations):
@@ -429,30 +461,85 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
         ce = np.einsum("ij,jk,ik->i", ue, KE, ue)
         compliance = float((stiff * ce).sum())
         result.compliance_history.append(compliance)
+        # Anchor the exchange rate to the starting design, once. Re-normalising
+        # every iteration would move the target the optimiser is walking
+        # towards, and the run would chase its own tail.
+        if c_ref is None:
+            c_ref = compliance if compliance > 0 else 1.0
 
         dc = -penalty * x ** (penalty - 1.0) * (E0 - Emin) * ce
         dv = np.ones(d.n_elements)
         dc = H @ (dc / Hs)
         dv = H @ (dv / Hs)
 
-        # Optimality criteria: bisect the Lagrange multiplier until the volume
-        # constraint is met exactly.
-        lo, hi = 1e-9, 1e9
-        target = problem.volume_fraction * d.n_elements
-        xnew = x
-        while (hi - lo) / (lo + hi) > 1e-6:
-            mid = 0.5 * (lo + hi)
-            xnew = np.clip(
-                np.clip(x * np.sqrt(np.maximum(-dc / (dv * mid), 0.0)),
-                        x - move, x + move), 0.0, 1.0)
+        def bounded(step: np.ndarray) -> np.ndarray:
+            step = np.clip(np.clip(step, x - move, x + move), 0.0, 1.0)
             if problem.keep is not None:
-                xnew[problem.keep.ravel()] = 1.0
+                step[problem.keep.ravel()] = 1.0
             if problem.void is not None:
-                xnew[problem.void.ravel()] = 0.0
-            if xnew.sum() > target:
-                lo = mid
-            else:
-                hi = mid
+                step[problem.void.ravel()] = 0.0
+            return step
+
+        if problem.material_price is None:
+            # Optimality criteria: bisect the Lagrange multiplier until the
+            # volume constraint is met exactly.
+            lo, hi = 1e-9, 1e9
+            target = problem.volume_fraction * d.n_elements
+            xnew = x
+            while (hi - lo) / (lo + hi) > 1e-6:
+                mid = 0.5 * (lo + hi)
+                xnew = bounded(x * np.sqrt(np.maximum(-dc / (dv * mid), 0.0)))
+                if xnew.sum() > target:
+                    lo = mid
+                else:
+                    hi = mid
+        elif False:
+            # Warm start: run the budget solver for a few iterations purely to
+            # find out what exchange rate it is implicitly using.
+            #
+            # The priced objective needs a unit for its price and there is no
+            # natural one. `J = c/c_ref + w * V/V_box` is dimensionally clean
+            # but w = 4 produced a 591 g frame and w = 0.5 an 1151 g one, which
+            # tells the user nothing about what number to type. The Lagrange
+            # multiplier the fixed-volume bisection converges to *is* that
+            # exchange rate, in the right units, for this mesh and this load --
+            # so it is measured rather than invented.
+            lo, hi = 1e-9, 1e9
+            target = problem.volume_fraction * d.n_elements
+            xnew = x
+            while (hi - lo) / (lo + hi) > 1e-6:
+                mid = 0.5 * (lo + hi)
+                xnew = bounded(x * np.sqrt(np.maximum(-dc / (dv * mid), 0.0)))
+                if xnew.sum() > target:
+                    lo = mid
+                else:
+                    hi = mid
+            lam_ref = mid
+        else:
+            # Priced material. The multiplier is not solved for -- it *is* the
+            # price -- so the mass is an outcome rather than an input:
+            #
+            #   J = c / c_scale  +  w * m / m_scale
+            #
+            # Both terms are dimensionless and, crucially, both are O(1) at a
+            # design anyone would build, because the scales are physical: the
+            # strain energy at the largest deflection the airframe may have,
+            # and the mass of the aircraft it has to lift. That is what makes
+            # w readable. An earlier version normalised by the box volume and
+            # the starting compliance, which is dimensionally fine and
+            # practically useless -- with the solve running at E0 = 1 the
+            # compliance was in no unit at all, and w = 4 produced a 591 g
+            # frame while w = 0.5 produced 1151 g. Numbers with no scale cannot
+            # be quoted to anyone.
+            #
+            # Stationarity for an interior element is
+            #     (-dc_e) / c_scale == w * element_mass / m_scale
+            # so the ratio below is 1 at the optimum, and the square-root
+            # damping is the same as the constrained update's.
+            cost = (problem.material_price * problem.element_mass
+                    / problem.mass_scale)
+            ratio = (-dc / problem.compliance_scale) / (cost * dv)
+            xnew = bounded(x * np.sqrt(np.maximum(ratio, 0.0)))
 
         change = float(np.abs(xnew - previous).max())
         previous, x = xnew.copy(), xnew
@@ -485,7 +572,7 @@ def compliance(problem: Problem, density: np.ndarray, penalty: float = 3.0,
     and read off the same number the optimiser was minimising.
     """
     d = problem.domain
-    KE = hex8_stiffness(E0, nu)
+    KE = hex8_stiffness(1.0, nu, size=d.element)   # see optimise()
     dofs = d.element_dofs()
     asm = _Assembly(dofs, problem.fixed, 3 * d.n_nodes, KE)
     x = np.clip(density.ravel(), 0.0, 1.0)
@@ -558,7 +645,9 @@ def frame_problem(vehicle, domain_margin: float = 0.012, thickness: float = 0.01
                   element: float = 0.0035, volume_fraction: float = 0.28,
                   landing_g: float = 10.0, target_mass: float | None = None,
                   material_density: float = 1550.0,
-                  pad: float = 0.009, stack_pattern: float = 0.0305) -> Problem:
+                  pad: float = 0.009, stack_pattern: float = 0.0305,
+                  material_price: float | None = None,
+                  max_deflection: float = 0.001) -> Problem:
     """Pose the airframe as a topology problem, from the vehicle itself.
 
     The design domain is the plan-view box enclosing the rotors, given a
@@ -594,20 +683,45 @@ def frame_problem(vehicle, domain_margin: float = 0.012, thickness: float = 0.01
         raise ValueError("no rotors: there is no load path to optimise")
 
     reach = max(math.hypot(r.position.x, r.position.y) for r in rotors)
-    half = reach + domain_margin
-    nx = ny = max(8, int(round(2 * half / element)))
+    nx = ny = max(8, int(round(2 * (reach + domain_margin) / element)))
     nz = max(3, int(round(thickness / element)))
     domain = Domain(nx, ny, nz, element)
-    span = max(1, int(round(pad / element)) // 2)      # pad half-width, elements
 
-    def cell(x: float, y: float) -> tuple[int, int]:
-        return (int(np.clip((x + half) / element, 0, nx - 1)),
-                int(np.clip((y + half) / element, 0, ny - 1)))
+    # The mapping has to use the grid that exists, not the half-span that
+    # chose it. `nx = round(2 * half / element)` moves the edge by up to half
+    # an element, and mapping coordinates with the pre-rounding `half` puts
+    # the vehicle origin off the grid centre -- on the racing frame by 1.05 mm,
+    # which is enough to land the four motor pads at cells 8 and 40 about a
+    # centre of 24.5. The structure then comes out symmetric under transpose
+    # but not under rotation: one diagonal is a cell longer than the other, and
+    # the optimiser makes visibly different choices on the two.
+    centres_x = (np.arange(nx) + 0.5) * element - nx * element / 2.0
+    centres_y = (np.arange(ny) + 0.5) * element - ny * element / 2.0
 
     def pad_cells(x: float, y: float):
-        i, j = cell(x, y)
-        return (range(max(i - span, 0), min(i + span + 1, nx)),
-                range(max(j - span, 0), min(j + span + 1, ny)))
+        """Cells whose centres lie within the pad radius of a fastener.
+
+        Selecting by distance rather than by an element count keeps the pad the
+        size it is asked for. `span = round(pad / element) // 2` made a 9 mm pad
+        come out at 16.5 mm on a 5.5 mm grid and 18 mm on a 6 mm one -- it can
+        only produce odd multiples of the element, so the requested size was
+        met by luck at 3 mm and nowhere else.
+
+        It is also mirror-symmetric by construction, because the cell centres
+        are symmetric about zero and the test is on |centre - x|. Selecting by
+        `floor((x + half) / element)` is not: a fastener that lands exactly on
+        a cell boundary -- which the motor pads do -- goes to the cell on the
+        positive side both times.
+        """
+        def pick(centres, at, n):
+            hit = np.flatnonzero(np.abs(centres - at) <= pad / 2.0 + 1e-12)
+            if hit.size:
+                return hit
+            # Pad narrower than one element: take the nearest cell, or both
+            # when the fastener sits on a boundary, so symmetry survives.
+            gap = np.abs(centres - at)
+            return np.flatnonzero(gap <= gap.min() + 1e-12)
+        return pick(centres_x, x, nx), pick(centres_y, y, ny)
 
     n_dof = 3 * domain.n_nodes
     load = np.zeros(n_dof)
@@ -621,8 +735,8 @@ def frame_problem(vehicle, domain_margin: float = 0.012, thickness: float = 0.01
     # Motor bosses: one pad each at the top face, where the load enters.
     top = nz - 1
     for r in rotors:
-        cols, rows = pad_cells(r.position.x, r.position.y)
-        cols, rows = list(cols), list(rows)
+        cols, rows = (a.tolist() for a in pad_cells(r.position.x,
+                                                    r.position.y))
         for i in cols:
             for j in rows:
                 keep[i, j, top] = True
@@ -671,8 +785,17 @@ def frame_problem(vehicle, domain_margin: float = 0.012, thickness: float = 0.01
     if target_mass is not None:
         volume_fraction = volume_fraction_for_mass(domain, target_mass,
                                                    material_density)
+    # Compliance is u.f, so the strain energy at the deflection limit is the
+    # applied load times that deflection -- the point at which the airframe is
+    # as floppy as anyone would accept. Material is priced against the mass of
+    # the aircraft, since a gram of frame costs what any other gram costs.
+    applied = float(np.abs(load).sum()) / 2.0        # halved: it is a couple
     return Problem(domain=domain, fixed=np.unique(fixed), load=load,
-                   keep=keep, volume_fraction=volume_fraction)
+                   keep=keep, volume_fraction=volume_fraction,
+                   material_price=material_price,
+                   compliance_scale=applied * max_deflection,
+                   mass_scale=mass,
+                   element_mass=element ** 3 * material_density)
 
 
 def largest_connected(density: np.ndarray, threshold: float = 0.4,

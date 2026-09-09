@@ -356,11 +356,21 @@ def cmd_generate(args: argparse.Namespace) -> int:
 
     problem = topology.frame_problem(
         v, element=args.element, thickness=args.thickness,
-        target_mass=args.mass / 1000.0, material_density=args.density)
+        target_mass=None if args.price else args.mass / 1000.0,
+        material_density=args.density, material_price=args.price,
+        max_deflection=args.deflection / 1000.0)
     d = problem.domain
     print(f"domain {d.nx}x{d.ny}x{d.nz} = {d.n_elements:,} elements "
-          f"at {d.element * 1000:.1f} mm, volume fraction "
-          f"{problem.volume_fraction:.4f}")
+          f"at {d.element * 1000:.1f} mm")
+    if args.price:
+        print(f"material priced at {args.price:g} against "
+              f"{problem.mass_scale * 1000:.0f} g of aircraft and "
+              f"{args.deflection:g} mm of allowed deflection "
+              f"({problem.compliance_scale * 1000:.1f} mJ); "
+              f"mass is an outcome")
+    else:
+        print(f"mass budget {args.mass:.1f} g, volume fraction "
+              f"{problem.volume_fraction:.4f}")
     print(f"{len(problem.fixed):,} fixed dof, "
           f"{int(np.count_nonzero(problem.load)):,} loaded dof")
 
@@ -368,7 +378,8 @@ def cmd_generate(args: argparse.Namespace) -> int:
     result = topology.optimise(
         problem, iterations=args.iterations, filter_radius=args.filter,
         penalty_start=args.penalty if args.no_continuation else 1.0,
-        penalty=args.penalty, verbose=args.verbose)
+        penalty=args.penalty, E0=args.modulus, Emin=args.modulus * 1e-9,
+        verbose=args.verbose)
     seconds = time.time() - t0
 
     c0, c1 = result.compliance_history[0], result.compliance_history[-1]
@@ -377,7 +388,13 @@ def cmd_generate(args: argparse.Namespace) -> int:
     grey = float(((result.density > 0.05) & (result.density < 0.95)).mean())
     print(f"\n{result.iterations} iterations in {seconds:.0f} s, "
           f"converged={result.converged}")
-    print(f"  compliance   {c0:.3e} -> {c1:.3e}  ({c0 / c1:.1f}x stiffer)")
+    scale = problem.compliance_scale
+    print(f"  compliance   {c0:.3e} -> {c1:.3e} J  ({c0 / c1:.1f}x stiffer)")
+    # c = u.f, so c / F is the load-weighted mean deflection of the loaded
+    # nodes -- not the peak, which is higher. Stated as what it is.
+    load_n = float(abs(problem.load).sum()) / 2.0
+    print(f"  deflection   {c1 / load_n * 1000:.3f} mm mean at the mounts "
+          f"under {load_n:.1f} N")
     print(f"  grey         {grey:.1%} of elements")
     print(f"  islands      {islands}, largest holds {connected:.1%} "
           f"of the material")
@@ -392,6 +409,11 @@ def cmd_generate(args: argparse.Namespace) -> int:
         print(f"  WARNING: {hinges} edge-only joins; members are about one "
               f"element wide, so the discrete model is stiffer here than the "
               f"part would be", file=sys.stderr)
+
+    if args.price:
+        chosen = topology.structural_mass(result, d, args.density)
+        print(f"  it chose     {chosen * 1000:.1f} g of material "
+              f"({result.volume_fraction:.4f} of the box)")
 
     if args.density_out:
         np.save(args.density_out, result.density)
@@ -490,14 +512,30 @@ def main() -> int:
                          help="grow a frame by topology optimisation")
     gen.add_argument("spec", type=Path)
     gen.add_argument("--out", type=Path, default=Path("frame.stl"))
-    gen.add_argument("--mass", type=float, default=40.0,
-                     help="structural mass budget, grams (default 40)")
+    budget = gen.add_mutually_exclusive_group()
+    budget.add_argument("--mass", type=float, default=40.0,
+                        help="fix the structural mass, grams (default 40); the "
+                             "optimiser must hit it exactly")
+    budget.add_argument("--price", type=float,
+                        help="instead of a fixed mass, charge for material at "
+                             "this rate and let the optimiser choose. 1.0 "
+                             "weights stiffness and mass equally; below 1.0 "
+                             "says material is cheaper than compliance, so it "
+                             "spends more and comes out stiffer")
     gen.add_argument("--element", type=float, default=0.003,
                      help="element edge, metres (default 0.003)")
     gen.add_argument("--thickness", type=float, default=0.012,
                      help="design domain thickness, metres")
     gen.add_argument("--density", type=float, default=1550.0,
                      help="material density, kg/m^3 (default: carbon)")
+    gen.add_argument("--modulus", type=float, default=70e9,
+                     help="Young's modulus, Pa (default: 70e9, CFRP). Running "
+                          "the solve at the real modulus is what puts "
+                          "compliance in joules and deflection in metres")
+    gen.add_argument("--deflection", type=float, default=1.0,
+                     help="largest acceptable deflection under the manoeuvre "
+                          "load, mm (default 1.0). Only used by --price, as "
+                          "the scale stiffness is charged against")
     gen.add_argument("--iterations", type=int, default=80)
     gen.add_argument("--filter", type=float, default=2.4,
                      help="sensitivity filter radius, elements")
