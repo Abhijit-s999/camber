@@ -568,11 +568,23 @@ class TestMountsAreNotBillets:
         per_layer = p.keep.sum(axis=(0, 1))
         assert (per_layer > 0).sum() <= 2, "mounts occupy more than two layers"
 
-    def test_there_is_one_pad_per_rotor_plus_the_stack_pattern(self, vehicle):
-        from scipy import ndimage
+    def test_there_is_a_boss_for_every_bolt(self, vehicle):
+        """Four bolts per motor on its own pattern, plus four for the stack."""
         p = T.frame_problem(vehicle, element=0.003, thickness=0.012)
-        _, n = ndimage.label(p.keep.any(axis=2))
-        assert n == len(vehicle.thrusters) + 4      # four rotors, four bolts
+        assert len(p.fasteners) == 4 * len(vehicle.thrusters) + 4
+
+    def test_the_bolt_holes_are_voided_through_the_thickness(self, vehicle):
+        p = T.frame_problem(vehicle, element=0.002, thickness=0.012)
+        assert p.void is not None and p.void.any()
+        per_layer = p.void.sum(axis=(0, 1))
+        assert (per_layer == per_layer[0]).all(), "a hole must go all the way"
+
+    def test_a_coarse_grid_keeps_the_boss_rather_than_losing_the_mount(self, vehicle):
+        """If the element cannot separate boss from hole, the hole waits for
+        `drill`; leaving the mount with no material would be worse."""
+        p = T.frame_problem(vehicle, element=0.008, thickness=0.024)
+        assert p.keep.any()
+        assert np.count_nonzero(p.load) > 0
 
     def test_the_support_does_not_span_the_whole_hub(self, vehicle):
         """Fixing the entire centre plan area makes the hub rigid by decree."""
@@ -783,3 +795,124 @@ class TestModulusIsAppliedOnce:
         delta_fea = c / F                      # compliance is u.f at one load
         assert 0.5 < delta_fea / delta_beam < 2.0, (
             f"FEA {delta_fea * 1000:.4f} mm vs beam {delta_beam * 1000:.4f} mm")
+
+
+class TestMultigrid:
+    """AMG has to give the same displacement field, not merely a fast one."""
+
+    def _case(self):
+        p = cantilever(nx=14, ny=6, nz=4, vf=0.6)
+        d = p.domain
+        KE = T.hex8_stiffness(1.0, 0.3, size=d.element)
+        asm = T._Assembly(d.element_dofs(), p.fixed, 3 * d.n_nodes, KE)
+        stiff = 70.0 + np.full(d.n_elements, 0.6) ** 3 * (70e9 - 70.0)
+        return p, d, asm, asm.matrix(stiff), p.load[asm.free]
+
+    def test_it_agrees_with_the_direct_factorisation(self):
+        pytest.importorskip("pyamg")
+        p, d, asm, K, f = self._case()
+        direct = T._solve(K, f, d, asm.free, "direct")
+        amg = T._solve(K, f, d, asm.free, "amg")
+        assert np.abs(amg - direct).max() < 1e-6 * np.abs(direct).max()
+
+    def test_the_residual_is_actually_small(self):
+        pytest.importorskip("pyamg")
+        p, d, asm, K, f = self._case()
+        u = T._solve(K, f, d, asm.free, "amg")
+        assert np.linalg.norm(K @ u - f) / np.linalg.norm(f) < 1e-7
+
+    def test_rigid_body_modes_cost_no_energy(self):
+        """What the near-nullspace has to be, stated as the property that
+        defines it: an unconstrained solid moving rigidly stores no strain."""
+        d = T.Domain(4, 3, 2, 0.01)
+        KE = T.hex8_stiffness(1.0, 0.3, size=d.element)
+        asm = T._Assembly(d.element_dofs(), np.array([], dtype=int),
+                          3 * d.n_nodes, KE)
+        K = asm.matrix(np.ones(d.n_elements))
+        B = T.rigid_body_modes(d, asm.free)
+        assert B.shape == (3 * d.n_nodes, 6)
+        energy = np.einsum("ij,ij->j", B, K @ B)
+        assert np.abs(energy).max() < 1e-9 * np.abs(K).max()
+
+    def test_the_six_modes_are_independent(self):
+        d = T.Domain(4, 3, 2, 0.01)
+        B = T.rigid_body_modes(d, np.arange(3 * d.n_nodes))
+        assert np.linalg.matrix_rank(B) == 6
+
+    def test_auto_picks_direct_when_small(self):
+        assert T._pick_solver("auto", 1000) == "direct"
+
+    def test_auto_picks_multigrid_when_large(self):
+        pytest.importorskip("pyamg")
+        assert T._pick_solver("auto", 10 * T.AMG_ABOVE) == "amg"
+
+    def test_an_unknown_solver_is_rejected(self):
+        with pytest.raises(ValueError, match="auto, direct or amg"):
+            T._pick_solver("cholesky", 1000)
+
+
+class TestDrilling:
+    def _frame(self):
+        pytest.importorskip("trimesh")
+        import trimesh
+        return trimesh.creation.box((0.08, 0.08, 0.004))
+
+    def test_a_hole_appears_for_every_bolt(self):
+        plate = self._frame()
+        bolts = [T.Fastener(x, y) for x in (-0.02, 0.02) for y in (-0.02, 0.02)]
+        drilled = T.drill(plate, bolts)
+        assert drilled.volume < plate.volume
+        # Each through-hole adds a handle: genus goes up by one per hole.
+        assert drilled.euler_number == plate.euler_number - 2 * len(bolts)
+
+    def test_the_holes_are_the_size_asked_for(self):
+        plate = self._frame()
+        bolt = T.Fastener(0.0, 0.0, hole=0.0017)
+        removed = plate.volume - T.drill(plate, [bolt]).volume
+        expected = np.pi * 0.0017 ** 2 * 0.004
+        assert removed == pytest.approx(expected, rel=0.02)
+
+    def test_it_stays_watertight(self):
+        drilled = T.drill(self._frame(), [T.Fastener(0.01, 0.01)])
+        assert drilled.is_watertight
+
+    def test_no_fasteners_is_a_no_op(self):
+        plate = self._frame()
+        assert T.drill(plate, []) is plate
+
+
+class TestTheCoreStaysLight:
+    """AI-07: `camber inspect` must run with numpy and nothing else.
+
+    Topology optimisation needs scipy, scikit-image, trimesh and pyamg, and
+    every one of them is imported inside the function that needs it or behind
+    the module that needs it -- never at the top of anything the CLI's other
+    commands reach.
+    """
+
+    def test_the_core_imports_pull_nothing_heavy(self):
+        import subprocess
+        import sys
+        code = (
+            "import sys, camber.cli, camber.spec.io, camber.control, "
+            "camber.massprops, camber.generate;"
+            "heavy=[m for m in ('scipy','trimesh','skimage','pyamg') "
+            "if m in sys.modules];"
+            "print(','.join(heavy))"
+        )
+        out = subprocess.run([sys.executable, "-c", code], capture_output=True,
+                             text=True, check=True).stdout.strip()
+        assert out == "", f"the core pulled in {out}"
+
+    def test_the_solver_falls_back_without_pyamg(self, monkeypatch):
+        """A missing optional dependency must degrade, not raise."""
+        import builtins
+        real = builtins.__import__
+
+        def blocked(name, *a, **k):
+            if name == "pyamg":
+                raise ImportError("no pyamg")
+            return real(name, *a, **k)
+
+        monkeypatch.setattr(builtins, "__import__", blocked)
+        assert T._pick_solver("auto", 10 * T.AMG_ABOVE) == "direct"

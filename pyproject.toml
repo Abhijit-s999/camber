@@ -12,8 +12,15 @@ dependencies = ["numpy>=1.26"]
 # See docs/DECISIONS.md AI-04.
 [project.optional-dependencies]
 bench = ["httpx>=0.27", "mcp>=1.2"]
-dev = ["pytest>=8.0", "httpx>=0.27", "mcp>=1.2", "build123d>=0.11"]
+dev = ["pytest>=8.0", "httpx>=0.27", "mcp>=1.2", "build123d>=0.11",
+       "scipy>=1.11", "scikit-image>=0.22", "trimesh>=4.0", "pyamg>=5.0"]
 cad = ["build123d>=0.11"]
+# Topology optimisation (GEN-02). Kept optional for the same reason as the
+# bench: `camber inspect` and `camber optimise` must still run with numpy and
+# nothing else (AI-07), and `tests/test_web.py` asserts the core imports pull
+# none of these. pyamg is what makes fine grids affordable -- see GEN-12 -- and
+# the solve falls back to a direct factorisation without it.
+generate = ["scipy>=1.11", "scikit-image>=0.22", "trimesh>=4.0", "pyamg>=5.0"]
 
 [project.scripts]
 camber = "camber.cli:main"

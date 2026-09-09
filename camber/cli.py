@@ -379,7 +379,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         problem, iterations=args.iterations, filter_radius=args.filter,
         penalty_start=args.penalty if args.no_continuation else 1.0,
         penalty=args.penalty, E0=args.modulus, Emin=args.modulus * 1e-9,
-        verbose=args.verbose)
+        solver=args.solver, verbose=args.verbose)
     seconds = time.time() - t0
 
     c0, c1 = result.compliance_history[0], result.compliance_history[-1]
@@ -424,6 +424,15 @@ def cmd_generate(args: argparse.Namespace) -> int:
     except ImportError as exc:
         print(f"meshing needs scikit-image and trimesh: {exc}", file=sys.stderr)
         return 3
+    if problem.fasteners and not args.no_drill:
+        before = mesh.volume
+        try:
+            mesh = topology.drill(mesh, problem.fasteners)
+            print(f"  drilled      {len(problem.fasteners)} bolt holes, "
+                  f"{(before - mesh.volume) * 1e6:.3f} cm^3 removed")
+        except Exception as exc:                             # noqa: BLE001
+            print(f"  WARNING: could not drill holes: {exc}", file=sys.stderr)
+
     mass = mesh.volume * args.density
     print(f"  mesh         {len(mesh.faces):,} facets, "
           f"watertight={mesh.is_watertight}, {mesh.body_count} "
@@ -544,6 +553,13 @@ def main() -> int:
                      help="start at the final penalty instead of ramping")
     gen.add_argument("--density-out", type=Path,
                      help="save the raw density field as .npy")
+    gen.add_argument("--no-drill", action="store_true",
+                     help="leave the bolt holes as the grid carved them "
+                          "instead of subtracting exact cylinders")
+    gen.add_argument("--solver", default="auto",
+                     choices=("auto", "direct", "amg"),
+                     help="auto picks multigrid above 150k unknowns, where a "
+                          "direct factorisation's fill-in stops being viable")
     gen.add_argument("--verbose", action="store_true")
     gen.set_defaults(func=cmd_generate)
 

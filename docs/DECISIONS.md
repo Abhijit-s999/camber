@@ -1260,6 +1260,69 @@ magnitude as the design sharpens, so freezing it early leaves material cheap
 forever -- `w = 1` gave 489 g. The scale had to come from the physics, not from
 the run.
 
+### GEN-11 · Mounts are bolt circles, and the holes are drilled — `PROVISIONAL`
+
+**Value:** every fastener is modelled: a motor on its own 16 mm square of M3, a
+flight stack on 30.5 mm. Each bolt contributes a solid boss -- material to bear
+on, with edge distance -- and a voided hole through the thickness, and load
+enters at the bosses, four per motor.
+
+**What a single pad produced.** Applying thrust at one 9 mm pad per motor asks
+for a load path that reaches the middle of the mount, and that is exactly what
+came back: arms tapering to a point, with the mount a separate floating body
+beyond them. Thirteen shells in the meshed part. The structure was answering
+the question asked.
+
+**Holes are a boolean, not a grid feature.** An M3 clearance hole is 3.4 mm
+across -- under two cells at a 2 mm element, and no rounder than the element is
+small. Asking a voxel grid for fastener tolerance is asking the wrong part of
+the pipeline. `drill()` subtracts exact cylinders from the finished mesh, so
+the hole lands on the bolt circle at full precision whatever the isosurface
+did. The void mask remains, but only as a hint that keeps the optimiser from
+filling a hole it will lose anyway.
+
+Where the element cannot separate a 9 mm boss from a 3.4 mm hole, the boss is
+kept whole and the hole waits for `drill`. Voiding it there would leave the
+mount with no material and nowhere to apply load, which is worse than a
+coarsely-modelled hole.
+
+**Clearance is 1.7 mm radius, not 1.5.** A nominal-diameter hole does not admit
+the bolt.
+
+### GEN-12 · Multigrid, because the direct solver's fill-in is the resolution limit — `FIXED`
+
+**Measured on this problem**, one solve of the same matrix:
+
+```
+element   elements    free dof     direct       AMG
+2.5 mm      59,405     217,800       45 s        --
+2.0 mm     110,976     394,143      376 s      23.1 s      16x
+1.5 mm     264,992     904,197        --       45.5 s
+```
+
+The direct factorisation takes 8 times longer for 1.8 times the unknowns:
+fill-in, not physics, is what put fine grids out of reach. Smoothed-aggregation
+AMG preconditioning CG is linear instead -- 2.3 times the unknowns for 2.0
+times the time -- and 1.5 mm elements now cost 55 s an iteration at 8.9 GB,
+where the direct path could not run at all.
+
+**The near-nullspace is the whole trick.** Aggregation coarsens by grouping
+strongly-connected unknowns, and a hierarchy that does not know a rigid
+rotation costs no energy builds coarse spaces that cannot represent one --
+leaving the smoother to resolve bending on the finest grid, which is barely
+better than plain CG. `rigid_body_modes` hands over the three translations and
+three rotations. `TestMultigrid` asserts they store no strain energy, that
+there are six independent ones, and that AMG reproduces the direct
+factorisation's displacement field to 1e-6.
+
+Above 150,000 unknowns `solver="auto"` switches over; the threshold is
+measured, and `--solver` forces either.
+
+The assembly was trimmed to suit: storing which entry of the 24x24 element
+matrix each non-zero carries, as int16, rather than the value as float64. At
+265,000 elements that is 152 million entries, so it is 300 MB instead of
+1.2 GB.
+
 ---
 
 ## 8. GPU acceleration

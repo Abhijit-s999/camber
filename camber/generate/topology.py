@@ -119,6 +119,16 @@ class Domain:
     def node_id(self, i: int, j: int, k: int) -> int:
         return (k * (self.ny + 1) + j) * (self.nx + 1) + i
 
+    def node_coordinates(self) -> np.ndarray:
+        """(n_nodes, 3) node positions in metres, origin at the domain centre."""
+        n = np.arange(self.n_nodes)
+        k, rem = np.divmod(n, (self.nx + 1) * (self.ny + 1))
+        j, i = np.divmod(rem, self.nx + 1)
+        return np.stack([i * self.element - self.nx * self.element / 2.0,
+                         j * self.element - self.ny * self.element / 2.0,
+                         k * self.element - self.nz * self.element / 2.0],
+                        axis=1)
+
     def element_dofs(self) -> np.ndarray:
         """(n_elements, 24) global DOF indices, in the element's node order."""
         ex, ey, ez = np.meshgrid(np.arange(self.nx), np.arange(self.ny),
@@ -131,6 +141,30 @@ class Domain:
             n = self.node_id(ex + di, ey + dj, ez + dk)
             dofs[:, 3*c:3*c+3] = np.stack([3*n, 3*n+1, 3*n+2], axis=1)
         return dofs
+
+
+@dataclass
+class Fastener:
+    """A bolt the airframe has to be built around.
+
+    Load does not enter an airframe at a point; it enters through fasteners, on
+    a bolt circle, and the material has to reach every one of them. Modelling a
+    motor as a single loaded pad gets a load path that runs to the middle of
+    the boss and stops -- which is what produced arms tapering to a point with
+    the mount floating unattached beyond them.
+    """
+
+    x: float
+    y: float
+    #: Clearance radius of the hole itself. M3 through a printed or milled part
+    #: is 1.7 mm, not 1.5: a nominal-diameter hole does not admit the bolt.
+    hole: float = 0.0017
+    #: Radius of solid material required around it, so there is metal to bear
+    #: on and enough edge distance not to tear out.
+    boss: float = 0.0045
+
+    def to_dict(self) -> dict:
+        return {"x": self.x, "y": self.y, "hole": self.hole, "boss": self.boss}
 
 
 @dataclass
@@ -161,6 +195,8 @@ class Problem:
     mass_scale: float = 1.0
     #: kg per unit density per element, so mass follows from the field.
     element_mass: float = 1.0
+    #: Where the bolts go, so the mesh can be drilled exactly afterwards.
+    fasteners: list = field(default_factory=list)
 
 
 def _structure(rule: str):
@@ -344,8 +380,9 @@ class _Assembly:
 
         # Column-major keys give CSC ordering directly.
         keys = cols.astype(np.int64) * nf + rows
-        order = np.argsort(keys, kind="stable")
+        order = np.argsort(keys, kind="stable").astype(np.int64)
         sel, keys = sel[order], keys[order]
+        del order
         first = np.empty(keys.size, dtype=bool)
         first[0] = True
         np.not_equal(keys[1:], keys[:-1], out=first[1:])
@@ -359,14 +396,85 @@ class _Assembly:
         np.cumsum(counts, out=self.indptr[1:])
         self.shape = (nf, nf)
 
-        # Per-entry element index and the KE value it carries, so a rebuild is
-        # one multiply over a gather rather than an outer product.
+        # Per-entry element index and *which* entry of KE it carries. Storing
+        # the index rather than the value matters at fine grids: 265,000
+        # elements is 152 million entries, and int16 indices into a 576-entry
+        # matrix cost 300 MB where float64 values cost 1.2 GB.
         self.element = (sel // 576).astype(np.int32)
-        self.ke = KE.ravel()[sel % 576]
+        self.ke_index = (sel % 576).astype(np.int16)
+        self.ke_flat = KE.ravel()
 
     def matrix(self, stiffness: np.ndarray) -> sp.csc_matrix:
-        data = np.add.reduceat(self.ke * stiffness[self.element], self.starts)
+        vals = np.take(self.ke_flat, self.ke_index)
+        vals *= np.take(stiffness, self.element)
+        data = np.add.reduceat(vals, self.starts)
         return sp.csc_matrix((data, self.indices, self.indptr), shape=self.shape)
+
+
+#: Above this many unknowns the direct factorisation's fill-in costs more than
+#: multigrid setup does. Measured, not guessed: see `_solve`.
+AMG_ABOVE = 150_000
+
+
+def _pick_solver(requested: str, n_free: int) -> str:
+    if requested in ("direct", "amg"):
+        return requested
+    if requested != "auto":
+        raise ValueError(f"solver must be auto, direct or amg, got {requested!r}")
+    if n_free < AMG_ABOVE:
+        return "direct"
+    try:
+        import pyamg                                        # noqa: F401
+    except ImportError:
+        return "direct"
+    return "amg"
+
+
+def rigid_body_modes(domain: Domain, free: np.ndarray) -> np.ndarray:
+    """The six zero-energy modes of an unconstrained solid, at the free DOFs.
+
+    Algebraic multigrid on elasticity is only as good as what it is told about
+    the near-nullspace. Aggregation coarsens by grouping strongly-connected
+    unknowns, and if it does not know that a rigid rotation costs no energy it
+    builds coarse spaces that cannot represent one -- so the smoother has to
+    resolve bending on the finest grid and convergence collapses to something
+    barely better than plain CG. Handing over the three translations and three
+    rotations is what makes the method work here.
+    """
+    xyz = domain.node_coordinates()
+    n = xyz.shape[0]
+    B = np.zeros((3 * n, 6))
+    for a in range(3):
+        B[a::3, a] = 1.0                                  # translations
+    X, Y, Z = xyz[:, 0], xyz[:, 1], xyz[:, 2]
+    B[0::3, 3], B[1::3, 3] = -Y, X                        # about z
+    B[1::3, 4], B[2::3, 4] = -Z, Y                        # about x
+    B[0::3, 5], B[2::3, 5] = Z, -X                        # about y
+    return B[free]
+
+
+def _solve(K, rhs, domain, free, mode, tol=1e-8, previous=None):
+    """Solve K u = f, directly or by algebraic multigrid.
+
+    The direct factorisation is exact and its fill-in is brutal: measured on
+    this problem, 45 s at 2.5 mm elements and 376 s at 2.0 mm, for 1.8 times
+    the unknowns. That curve is what puts fine grids out of reach, not the
+    physics -- so above a few hundred thousand degrees of freedom the solve
+    switches to conjugate gradients preconditioned by smoothed-aggregation
+    multigrid, which is linear in the unknowns instead.
+    """
+    if mode == "direct":
+        return splu(K, permc_spec="MMD_AT_PLUS_A",
+                    options={"SymmetricMode": True}).solve(rhs)
+    import pyamg
+
+    ml = pyamg.smoothed_aggregation_solver(
+        K.tocsr(), B=rigid_body_modes(domain, free), smooth="energy",
+        strength=("symmetric", {"theta": 0.0}), max_coarse=500)
+    # Warm-started from the previous iteration's displacement: consecutive SIMP
+    # designs differ by at most the move limit, so the old field is a good
+    # guess and typically saves a third of the cycles.
+    return ml.solve(rhs, x0=previous, tol=tol, accel="cg", maxiter=200)
 
 
 def _has_settled(history: list[float], window: int = 5,
@@ -399,7 +507,7 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
              E0: float = 1.0, Emin: float = 1e-9, nu: float = 0.3,
              tol: float = 0.01, verbose: bool = False,
              penalty_start: float = 1.0, warmup: int = 12,
-             on_iteration=None) -> Result:
+             solver: str = "auto", on_iteration=None) -> Result:
     """Run SIMP until the density field stops moving.
 
     ``penalty_start`` below ``penalty`` enables continuation; set the two equal
@@ -436,6 +544,10 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
     asm = _Assembly(dofs, problem.fixed, n_dof, KE)
     free = asm.free
     f_free = problem.load[free]
+    how = _pick_solver(solver, free.size)
+    warm = None
+    if verbose:
+        print(f"  solver: {how} ({free.size:,} free dof)", flush=True)
 
     result = Result(density=x.reshape(d.shape))
     previous = x.copy()
@@ -448,12 +560,9 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
         stiff = Emin + x ** penalty * (E0 - Emin)
         u = np.zeros(n_dof)
         try:
-            # SymmetricMode with minimum-degree ordering on A + A^T: K is
-            # symmetric positive definite, and telling SuperLU so cuts the
-            # fill-in that dominates a 3D elasticity factorisation.
-            lu = splu(asm.matrix(stiff), permc_spec="MMD_AT_PLUS_A",
-                      options={"SymmetricMode": True})
-            u[free] = lu.solve(f_free)
+            u[free] = _solve(asm.matrix(stiff), f_free, d, free, how,
+                             previous=warm)
+            warm = u[free].copy()
         except Exception:                                   # noqa: BLE001
             break
 
@@ -645,30 +754,30 @@ def frame_problem(vehicle, domain_margin: float = 0.012, thickness: float = 0.01
                   element: float = 0.0035, volume_fraction: float = 0.28,
                   landing_g: float = 10.0, target_mass: float | None = None,
                   material_density: float = 1550.0,
-                  pad: float = 0.009, stack_pattern: float = 0.0305,
+                  stack_pattern: float = 0.0305, motor_pattern: float = 0.016,
+                  bolt_hole: float = 0.0017, boss: float = 0.0045,
                   material_price: float | None = None,
                   max_deflection: float = 0.001) -> Problem:
     """Pose the airframe as a topology problem, from the vehicle itself.
 
     The design domain is the plan-view box enclosing the rotors, given a
-    thickness the structure may occupy. Material is anchored where the payload
-    bolts on and loaded where the rotors pull, and the optimiser decides
-    everything in between.
+    thickness the structure may occupy. The optimiser decides everything except
+    the fasteners, and the fasteners are the whole interface: a motor bolts to
+    a 16 mm square of M3, a flight stack to a 30.5 mm square of M3, and the
+    airframe's job is to carry load between those two bolt circles.
 
-    **Mounts are bolt pads, not billets.** An earlier version forced a solid
+    **Mounts are bolt circles, not pads.** Each bolt contributes a solid boss --
+    material to bear on, with edge distance -- and a voided hole through it, so
+    the optimiser is not asked to discover that a bolt needs a hole. Load enters
+    at the bosses, four per motor, which is physically where thrust reaches the
+    frame. An earlier version applied thrust at a single 9 mm pad per motor and
+    got exactly what it asked for: arms that taper to a point at the middle of
+    the mount, with the mount itself a separate floating body.
+
+    **Mounts are not billets either.** The version before that forced a solid
     block through the full domain thickness under the whole stack footprint,
-    39 x 39 x 12 mm. That is 34.3 g of carbon out of a 40 g budget: the
-    optimiser was choosing where to put 14% of the mass and the other 86% was
-    a mandated brick. It produced exactly the symptoms you would expect and
-    none that name the cause -- material stranded in islands, because what was
-    left could not span anything; and a meshed part whose facet count and
-    volume came out *identical* across runs that had nothing else in common,
-    because the block dominated both.
-
-    What a frame actually needs is material at the fasteners. A flight stack
-    bolts on a 30.5 mm square of M3, a motor on its own boss, and each of those
-    is a pad at one face -- so `keep` is five small pads on one layer each,
-    about 3 g, and the remaining 37 g is the optimiser's to spend.
+    39 x 39 x 12 mm: 34.3 g of a 40 g budget, leaving the optimiser 14% of the
+    mass to place.
 
     Loads are the manoeuvre case from STR-01, one arm at full thrust, applied
     simultaneously at all four mounts. That is conservative for a frame: it is
@@ -687,100 +796,97 @@ def frame_problem(vehicle, domain_margin: float = 0.012, thickness: float = 0.01
     nz = max(3, int(round(thickness / element)))
     domain = Domain(nx, ny, nz, element)
 
-    # The mapping has to use the grid that exists, not the half-span that
-    # chose it. `nx = round(2 * half / element)` moves the edge by up to half
-    # an element, and mapping coordinates with the pre-rounding `half` puts
-    # the vehicle origin off the grid centre -- on the racing frame by 1.05 mm,
-    # which is enough to land the four motor pads at cells 8 and 40 about a
-    # centre of 24.5. The structure then comes out symmetric under transpose
-    # but not under rotation: one diagonal is a cell longer than the other, and
-    # the optimiser makes visibly different choices on the two.
-    centres_x = (np.arange(nx) + 0.5) * element - nx * element / 2.0
-    centres_y = (np.arange(ny) + 0.5) * element - ny * element / 2.0
+    # The mapping has to use the grid that exists, not the half-span that chose
+    # it. `nx = round(2 * half / element)` moves the edge by up to half an
+    # element, and mapping with the pre-rounding half-span puts the vehicle
+    # origin off the grid centre -- on the racing frame by 1.05 mm, enough that
+    # one diagonal came out a cell longer than the other and the optimiser made
+    # visibly different choices on the two.
+    cx = (np.arange(nx) + 0.5) * element - nx * element / 2.0
+    cy = (np.arange(ny) + 0.5) * element - ny * element / 2.0
+    gx, gy = np.meshgrid(cx, cy, indexing="ij")
 
-    def pad_cells(x: float, y: float):
-        """Cells whose centres lie within the pad radius of a fastener.
+    def disc(at_x: float, at_y: float, radius: float) -> np.ndarray:
+        """Plan cells whose centres fall inside a circle.
 
-        Selecting by distance rather than by an element count keeps the pad the
-        size it is asked for. `span = round(pad / element) // 2` made a 9 mm pad
-        come out at 16.5 mm on a 5.5 mm grid and 18 mm on a 6 mm one -- it can
-        only produce odd multiples of the element, so the requested size was
-        met by luck at 3 mm and nowhere else.
-
-        It is also mirror-symmetric by construction, because the cell centres
-        are symmetric about zero and the test is on |centre - x|. Selecting by
-        `floor((x + half) / element)` is not: a fastener that lands exactly on
-        a cell boundary -- which the motor pads do -- goes to the cell on the
-        positive side both times.
+        By distance, so it is mirror-symmetric by construction and the feature
+        is the size asked for. Counting elements out from a centre cell can
+        only make odd multiples of the element, which turned a 9 mm pad into
+        16.5 mm on a 5.5 mm grid.
         """
-        def pick(centres, at, n):
-            hit = np.flatnonzero(np.abs(centres - at) <= pad / 2.0 + 1e-12)
-            if hit.size:
-                return hit
-            # Pad narrower than one element: take the nearest cell, or both
-            # when the fastener sits on a boundary, so symmetry survives.
-            gap = np.abs(centres - at)
-            return np.flatnonzero(gap <= gap.min() + 1e-12)
-        return pick(centres_x, x, nx), pick(centres_y, y, ny)
+        inside = np.hypot(gx - at_x, gy - at_y) <= radius + 1e-12
+        if not inside.any():                     # feature finer than the grid
+            d2 = np.hypot(gx - at_x, gy - at_y)
+            inside = d2 <= d2.min() + 1e-12
+        return inside
 
     n_dof = 3 * domain.n_nodes
     load = np.zeros(n_dof)
     keep = np.zeros(domain.shape, dtype=bool)
-    fixed: list[int] = []
+    void = np.zeros(domain.shape, dtype=bool)
+    fasteners: list[Fastener] = []
 
     mass = vehicle.mass_properties().mass
     per_rotor = max((r.max_thrust() for r in rotors), default=mass * G / len(rotors))
     tip_load = max(per_rotor, mass * G * landing_g / len(rotors))
 
-    # Motor bosses: one pad each at the top face, where the load enters.
-    top = nz - 1
+    def mount(at_x, at_y, layer, force_z, hold=False):
+        """One bolt: a solid boss, a hole through it, and its share of load."""
+        fasteners.append(Fastener(at_x, at_y, bolt_hole, boss))
+        ring = disc(at_x, at_y, boss)
+        hole = disc(at_x, at_y, bolt_hole)
+        solid = ring & ~hole
+        if not solid.any():
+            # The grid cannot separate a 9 mm boss from a 3.4 mm hole, so
+            # voiding the hole would leave the mount with no material at all
+            # and nowhere to apply load. Keep the boss whole and let the hole
+            # come from `drill`, which is exact and does not care about the
+            # grid. The void mask is a hint to the optimiser, not the geometry.
+            solid, hole = ring, np.zeros_like(hole)
+        keep[solid, layer] = True
+        void[hole, :] = True                     # the hole goes all the way
+        cols, rows = np.where(solid)
+        nodes = sorted({domain.node_id(i + di, j + dj, layer + dk)
+                        for i, j in zip(cols, rows)
+                        for di in (0, 1) for dj in (0, 1) for dk in (0, 1)})
+        for n in nodes:
+            load[3 * n + 2] += force_z / len(nodes)
+        return nodes
+
+    # Motor bosses: four bolts each, at the top face, where thrust enters.
+    half_m = motor_pattern / 2.0
     for r in rotors:
-        cols, rows = (a.tolist() for a in pad_cells(r.position.x,
-                                                    r.position.y))
-        for i in cols:
-            for j in rows:
-                keep[i, j, top] = True
-        nodes = [domain.node_id(i, j, nz)
-                 for i in cols + [cols[-1] + 1]
-                 for j in rows + [rows[-1] + 1]]
-        for n in nodes:
-            load[3 * n + 2] -= tip_load / len(nodes)   # z is down; thrust is -z
+        for sx in (-half_m, half_m):
+            for sy in (-half_m, half_m):
+                mount(r.position.x + sx, r.position.y + sy, nz - 1,
+                      -tip_load / 4.0)           # z is down; thrust is -z
 
-    # Flight stack: four M3 pads on a square pattern, at the bottom face. The
-    # payload's weight enters here -- it does not leave here.
-    b = stack_pattern / 2.0
-    corners = [(-b, -b), (b, -b), (-b, b), (b, b)]
-    pad_nodes = []
-    for sx, sy in corners:
-        cols, rows = pad_cells(sx, sy)
-        cols, rows = list(cols), list(rows)
-        for i in cols:
-            for j in rows:
-                keep[i, j, 0] = True
-        nodes = [domain.node_id(i, j, 0)
-                 for i in cols + [cols[-1] + 1]
-                 for j in rows + [rows[-1] + 1]]
-        pad_nodes.append(nodes)
-        for n in nodes:
-            load[3 * n + 2] += tip_load * len(rotors) / (4 * len(nodes))
+    # Flight stack: four bolts at the bottom face. The payload's weight enters
+    # here and does not leave -- see the restraint below.
+    half_s = stack_pattern / 2.0
+    stack_nodes = []
+    for sx in (-half_s, half_s):
+        for sy in (-half_s, half_s):
+            stack_nodes.append(
+                mount(sx, sy, 0, tip_load * len(rotors) / 4.0))
 
-    # A flying airframe is a free body. Holding all four stack pads rigidly --
-    # which is what this did first -- makes each bolt an independent, infinitely
+    # A flying airframe is a free body. Holding all four stack bolts rigidly --
+    # which is what this did first -- makes each an independent, infinitely
     # stiff ground, and the optimiser correctly answers that question: four
     # separate arms, each running from its motor to its own bolt, never meeting
     # in the middle because nothing requires them to. It looks like the
     # structure fragmented. It did not; the supports were wrong.
     #
-    # Thrust up at the motors and the payload's weight down at the stack pads
-    # is a self-equilibrated load set, so all the restraint has to do is remove
-    # the six rigid-body modes. 3-2-1: one node pinned, a second held against
-    # two axes, a third against one. The reactions come out at zero, and the
-    # load has to travel from the payload out to the rotors through whatever
-    # the optimiser builds -- which is the actual structural problem.
-    a, bb, c = (pad_nodes[0][0], pad_nodes[1][0], pad_nodes[2][0])
-    fixed += [3 * a, 3 * a + 1, 3 * a + 2,      # x, y, z
-              3 * bb + 1, 3 * bb + 2,           # y, z   (offset from a in x)
-              3 * c + 2]                        # z      (off the a-b line)
+    # Thrust up at the motors and the payload's weight down at the stack is a
+    # self-equilibrated load set, so all the restraint has to do is remove the
+    # six rigid-body modes. 3-2-1: one node pinned, a second held against two
+    # axes, a third against one. The reactions come out at zero, and the load
+    # has to travel from the payload out to the rotors through whatever the
+    # optimiser builds -- which is the actual structural problem.
+    a, b, c = stack_nodes[0][0], stack_nodes[2][0], stack_nodes[1][0]
+    fixed = [3 * a, 3 * a + 1, 3 * a + 2,        # x, y, z
+             3 * b + 1, 3 * b + 2,               # y, z   (offset from a in x)
+             3 * c + 2]                          # z      (off the a-b line)
 
     if target_mass is not None:
         volume_fraction = volume_fraction_for_mass(domain, target_mass,
@@ -791,11 +897,12 @@ def frame_problem(vehicle, domain_margin: float = 0.012, thickness: float = 0.01
     # the aircraft, since a gram of frame costs what any other gram costs.
     applied = float(np.abs(load).sum()) / 2.0        # halved: it is a couple
     return Problem(domain=domain, fixed=np.unique(fixed), load=load,
-                   keep=keep, volume_fraction=volume_fraction,
+                   keep=keep, void=void, volume_fraction=volume_fraction,
                    material_price=material_price,
                    compliance_scale=applied * max_deflection,
                    mass_scale=mass,
-                   element_mass=element ** 3 * material_density)
+                   element_mass=element ** 3 * material_density,
+                   fasteners=fasteners)
 
 
 def largest_connected(density: np.ndarray, threshold: float = 0.4,
@@ -878,6 +985,36 @@ def to_mesh(result: Result, domain: Domain, threshold: float = 0.5,
     if mesh.is_watertight and mesh.volume < 0:
         mesh.invert()
     return mesh
+
+
+def drill(mesh, fasteners, clearance: float | None = None):
+    """Subtract exact bolt holes from a meshed structure.
+
+    The optimiser works on a voxel grid and a marching-cubes isosurface of it,
+    so a hole it carves is only ever as round as the element is small: an M3
+    clearance hole is 3.4 mm, which at a 2 mm element is under two cells
+    across. Asking the grid for fastener tolerance is asking the wrong part of
+    the pipeline. The grid's job is the load path; the hole is a boolean
+    subtraction at full precision afterwards, and it lands exactly on the bolt
+    circle whatever the mesh did.
+
+    Holes run right through, so this works whichever face the boss is on.
+    """
+    import trimesh
+
+    if not fasteners:
+        return mesh
+    lo, hi = mesh.bounds[0][2], mesh.bounds[1][2]
+    height = (hi - lo) * 2.0 + 1e-3
+    cutters = []
+    for f in fasteners:
+        r = f.hole if clearance is None else clearance
+        c = trimesh.creation.cylinder(radius=r, height=height, sections=48)
+        c.apply_translation([f.x, f.y, (lo + hi) / 2.0])
+        cutters.append(c)
+    # The holes are disjoint, so one concatenated cutter is a valid solid and
+    # costs one boolean instead of twenty.
+    return mesh.difference(trimesh.util.concatenate(cutters))
 
 
 def structural_mass(result: Result, domain: Domain, density: float) -> float:
