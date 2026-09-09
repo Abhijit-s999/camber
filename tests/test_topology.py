@@ -998,3 +998,69 @@ class TestSmoothExtraction:
         for target in (500.0, 2000.0, 6000.0):
             lvl = T._isolevel_for_volume(field, target)
             assert abs(float((field >= lvl).sum()) - target) < 40
+
+
+class TestExportUnits:
+    """GEOM-04: millimetres for printing, metres only when asked.
+
+    An STL carries no unit, so every consumer guesses and they all guess
+    millimetres. A metre-scale file makes a 202 mm airframe 0.2 mm across and
+    a slicer accepts it without complaint. CFD-02 is the same mistake in the
+    other direction -- a millimetre STL fed to a metre CFD domain, which made
+    a 180 mm airframe 180 m across and swallowed the mesh.
+    """
+
+    def _run(self, tmp_path, name, extra=()):
+        pytest.importorskip("skimage")
+        pytest.importorskip("trimesh")
+        import trimesh
+
+        from camber.cli import main
+        out = tmp_path / name
+        argv = ["generate", "examples/racer5.toml", "--out", str(out),
+                "--element", "0.008", "--thickness", "0.024",
+                "--iterations", "3", "--mass", "40", *extra]
+        assert main(argv) == 0
+        return trimesh.load(out)
+
+    def test_the_default_is_a_thousand_times_the_metre_export(self, tmp_path):
+        """The invariant, rather than an absolute size: the same run exported
+        both ways must differ by exactly the unit conversion."""
+        mm = self._run(tmp_path, "frame_mm.stl")
+        m = self._run(tmp_path, "frame_m.stl", ("--metres",))
+        # 1e-6, not tighter: STL stores float32, so a 200 mm coordinate
+        # carries about seven significant figures and no more.
+        assert mm.extents.max() == pytest.approx(m.extents.max() * 1000.0,
+                                                 rel=1e-6)
+
+    def test_the_metre_export_is_smaller_than_a_metre(self, tmp_path):
+        """A 200 mm airframe at SI scale. CFD-02 is what happens when a
+        millimetre file reaches a metre domain instead."""
+        assert self._run(tmp_path, "m.stl", ("--metres",)).extents.max() < 1.0
+
+    def test_the_default_export_is_bigger_than_a_millimetre(self, tmp_path):
+        """And what happens the other way: a slicer reading metres sees a part
+        a fifth of a millimetre across, and accepts it without a word."""
+        assert self._run(tmp_path, "mm.stl").extents.max() > 1.0
+
+
+class TestDrillingLeavesOneSolid:
+    def test_boolean_slivers_are_removed(self):
+        """Twenty holes through the racing frame left eight sixteen-face
+        shells of 1e-6 mm^3 beside a body of 34,000. A slicer lists those as
+        separate objects and tries to print them."""
+        pytest.importorskip("trimesh")
+        import trimesh
+        plate = trimesh.creation.box((0.08, 0.08, 0.004))
+        bolts = [T.Fastener(x, y) for x in (-0.02, 0.02) for y in (-0.02, 0.02)]
+        out = T.drill(plate, bolts)
+        assert out.body_count == 1
+        assert out.is_watertight
+
+    def test_a_grazing_cutter_does_not_split_the_part(self):
+        """A hole placed right at the edge is where the slivers come from."""
+        pytest.importorskip("trimesh")
+        import trimesh
+        plate = trimesh.creation.box((0.08, 0.08, 0.004))
+        out = T.drill(plate, [T.Fastener(0.0400, 0.0, hole=0.0017)])
+        assert out.body_count == 1

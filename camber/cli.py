@@ -433,7 +433,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         except Exception as exc:                             # noqa: BLE001
             print(f"  WARNING: could not drill holes: {exc}", file=sys.stderr)
 
-    mass = mesh.volume * args.density
+    mass = mesh.volume * args.density        # while still in metres
     print(f"  mesh         {len(mesh.faces):,} facets, "
           f"watertight={mesh.is_watertight}, {mesh.body_count} "
           f"{'body' if mesh.body_count == 1 else 'bodies'}, "
@@ -442,12 +442,25 @@ def cmd_generate(args: argparse.Namespace) -> int:
         print(f"  WARNING: the mesh is {mesh.body_count} separate shells, not "
               f"one part; a slicer will treat each as its own object",
               file=sys.stderr)
+    # GEOM-04: millimetres for anything headed to a slicer or a mill, metres
+    # only when asked. An STL carries no unit, so every consumer guesses, and
+    # they all guess millimetres -- a metre-scale file makes this 202 mm frame
+    # 0.2 mm across and a slicer accepts it without a word. CFD-02 is the same
+    # mistake in the other direction, and cost a whole CFD campaign.
+    if not args.metres:
+        mesh.apply_scale(1000.0)
+    unit = "m" if args.metres else "mm"
+    lo, hi = mesh.bounds
+    print(f"  extents      {hi[0]-lo[0]:.1f} x {hi[1]-lo[1]:.1f} x "
+          f"{hi[2]-lo[2]:.1f} {unit}")
     mesh.export(args.out)
-    print(f"  wrote {args.out}")
+    print(f"  wrote {args.out} in {unit}")
     return 0
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    # `argv` is for tests: a CLI that can only be driven through sys.argv
+    # can only be tested by poking at its internals.
     p = argparse.ArgumentParser(prog="camber", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -553,6 +566,9 @@ def main() -> int:
                      help="start at the final penalty instead of ramping")
     gen.add_argument("--density-out", type=Path,
                      help="save the raw density field as .npy")
+    gen.add_argument("--metres", action="store_true",
+                     help="write the mesh at SI scale instead of millimetres. "
+                          "Slicers and CAM assume mm; CFD wants m (GEOM-04)")
     gen.add_argument("--no-drill", action="store_true",
                      help="leave the bolt holes as the grid carved them "
                           "instead of subtracting exact cylinders")
@@ -569,7 +585,7 @@ def main() -> int:
     cat.add_argument("--force", action="store_true")
     cat.set_defaults(func=cmd_catalogue)
 
-    args = p.parse_args()
+    args = p.parse_args(argv)
     return args.func(args)
 
 

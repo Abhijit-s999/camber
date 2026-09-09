@@ -1102,7 +1102,20 @@ def drill(mesh, fasteners, clearance: float | None = None):
         cutters.append(c)
     # The holes are disjoint, so one concatenated cutter is a valid solid and
     # costs one boolean instead of twenty.
-    return mesh.difference(trimesh.util.concatenate(cutters))
+    out = mesh.difference(trimesh.util.concatenate(cutters))
+
+    # The boolean leaves slivers where a cutter grazes a surface: on this frame
+    # eight sixteen-face shells of 1e-6 mm^3 each, next to a body of 34,000.
+    # They are not structure and they are not nothing -- a slicer lists them as
+    # separate objects and will happily try to print them.
+    parts = out.split(only_watertight=False)
+    if len(parts) > 1:
+        keep = [q for q in parts if abs(q.volume) > 1e-6 * abs(out.volume)]
+        if len(keep) == 1:
+            return keep[0]
+        if keep:
+            return trimesh.util.concatenate(keep)
+    return out
 
 
 def structural_mass(result: Result, domain: Domain, density: float) -> float:
