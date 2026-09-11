@@ -9,3 +9,9 @@ __pycache__/
 data/raw/
 data/*.sqlite
 cases/
+
+# ROS workspace build products and the pixi environment
+ros/.pixi/
+ros/build/
+ros/install/
+ros/log/

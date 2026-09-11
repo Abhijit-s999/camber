@@ -1,0 +1,41 @@
+# ROS 2 Jazzy for Camber, from RoboStack (conda-forge builds of ROS).
+#
+# Why this and not apt or the AUR: this machine is a rolling Arch derivative on
+# Python 3.14, and ROS 2 Jazzy is built against Python 3.12. RoboStack ships
+# ROS 2 as conda packages with their own Python, installed per project, no root
+# and no container -- so it cannot collide with the system interpreter and it
+# cannot break when the system updates underneath it.
+#
+#   ~/.pixi/bin/pixi run -m ros/pixi.toml build      # colcon build
+#   ~/.pixi/bin/pixi run -m ros/pixi.toml fly        # bridge + example pilot
+[workspace]
+name = "camber-ros"
+channels = ["robostack-jazzy", "conda-forge"]
+platforms = ["linux-64"]
+
+[dependencies]
+python = "3.12.*"
+ros-jazzy-ros-base = "*"
+ros-jazzy-rviz2 = "*"
+ros-jazzy-sensor-msgs = "*"
+ros-jazzy-nav-msgs = "*"
+ros-jazzy-geometry-msgs = "*"
+ros-jazzy-std-msgs = "*"
+ros-jazzy-tf2-ros-py = "*"
+ros-jazzy-launch-ros = "*"
+colcon-common-extensions = "*"
+# colcon --symlink-install passes `develop --editable`, which setuptools
+# 80 dropped; the build fails with "option --editable not recognized".
+setuptools = "<80"
+numpy = "*"
+scipy = "*"
+
+[pypi-dependencies]
+# The simulator itself, and Camber, imported by the bridge node.
+mujoco = ">=3.2"
+trimesh = ">=4.0"
+camber = { path = "..", editable = true }
+
+[tasks]
+build = { cmd = "colcon build --symlink-install --base-paths src", cwd = "." }
+fly = { cmd = "bash -c 'source install/setup.bash && ros2 launch camber_ros fly.launch.py'", cwd = ".", depends-on = ["build"] }
