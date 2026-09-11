@@ -178,8 +178,11 @@ def design_features(vehicle) -> np.ndarray:
     radius = float(np.mean([r.radius for r in rotors]))
 
     bodies = vehicle.all_bodies()
-    planform = sum(b.shape.half_extents().x * b.shape.half_extents().y * 4.0
-                   for b in bodies)
+    # `planform_area()` defaults to the bounding rectangle, which is exactly
+    # what this line computed inline before and what the model was trained on,
+    # so every existing body reports the same number. Generated frames override
+    # it with their real footprint -- see Shape.planform_area.
+    planform = sum(b.shape.planform_area() for b in bodies)
 
     centres = np.array([[r.position.x, r.position.y] for r in rotors])
     if len(centres) > 1:
@@ -242,6 +245,32 @@ class InterferenceModel:
             m = max(float(mean[0]), 0.0)
             return m ** 2, 2.0 * m * float(std[0])
         return float(mean[0]), float(std[0])
+
+    FEATURES = ("blockage", "spacing/D", "offset/R", "disc loading")
+
+    def envelope(self) -> tuple[np.ndarray, np.ndarray]:
+        """Lowest and highest value of each feature the model was fitted on."""
+        if not self.fitted:
+            raise ValueError("an unfitted model has no envelope")
+        x = np.asarray(self.gp.x_train) * np.asarray(self.gp._scale) \
+            + np.asarray(self.gp._mean)
+        return x.min(axis=0), x.max(axis=0)
+
+    def outside(self, vehicle, margin: float = 0.0) -> list[str]:
+        """Features of this layout the model has not seen, by name.
+
+        A Gaussian process outside its data reverts to its prior mean and
+        reports a growing sigma, which is honest if anyone reads the sigma and
+        invisible if they read only the mean. Twenty-five cases of one airframe
+        family is a small envelope, and a generated frame is exactly the kind
+        of layout that can leave it -- so the check is made and named rather
+        than left to the uncertainty.
+        """
+        lo, hi = self.envelope()
+        f = design_features(vehicle)
+        span = hi - lo
+        return [n for n, v, a, b, s in zip(self.FEATURES, f, lo, hi, span)
+                if v < a - margin * s or v > b + margin * s]
 
     def as_penalty(self, vehicle, threshold: float = 0.02) -> float:
         """Interference above `threshold`, as a continuous optimiser penalty.

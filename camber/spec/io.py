@@ -21,7 +21,7 @@ from .constraints import (
     CGBox, Constraint, Fixed, MinDistance, Relative, Symmetry, ViewCone,
 )
 from .rotation import Rotation
-from .shapes import Box, Cylinder, PointMass, Shape, Sphere
+from .shapes import Box, Cylinder, PointMass, Shape, Sphere, Tabulated
 from .units import DEG, Vec3
 from .vehicle import (
     Battery, Body, Camera, Frame, Mission, Objective, Placement, Rotor, Spin,
@@ -66,10 +66,14 @@ def _shape(d: dict | None, where: str) -> Shape:
             return Sphere(**rest)
         if kind == "point":
             return PointMass()
+        if kind == "tabulated":
+            _reject_unknown(rest, {"volume_m3", "inertia_tensor", "extents",
+                                   "planform", "source"}, f"{where}.shape")
+            return Tabulated(**rest)
     except (TypeError, ValueError) as exc:
         raise SpecError(f"{where}.shape ({kind}): {exc}") from exc
     raise SpecError(f"{where}.shape: unknown kind {kind!r}; "
-                    f"expected box, cylinder, sphere or point")
+                    f"expected box, cylinder, sphere, point or tabulated")
 
 
 def _placement(d: dict, where: str) -> Placement:
@@ -270,7 +274,18 @@ def to_dict(v: Vehicle) -> dict[str, Any]:
             return {"kind": "cylinder", "radius": s.radius, "length": s.length}
         if isinstance(s, Sphere):
             return {"kind": "sphere", "radius": s.radius}
-        return {"kind": "point"}
+        if isinstance(s, Tabulated):
+            return {"kind": "tabulated", "volume_m3": s.volume_m3,
+                    "inertia_tensor": [list(r) for r in s.inertia_tensor],
+                    "extents": list(s.extents), "planform": s.planform,
+                    "source": s.source}
+        if isinstance(s, PointMass):
+            return {"kind": "point"}
+        # This used to fall through to {"kind": "point"} for anything it did
+        # not recognise, so saving a shape it had not been taught about kept
+        # the mass and silently deleted the geometry and the inertia -- a
+        # generated airframe would have come back as a point.
+        raise TypeError(f"cannot serialise shape {type(s).__name__}")
 
     def body_of(b: Body) -> dict:
         d: dict[str, Any] = {"name": b.name, "mass": b.mass,

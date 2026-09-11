@@ -391,6 +391,52 @@ corrected   : arm 124.7 mm,  8.02 min,  interference 0.76%
 The corrected search pushes the arms to the edge of the allowed envelope to
 escape download. The uncorrected one has no reason to and stops short.
 
+
+### ARCH-05 · The generated frame goes back into the vehicle — `PROVISIONAL`
+
+**The gap.** `camber generate` wrote an STL and stopped. The vehicle model went
+on believing in its placeholder -- on the racing quad an 85 g box,
+150 x 70 x 24 mm, under `[[frame]]` -- so hover, thrust-to-weight, inertia and
+the interference estimate all described an airframe nobody was going to build.
+For a tool whose name has "closed loop" in it, the loop was open at the one
+point where the design becomes real.
+
+**Value:** `camber generate --into vehicle.json` measures the finished mesh --
+volume, centroid, inertia tensor, extents, footprint -- and writes the vehicle
+back out with that body as its frame, then prints what changed. The body is a
+`Tabulated` shape: the numbers are computed once from the mesh and carried as
+numbers from then on, so evaluating it costs what a Box costs and the core
+still imports only numpy (GEOM-03, AI-07). The STL is recorded as a source, not
+required. Mass properties are measured while the mesh is still in metres and
+NED, before the manufacturing export turns it into millimetres and Z-up.
+
+**Blockage is a footprint, and the calibration had to survive that.** The
+interference model's first feature is total body planform over disc area, and
+it was trained on 25 CFD cases computed from bounding rectangles. For a box
+that is exact. For a topology-optimised X-frame it is nonsense: the box is 400
+cm^2 and the material in it is 119 cm^2, so the old formula would have put
+blockage near 0.8 -- far outside the 0.19 to 0.61 the model has seen -- for a
+part that is mostly air. `Shape.planform_area()` now defaults to *exactly* the
+old formula, so every existing body reports what it always did and the fitted
+model's inputs are unchanged (asserted for both examples to 1e-12); a
+`Tabulated` shape reports its real shadow instead.
+
+**The model now says when it is extrapolating.** `InterferenceModel.outside()`
+names any feature outside the fitted envelope. A Gaussian process off its data
+reverts to its prior mean and widens its sigma, which is honest to anyone
+reading the sigma and invisible to anyone reading only the mean; generated
+frames are exactly the layouts that can leave a 25-case envelope, so the check
+is made and printed rather than left to the uncertainty.
+
+**Found on the way:** `to_dict` serialised any shape it did not recognise as
+`{"kind": "point"}`. Saving a vehicle with a new shape kept the mass and
+silently deleted the geometry and inertia. It now raises.
+
+**On a coarse smoke run** (25 iterations, 4 mm, not a design): mass 391 g to
+430.5 g, T:W 12.83 to 11.65, yaw inertia up 12%, blockage 0.28 to 0.31,
+interference 0.6% to 0.8%, inside the envelope. The numbers that matter will
+come from the 1.5 mm run.
+
 ### ARCH-02 · Constraints are declarative data in the vehicle spec — `PROVISIONAL`
 
 **Value:** `fixed`, `relative(a, b, offset)`, `min_distance(a, b, d)`,

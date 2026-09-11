@@ -46,6 +46,20 @@ class Shape(ABC):
             raise ValueError(f"negative mass: {mass}")
         return mass * self.inertia_unit_mass()
 
+    def planform_area(self) -> float:
+        """Plan-view footprint in m^2, in the body's own axes.
+
+        The default is the bounding rectangle, which is exact for a box and is
+        the definition the interference model was trained on (CAL-02) -- so
+        every existing shape reports exactly what it always did and the
+        calibration stays valid. Shapes that are mostly air inside their bounds
+        override it, because for them the rectangle is not a footprint at all:
+        a topology-optimised X-frame has a 201 x 201 mm bounding box and is
+        mostly empty space.
+        """
+        h = self.half_extents()
+        return 4.0 * h.x * h.y
+
 
 @dataclass(frozen=True)
 class Box(Shape):
@@ -137,3 +151,55 @@ class PointMass(Shape):
 
     def half_extents(self) -> Vec3:
         return Vec3(0.0, 0.0, 0.0)
+
+
+@dataclass(frozen=True)
+class Tabulated(Shape):
+    """A solid whose properties were measured once, from a mesh, and stored.
+
+    GEOM-03 keeps mass properties analytic and dependency-free so the optimiser
+    can evaluate them millions of times. A generated airframe has no closed
+    form, but it does not need one: its volume, inertia tensor, extents and
+    footprint are computed from the mesh when it is made and carried as
+    numbers from then on. Evaluating it costs what a Box costs, and the core
+    still imports nothing but numpy.
+
+    `source` records which mesh the numbers came from. It is a pointer for a
+    reader, not a dependency: the shape is complete without the file.
+    """
+
+    volume_m3: float
+    #: Inertia about the centroid for unit mass, local axes, row-major 3 x 3.
+    #: Not called `inertia`: Shape already has an `inertia(mass)` method, which
+    #: a field of that name would shadow -- and dataclasses would then read the
+    #: inherited method as the field's default.
+    inertia_tensor: tuple
+    extents: tuple                 # half-extents, m
+    planform: float                # plan-view footprint, m^2
+    source: str = ""
+
+    def __post_init__(self) -> None:
+        if self.volume_m3 <= 0.0:
+            raise ValueError(f"Tabulated.volume_m3 must be positive, got {self.volume_m3}")
+        I = np.asarray(self.inertia_tensor, dtype=float).reshape(3, 3)
+        object.__setattr__(self, "inertia_tensor", tuple(map(tuple, I.tolist())))
+        if not np.allclose(I, I.T, atol=1e-12 + 1e-9 * np.abs(I).max()):
+            raise ValueError("Tabulated.inertia_tensor must be symmetric")
+        if np.linalg.eigvalsh(I).min() < -1e-12:
+            raise ValueError("Tabulated.inertia_tensor is not positive semi-definite")
+        if self.planform < 0.0:
+            raise ValueError("Tabulated.planform cannot be negative")
+        object.__setattr__(self, "extents", tuple(float(e) for e in self.extents))
+
+    @property
+    def volume(self) -> float:
+        return self.volume_m3
+
+    def inertia_unit_mass(self) -> np.ndarray:
+        return np.asarray(self.inertia_tensor, dtype=float)
+
+    def half_extents(self) -> Vec3:
+        return Vec3(*self.extents)
+
+    def planform_area(self) -> float:
+        return self.planform

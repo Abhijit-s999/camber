@@ -1270,6 +1270,47 @@ def drill(mesh, fasteners, clearance: float | None = None):
     return out
 
 
+def footprint(result: Result, domain: Domain, threshold: float = 0.5) -> float:
+    """Plan-view area the structure covers, m^2: the shadow it casts downward.
+
+    This is the number the interference model's blockage feature needs, and
+    it is not the bounding box. A topology-optimised X-frame's box is
+    201 x 201 mm; the material in it is a fraction of that.
+    """
+    plan = result.density.max(axis=2) >= threshold
+    return float(plan.sum()) * domain.element ** 2
+
+
+def frame_body(mesh, planform: float, density: float, name: str = "frame",
+               source: str = ""):
+    """The generated airframe as a vehicle Body, measured from its mesh.
+
+    Until this existed the loop was open. `camber generate` produced an STL and
+    the vehicle model went on believing in its placeholder -- on the racing quad
+    an 85 g box, 150 x 70 x 24 mm -- so hover, thrust-to-weight, inertia and the
+    interference estimate all described an airframe nobody was going to build.
+
+    `mesh` must be in metres and in the NED body frame, i.e. as `to_mesh` and
+    `drill` return it and *before* the manufacturing export turns it Z-up.
+    """
+    from ..spec.shapes import Tabulated
+    from ..spec.units import Vec3
+    from ..spec.vehicle import Body, Placement
+
+    if not mesh.is_watertight:
+        raise ValueError("mass properties of an open mesh are not defined")
+    volume = float(mesh.volume)
+    # trimesh integrates at its own density, 1 by default, so dividing its
+    # inertia by its own mass gives the unit-mass tensor whatever it assumed.
+    unit_inertia = np.asarray(mesh.moment_inertia) / float(mesh.mass)
+    lo, hi = mesh.bounds
+    return Body(
+        name, mass=volume * density,
+        shape=Tabulated(volume, unit_inertia, tuple((hi - lo) / 2.0),
+                        planform, source),
+        placement=Placement(Vec3(*map(float, mesh.center_mass))))
+
+
 def ned_to_z_up(mesh):
     """Rotate a mesh from the NED body frame into Z-up, for manufacturing.
 

@@ -337,6 +337,51 @@ def cmd_catalogue(args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
+def _airframe_report(before, after, dropped) -> None:
+    """What changed when the placeholder was swapped for the generated frame.
+
+    Printed as before/after rather than as the new numbers alone, because the
+    change is the finding: every figure the optimiser worked from until now
+    was computed on the placeholder.
+    """
+    from .calibrate import design_features, load_model
+
+    def facts(v):
+        mp = v.mass_properties()
+        thrust = sum(t.max_thrust() for t in v.thrusters)
+        hover = solve_hover(v)
+        ctrl = controllability(v)
+        return {"mass g": mp.mass * 1000.0,
+                "T:W": thrust / (mp.mass * G),
+                "hover util max": (float(np.max(hover.utilisation))
+                                   if hover.feasible else float("nan")),
+                "Ixx g cm2": mp.inertia[0, 0] * 1e7,
+                "Iyy g cm2": mp.inertia[1, 1] * 1e7,
+                "Izz g cm2": mp.inertia[2, 2] * 1e7,
+                "cg z mm": mp.cg.z * 1000.0,
+                "control margin": ctrl.margin,
+                "blockage": float(design_features(v)[0])}
+
+    a, b = facts(before), facts(after)
+    gone = ", ".join(f"{x.name} ({x.mass * 1000:.0f} g)" for x in dropped)
+    print(f"\n  airframe     replaced {gone or 'nothing'} with the generated "
+          f"frame ({after.frame.members[0].mass * 1000:.1f} g)")
+    print(f"  {'':16s}{'before':>11s}{'after':>11s}")
+    for k in a:
+        print(f"  {k:16s}{a[k]:11.4g}{b[k]:11.4g}")
+
+    model_path = Path("data/interference.json")
+    if not model_path.exists():
+        return
+    model = load_model(model_path)
+    for label, v in (("before", before), ("after", after)):
+        loss, sigma = model.correction(v)
+        away = model.outside(v)
+        note = (f"  OUTSIDE the calibrated envelope on {', '.join(away)}"
+                if away else "")
+        print(f"  interference {label:6s} {loss:6.1%} +/- {sigma:.1%}{note}")
+
+
 def cmd_generate(args: argparse.Namespace) -> int:
     """Grow an airframe by topology optimisation, and mesh it.
 
@@ -471,6 +516,32 @@ def cmd_generate(args: argparse.Namespace) -> int:
         print(f"  WARNING: the mesh is {mesh.body_count} separate shells, not "
               f"one part; a slicer will treat each as its own object",
               file=sys.stderr)
+
+    if args.into:
+        # Close the loop: measure the frame that was actually generated and
+        # put it in the vehicle, in place of whatever placeholder was there.
+        # Done here, while the mesh is still in metres and NED -- the export
+        # below turns it into millimetres and Z-up, which is right for a
+        # slicer and wrong for a mass-properties calculation.
+        import copy
+
+        body = topology.frame_body(
+            mesh, topology.footprint(result, d), args.density,
+            name="frame", source=str(args.out))
+        after = copy.deepcopy(v)
+        # Everything that was the airframe goes: the frame members wholesale,
+        # since the generated body *is* the frame, plus any loose body named as
+        # the placeholder. Reported from both lists -- the racing quad keeps its
+        # chassis under [frame], and looking only in `bodies` announced that
+        # nothing had been replaced while the mass said 85 g had.
+        dropped = list(after.frame.members) + [
+            b for b in after.bodies if b.name == args.replace]
+        after.bodies = [b for b in after.bodies if b.name != args.replace]
+        after.frame.members = [body]
+        io.save_json(after, args.into)
+        _airframe_report(v, after, dropped)
+        print(f"  wrote {args.into}")
+
     # GEOM-04: millimetres for anything headed to a slicer or a mill, metres
     # only when asked. An STL carries no unit, so every consumer guesses, and
     # they all guess millimetres -- a metre-scale file makes this 202 mm frame
@@ -613,6 +684,13 @@ def main(argv: list[str] | None = None) -> int:
                      help="start at the final penalty instead of ramping")
     gen.add_argument("--density-out", type=Path,
                      help="save the raw density field as .npy")
+    gen.add_argument("--into", type=Path,
+                     help="write the vehicle back out with the generated frame "
+                          "in it, measured from the mesh, and report what that "
+                          "changes: mass, T:W, inertia, blockage, interference")
+    gen.add_argument("--replace", default="chassis",
+                     help="the placeholder body the generated frame replaces "
+                          "(default: chassis)")
     gen.add_argument("--metres", action="store_true",
                      help="write the mesh at SI scale instead of millimetres. "
                           "Slicers and CAM assume mm; CFD wants m (GEOM-04)")
