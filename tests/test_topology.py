@@ -1335,3 +1335,30 @@ class TestZUpExport:
                             faces=[[0, 1, 2]], process=False)
         T.ned_to_z_up(m)
         assert m.vertices[0] == pytest.approx([0.3, -0.2, 0.1])
+
+
+class TestDecimate:
+    """A lighter mesh must still be the same part: same mass, still closed."""
+
+    @pytest.fixture
+    def part(self):
+        pytest.importorskip("trimesh")
+        import trimesh
+        m = trimesh.creation.icosphere(subdivisions=5, radius=0.03)   # 20k faces
+        return m
+
+    def test_it_keeps_the_volume(self, part):
+        d = T.decimate(part, target_faces=4000)
+        assert len(d.faces) < len(part.faces)
+        assert d.volume == pytest.approx(part.volume, rel=0.005)
+
+    def test_it_stays_watertight(self, part):
+        assert T.decimate(part, target_faces=4000).is_watertight
+
+    def test_it_works_at_metre_scale(self, part):
+        """In metres the weld collapsed distinct vertices, every candidate
+        came out open, and it returned the full mesh having done nothing."""
+        assert len(T.decimate(part, target_faces=4000).faces) < len(part.faces) / 2
+
+    def test_a_small_mesh_is_left_alone(self, part):
+        assert T.decimate(part, target_faces=10 ** 6) is part

@@ -287,6 +287,21 @@ def cmd_optimise(args: argparse.Namespace) -> int:
         print("  ".join(f"{t:>{c[1]}}" for c, t in zip(cols, cells)) + "  "
               + "  ".join(f"{d[n]:16.4f}" for n in interesting))
 
+    if args.front_json:
+        # The whole front, each point with the design it stands for, so a UI
+        # can plot the trade and let someone pick a point rather than being
+        # handed the extreme of one objective.
+        import json
+        points = []
+        for obj, x in zip(result.front_objectives, result.front_x):
+            points.append({
+                "objectives": [float(o) for o in obj],
+                "variables": {n: float(val) for n, val in zip(names, x)},
+                "vehicle": io.to_dict(problem.build(x))})
+        Path(args.front_json).write_text(json.dumps(
+            {"objective_names": problem.objective_names, "points": points}))
+        print(f"wrote {args.front_json}: {len(points)} designs on the front")
+
     if args.out:
         # A front is not an answer until one point on it can be handed to the
         # next stage. Without this the chain breaks at the CLI: the optimiser
@@ -745,6 +760,8 @@ def main(argv: list[str] | None = None) -> int:
     opt.add_argument("--capacity-min", type=float, default=0.8)
     opt.add_argument("--capacity-max", type=float, default=4.0)
     opt.add_argument("--verbose", action="store_true")
+    opt.add_argument("--front-json", type=Path, dest="front_json",
+                     help="write every design on the front, with its objectives")
     opt.add_argument("--out", type=Path,
                      help="write the front's best design on the primary "
                           "objective, as a spec `camber generate` can read")

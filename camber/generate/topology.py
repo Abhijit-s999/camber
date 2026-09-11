@@ -1311,6 +1311,48 @@ def frame_body(mesh, planform: float, density: float, name: str = "frame",
         placement=Placement(Vec3(*map(float, mesh.center_mass))))
 
 
+def decimate(mesh, target_faces: int = 120_000, tol: float = 0.005):
+    """A lighter copy of a mesh that is still the same part.
+
+    Quadric decimation keeps volume almost exactly but can open the surface at
+    aggressive ratios -- measured on the racing frame, 12% of the faces kept
+    the mass to 0.1 g and was not watertight; 20% was. So the ratio is raised
+    until the result is both closed and within `tol` of the original volume,
+    and the original comes back unchanged if nothing qualifies.
+
+    This exists because the cheap alternative is wrong. Extracting a coarser
+    isosurface instead (`to_mesh(upsample=1)`) made the racing frame 136.9 g
+    against a 125.2 g design: an isosurface through a binary field at element
+    resolution is not a smaller version of the fine one, it is a fatter part.
+    """
+    import trimesh
+
+    if len(mesh.faces) <= target_faces:
+        return mesh
+    # Welding is by absolute tolerance, so it is done at a scale where
+    # neighbouring vertices are well apart -- the extent made ~1000 units --
+    # and scaled back afterwards. At metre scale the weld collapses distinct
+    # vertices of a 1.5 mm grid (GEN-13), every candidate comes out open, and
+    # this returned the full 31 MB mesh having silently decimated nothing.
+    k = 1000.0 / float(np.max(mesh.extents))
+    work = mesh.copy()
+    work.apply_scale(k)
+    keep = target_faces / len(mesh.faces)
+    while keep < 0.95:
+        d = work.simplify_quadric_decimation(percent=1.0 - keep)
+        d.merge_vertices()
+        d.update_faces(d.nondegenerate_faces())
+        d.remove_unreferenced_vertices()
+        trimesh.repair.fill_holes(d)
+        trimesh.repair.fix_normals(d)
+        if (d.is_watertight and d.body_count == work.body_count
+                and abs(d.volume - work.volume) <= tol * abs(work.volume)):
+            d.apply_scale(1.0 / k)
+            return d
+        keep *= 1.4
+    return mesh
+
+
 def ned_to_z_up(mesh):
     """Rotate a mesh from the NED body frame into Z-up, for manufacturing.
 
