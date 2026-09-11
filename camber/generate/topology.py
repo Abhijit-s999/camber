@@ -993,22 +993,34 @@ def frame_problem(vehicle, domain_margin: float = 0.012, thickness: float = 0.01
             load[3 * n + 2] += force_z / len(nodes)
         return nodes
 
-    # Motor bosses: four bolts each, at the top face, where thrust enters.
+    # Which face is which, from the vehicle rather than from a comment. Layer
+    # 0 is the most negative z, and in NED (GEOM-02) negative z is UP -- so
+    # layer 0 is the top face. The motor bosses belong on the face the rotors
+    # are on, because that is where each motor's base bears. This used to say
+    # "top face" and use layer nz-1, which is the *bottom*: the reinforcement
+    # sat on the side facing the ground and the face the motor actually bolts
+    # to had no material guaranteed at all. The renders looked right only
+    # because the STL was written in NED and viewed Z-up, which flipped the
+    # frame over -- one convention error hiding another.
+    rotor_side = 0 if np.mean([r.position.z for r in rotors]) < 0 else nz - 1
+
+    # Motor bosses: four bolts each, on the rotor face, where thrust enters.
     half_m = motor_pattern / 2.0
     for r in rotors:
         for sx in (-half_m, half_m):
             for sy in (-half_m, half_m):
-                mount(r.position.x + sx, r.position.y + sy, nz - 1,
+                mount(r.position.x + sx, r.position.y + sy, rotor_side,
                       -tip_load / 4.0)           # z is down; thrust is -z
 
-    # Flight stack: four bolts at the bottom face. The payload's weight enters
-    # here and does not leave -- see the restraint below.
+    # Flight stack: four bolts on the same face. A racing stack sits on the
+    # plate on standoffs, on the prop side, so its weight bears on that face.
+    # It enters here and does not leave -- see the restraint below.
     half_s = stack_pattern / 2.0
     stack_nodes = []
     for sx in (-half_s, half_s):
         for sy in (-half_s, half_s):
             stack_nodes.append(
-                mount(sx, sy, 0, tip_load * len(rotors) / 4.0))
+                mount(sx, sy, rotor_side, tip_load * len(rotors) / 4.0))
 
     # A flying airframe is a free body. Holding all four stack bolts rigidly --
     # which is what this did first -- makes each an independent, infinitely
@@ -1256,6 +1268,26 @@ def drill(mesh, fasteners, clearance: float | None = None):
         if keep:
             return trimesh.util.concatenate(keep)
     return out
+
+
+def ned_to_z_up(mesh):
+    """Rotate a mesh from the NED body frame into Z-up, for manufacturing.
+
+    Camber models in NED, z down (GEOM-02). Slicers, CAM and every CAD package
+    are Z-up, so a NED file opens upside down -- which is survivable for a
+    symmetric part and exactly wrong for one with a motor face. The conversion
+    is a half-turn about x, not a sign flip on z: a flip is a reflection, and a
+    reflected airframe is its own mirror image, which prints as a frame whose
+    props spin the wrong way round the body.
+
+    Only manufacturing exports convert. The CFD case is built in NED, with the
+    disc momentum source pointing +z (CFD-06), and must be handed NED.
+    """
+    import trimesh
+
+    mesh.apply_transform(trimesh.transformations.rotation_matrix(
+        np.pi, [1.0, 0.0, 0.0]))
+    return mesh
 
 
 def structural_mass(result: Result, domain: Domain, density: float) -> float:

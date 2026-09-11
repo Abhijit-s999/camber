@@ -102,6 +102,12 @@ def export(vehicle: Vehicle, path: str | Path, *, metres: bool = False) -> Path:
     assembly = build(vehicle)
     if metres:
         assembly = assembly.scale(1.0 / M_TO_MM)
+    else:
+        # Manufacturing output goes Z-up; the model is NED, z down. A half-turn
+        # about x, not a mirror in z -- a mirror would machine the airframe's
+        # reflection. The CFD path (`metres=True`) stays in NED, because the
+        # CFD case is built in NED. See topology.ned_to_z_up.
+        assembly = assembly.rotate(b3.Axis.X, 180)
 
     suffix = path.suffix.lower()
     if suffix == ".step" or suffix == ".stp":

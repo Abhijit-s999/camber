@@ -1474,6 +1474,35 @@ Also removed: the dead `elif False:` branch left from GEN-10's abandoned
 warm-start normalisation, and its unused `warmup` parameter. The reasoning it
 carried is recorded in GEN-10; the code was just in the way.
 
+### GEOM-05 · The motor bosses were on the ground side, and Z-up hid it — `FIXED`
+
+**The bug.** GEOM-02 is NED, z down, so layer 0 of the topology domain -- the
+most negative z -- is the *top* face. `frame_problem` put the motor bosses on
+layer `nz - 1`, under a comment saying "top face". The rotors sit at
+z = -42 mm, above the frame; the bosses were at z = +6 mm, the bottom. So the
+reinforcement faced the ground and the face each motor actually bolts to had
+no material guaranteed at all -- for the feature added specifically so the
+motors could be mounted.
+
+**Why it looked right.** The STL was written in NED and every viewer and
+slicer is Z-up, which turns the frame over and put the bosses visually on top.
+One convention error hiding another. It was found by reading the code against
+GEOM-02 while planning something else, not by looking at a render -- the
+render was the thing that was lying.
+
+**Value:** the boss face is derived from where the rotors are, not asserted:
+layer 0 if the rotors are above, `nz - 1` if below. The stack mounts on the
+same face, as a racing stack sits on standoffs on the prop side. Tests pin
+both, including that hanging the rotors below moves the bosses.
+
+**Manufacturing exports are Z-up; the model stays NED.** `camber generate`
+(millimetres) and `cad.export` without `metres=True` turn the part over by a
+half-turn about x. Not a sign flip on z: that is a reflection, and a reflected
+airframe is its own mirror image. The CFD path, `metres=True`, stays in NED,
+because the CFD case is built in NED with the disc momentum pointing +z
+(CFD-06). The unit flag and the orientation already meant the same thing --
+"this is for CFD" -- so they travel together.
+
 The assembly was trimmed to suit: storing which entry of the 24x24 element
 matrix each non-zero carries, as int16, rather than the value as float64. At
 265,000 elements that is 152 million entries, so it is 300 MB instead of

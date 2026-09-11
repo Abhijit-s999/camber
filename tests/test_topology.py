@@ -1236,3 +1236,102 @@ class TestMinimumThickness:
                            outside_void=False)
         tight = T.optimise(p, iterations=60, filter_radius=2.0)
         assert T.compliance(p, tight.density) > T.compliance(p, loose.density)
+
+
+class TestWhichFaceIsUp:
+    """GEOM-02 is NED: z points DOWN, so layer 0 -- the most negative z -- is
+    the TOP face. The motor bosses were on layer nz-1, the bottom, under a
+    comment that said "top face". The reinforcement faced the ground and the
+    face each motor actually bolts to had no material guaranteed. It hid
+    because the STL was written in NED and viewed Z-up, which flipped the
+    frame over and put the bosses visually on top: one convention error
+    hiding another.
+    """
+
+    @pytest.fixture
+    def vehicle(self):
+        import pathlib
+
+        from camber.spec import io
+        return io.load(pathlib.Path(__file__).resolve().parent.parent
+                       / "examples" / "racer5.toml")
+
+    def _motor_layers(self, p, vehicle):
+        """Layers holding boss material within 14 mm of any rotor axis.
+
+        Not probed at a bolt centre: that is the hole, voided by design, and
+        the boss is the ring around it.
+        """
+        d = p.domain
+        c = (np.arange(d.nx) + 0.5) * d.element - d.nx * d.element / 2.0
+        gx, gy = np.meshgrid(c, c, indexing="ij")
+        near = np.zeros((d.nx, d.ny), dtype=bool)
+        for r in vehicle.thrusters:
+            near |= np.hypot(gx - r.position.x, gy - r.position.y) < 0.014
+        return set(np.flatnonzero(p.keep[near].any(axis=0)).tolist())
+
+    def test_the_rotors_are_above_the_frame(self, vehicle):
+        """The premise, checked rather than assumed: negative z is up."""
+        assert all(r.position.z < 0 for r in vehicle.thrusters)
+
+    def test_motor_bosses_are_on_the_face_the_rotors_are_on(self, vehicle):
+        p = T.frame_problem(vehicle, element=0.002, thickness=0.012)
+        assert self._motor_layers(p, vehicle) == {0}
+
+    def test_the_face_follows_the_rotors_not_a_constant(self, vehicle):
+        """Hang the rotors below and the bosses must move to the other face."""
+        import copy
+
+        from camber.spec.units import Vec3
+        v = copy.deepcopy(vehicle)
+        for r in v.thrusters:
+            r.placement = type(r.placement)(
+                Vec3(r.position.x, r.position.y, -r.position.z),
+                r.placement.rotation)
+        p = T.frame_problem(v, element=0.002, thickness=0.012)
+        assert self._motor_layers(p, v) == {p.domain.nz - 1}
+
+    def test_thrust_is_applied_on_the_rotor_face(self, vehicle):
+        """Load pulling up (-z) must enter at the top nodes, k = 0 and 1."""
+        p = T.frame_problem(vehicle, element=0.002, thickness=0.012)
+        d = p.domain
+        z = d.node_coordinates()[:, 2]
+        up = p.load.reshape(-1, 3)[:, 2] < 0
+        assert z[up].max() <= -d.nz * d.element / 2.0 + d.element + 1e-9
+
+
+class TestZUpExport:
+    """Manufacturing exports turn NED into Z-up by a half-turn about x.
+
+    Not a sign flip on z: a flip is a reflection, and a reflected airframe is
+    its own mirror image.
+    """
+
+    def test_up_becomes_plus_z(self):
+        pytest.importorskip("trimesh")
+        import trimesh
+        m = trimesh.Trimesh(vertices=[[0, 0, -1.0], [1, 0, 0], [0, 1, 0]],
+                            faces=[[0, 1, 2]], process=False)
+        T.ned_to_z_up(m)
+        assert m.vertices[0][2] == pytest.approx(1.0)
+
+    def test_it_is_a_rotation_not_a_mirror(self):
+        pytest.importorskip("trimesh")
+        import trimesh
+        box = trimesh.creation.box((0.03, 0.02, 0.01))
+        box.apply_translation([0.01, 0.005, 0.0])
+        before = box.volume
+        T.ned_to_z_up(box)
+        assert box.volume == pytest.approx(before)       # a mirror negates it
+        R = trimesh.transformations.rotation_matrix(np.pi, [1, 0, 0])[:3, :3]
+        assert np.linalg.det(R) == pytest.approx(1.0)
+
+    def test_a_chiral_point_keeps_its_handedness(self):
+        """Forward stays forward. y and z both change sign, as a half-turn
+        about the forward axis demands; x never does."""
+        pytest.importorskip("trimesh")
+        import trimesh
+        m = trimesh.Trimesh(vertices=[[0.3, 0.2, -0.1], [0, 0, 0], [0, 0.1, 0]],
+                            faces=[[0, 1, 2]], process=False)
+        T.ned_to_z_up(m)
+        assert m.vertices[0] == pytest.approx([0.3, -0.2, 0.1])

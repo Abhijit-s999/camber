@@ -477,8 +477,11 @@ def cmd_generate(args: argparse.Namespace) -> int:
     # 0.2 mm across and a slicer accepts it without a word. CFD-02 is the same
     # mistake in the other direction, and cost a whole CFD campaign.
     if not args.metres:
+        # Manufacturing output: millimetres and Z-up. `--metres` is the CFD
+        # path, which stays in NED because the CFD case is built in NED.
         mesh.apply_scale(1000.0)
-    unit = "m" if args.metres else "mm"
+        topology.ned_to_z_up(mesh)
+    unit = "m (NED)" if args.metres else "mm, Z-up"
     lo, hi = mesh.bounds
     print(f"  extents      {hi[0]-lo[0]:.1f} x {hi[1]-lo[1]:.1f} x "
           f"{hi[2]-lo[2]:.1f} {unit}")
