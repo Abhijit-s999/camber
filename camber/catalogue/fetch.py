@@ -20,7 +20,9 @@ from pathlib import Path
 
 from .sources import SOURCES, Source, md5_of
 
-DEFAULT_ROOT = Path("data/raw")
+from ..paths import raw as _raw
+
+DEFAULT_ROOT = _raw()
 
 
 class FetchError(RuntimeError):

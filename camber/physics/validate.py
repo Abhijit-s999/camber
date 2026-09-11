@@ -103,7 +103,7 @@ class ValidationReport:
 
 
 def validate(
-    root: Path | str = "data/raw/UIUC-propDB",
+    root: Path | str | None = None,
     airfoil: str | None = None,
     blades: int = 2,
     stations: int = 30,
@@ -118,6 +118,8 @@ def validate(
     formulation degenerates; static thrust needs its own treatment and is not
     claimed here.
     """
+    from ..paths import propdb
+    root = root if root is not None else propdb()
     from .airfoil import DEFAULT_SECTION
     airfoil = airfoil or DEFAULT_SECTION
     db = uiuc.load(root)

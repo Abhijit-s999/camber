@@ -128,7 +128,8 @@ def cmd_endurance(args: argparse.Namespace) -> int:
         return 2
 
     try:
-        db = uiuc.load(args.propdb)
+        from .paths import propdb
+        db = uiuc.load(args.propdb or propdb())
     except uiuc.UiucError as exc:
         print(f"{exc}", file=sys.stderr)
         return 3
@@ -242,7 +243,9 @@ def cmd_optimise(args: argparse.Namespace) -> int:
         motor = Motor("motor", kv_rpm_v=args.kv, resistance_ohm=args.rm,
                       no_load_current_a=args.i0)
         try:
-            endurance = physics_endurance_model(args.prop, motor, str(args.propdb))
+            from .paths import propdb
+            endurance = physics_endurance_model(
+                args.prop, motor, str(args.propdb or propdb()))
         except (KeyError, Exception) as exc:  # noqa: BLE001
             print(f"could not build the physics model: {exc}", file=sys.stderr)
             return 3
@@ -324,7 +327,8 @@ def cmd_catalogue(args: argparse.Namespace) -> int:
     print("Fetching source datasets. None of these is redistributed with")
     print("Camber; each is downloaded from its origin (see `catalogue sources`).\n")
     failed = 0
-    for r in fetch_all(args.root, force=args.force):
+    from .paths import raw
+    for r in fetch_all(args.root or raw(), force=args.force):
         name = SOURCES[r.source].name
         if r.path is None:
             print(f"  --  {name}\n      {r.message}")
@@ -370,7 +374,8 @@ def _airframe_report(before, after, dropped) -> None:
     for k in a:
         print(f"  {k:16s}{a[k]:11.4g}{b[k]:11.4g}")
 
-    model_path = Path("data/interference.json")
+    from .paths import interference_model
+    model_path = interference_model()
     if not model_path.exists():
         return
     model = load_model(model_path)
@@ -702,7 +707,7 @@ def main(argv: list[str] | None = None) -> int:
     end = sub.add_parser("endurance", help="predicted hover endurance")
     end.add_argument("spec", type=Path)
     end.add_argument("--prop", default="gwsdd_5x4.3", help="UIUC propeller key")
-    end.add_argument("--propdb", type=Path, default=Path("data/raw/UIUC-propDB"))
+    end.add_argument("--propdb", type=Path, default=None)
     end.add_argument("--blades", type=int, default=2)
     end.add_argument("--kv", type=float, default=1900.0)
     end.add_argument("--rm", type=float, default=0.075, help="winding ohms")
@@ -714,7 +719,7 @@ def main(argv: list[str] | None = None) -> int:
     end.set_defaults(func=cmd_endurance)
 
     val = sub.add_parser("validate", help="check the model against UIUC data")
-    val.add_argument("--propdb", type=Path, default=Path("data/raw/UIUC-propDB"))
+    val.add_argument("--propdb", type=Path, default=None)
     val.add_argument("--airfoil", default=None)
     val.add_argument("--stations", type=int, default=25)
     val.add_argument("--max-props", type=int, default=None)
@@ -725,7 +730,7 @@ def main(argv: list[str] | None = None) -> int:
     opt.add_argument("--prop", default=None,
                      help="UIUC propeller key; without it endurance uses a "
                           "placeholder that overstates by >10x")
-    opt.add_argument("--propdb", type=Path, default=Path("data/raw/UIUC-propDB"))
+    opt.add_argument("--propdb", type=Path, default=None)
     opt.add_argument("--kv", type=float, default=1900.0)
     opt.add_argument("--rm", type=float, default=0.075)
     opt.add_argument("--i0", type=float, default=1.4)
@@ -850,7 +855,7 @@ def main(argv: list[str] | None = None) -> int:
 
     cat = sub.add_parser("catalogue", help="fetch component data, or show terms")
     cat.add_argument("action", choices=["fetch", "sources"])
-    cat.add_argument("--root", type=Path, default=Path("data/raw"))
+    cat.add_argument("--root", type=Path, default=None)
     cat.add_argument("--force", action="store_true")
     cat.set_defaults(func=cmd_catalogue)
 

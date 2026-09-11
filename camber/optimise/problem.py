@@ -330,7 +330,7 @@ def battery_capacity_variable(vehicle: Vehicle, name: str,
 
 def physics_endurance_model(prop_key: str,
                             motor,
-                            propdb_root: str = "data/raw/UIUC-propDB",
+                            propdb_root: str | None = None,
                             blades: int = 2,
                             usable_fraction: float = 0.80):
     """An endurance model backed by the validated blade-element tier.
@@ -347,7 +347,8 @@ def physics_endurance_model(prop_key: str,
     from ..physics.bemt import BladeDefinition
     from ..physics.propulsion import PropellerMap, thrust_for
 
-    db = uiuc.load(propdb_root)
+    from ..paths import propdb
+    db = uiuc.load(propdb_root or propdb())
     if prop_key not in db.geometry:
         raise KeyError(f"no geometry for {prop_key!r}")
     reference = db.geometry[prop_key]
