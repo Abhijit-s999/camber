@@ -171,6 +171,18 @@ class Cascade(Controller):
         return self.attitude(state, q_sp, max(fz, 0.0), sim.dt)
 
 
+class Hover(Cascade):
+    """Climb to `height` above the start and hold there."""
+
+    def __init__(self, height: float = 1.5, **gains) -> None:
+        super().__init__(**gains)
+        self.height = height
+
+    def reset(self, sim) -> None:
+        super().reset(sim)
+        self.target = self.target + np.array([0.0, 0.0, self.height])
+
+
 class GateRacer(Cascade):
     """Fly a course: through each gate, in order, as fast as `speed` allows.
 

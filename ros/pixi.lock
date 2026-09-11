@@ -12418,6 +12418,8 @@ packages:
   - scikit-image>=0.22 ; extra == 'generate'
   - trimesh>=4.0 ; extra == 'generate'
   - pyamg>=5.0 ; extra == 'generate'
+  - mujoco>=3.2 ; extra == 'sim'
+  - trimesh>=4.0 ; extra == 'sim'
   requires_python: '>=3.11'
 - pypi: https://files.pythonhosted.org/packages/32/14/585fc852dadf2d73250b45e9d5845624270ca526b723bc2a1c24e1305006/mujoco-3.13.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
   name: mujoco

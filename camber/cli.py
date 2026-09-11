@@ -571,14 +571,12 @@ def _load_pilot(spec: str, course):
     import importlib.util
     import inspect
 
-    from .sim.flight import Cascade, Controller, GateRacer
+    from .sim.flight import Controller, GateRacer, Hover
 
     if spec == "gates":
         return GateRacer(course, speed=9.0)
     if spec == "hover":
-        c = Cascade()
-        c.hover_target = np.array([0.0, 0.0, 1.5])
-        return c
+        return Hover(1.5)
     path = Path(spec)
     if not path.exists():
         raise SystemExit(f"no pilot {spec!r}: give a .py file, or 'gates' or 'hover'")
@@ -618,13 +616,6 @@ def cmd_sim(args: argparse.Namespace) -> int:
     aero = AeroTable.load(args.aero) if args.aero else BodyDrag.estimate(v)
     sim = Simulation(v, course=course, aero=aero)
     pilot = _load_pilot(args.pilot, course)
-    if getattr(pilot, "hover_target", None) is not None:
-        orig = pilot.reset
-
-        def reset(s, _orig=orig, _p=pilot):
-            _orig(s)
-            _p.target = _p.hover_target
-        pilot.reset = reset
 
     where = ("the viewer" if args.viewer else
              args.record if args.record else "headless")
