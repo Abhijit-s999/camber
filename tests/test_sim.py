@@ -195,3 +195,51 @@ class TestFlying:
         assert g.crossed(np.array([0.1, 0.2, 1.4]))
         assert not g.crossed(np.array([-0.1, 0.0, 1.5]))      # not yet
         assert not g.crossed(np.array([0.1, 2.0, 1.5]))       # round the side
+
+
+class TestCrashIsContact:
+    """Upside down is a flip, not a crash. An earlier rule said otherwise and
+    declared every flip a crash at 90 degrees of roll."""
+
+    def test_inverted_in_the_air_is_not_a_crash(self, racer):
+        sim = Simulation(racer)
+        sim.reset(position=(0, 0, 5), quaternion=(0.0, 1.0, 0.0, 0.0))
+        sim.step(np.zeros(4))
+        assert not sim.crashed
+
+    def test_hitting_the_floor_fast_is(self, racer):
+        sim = Simulation(racer)
+        sim.reset(position=(0, 0, 0.3), velocity=(0, 0, -8.0))
+        for _ in range(100):
+            sim.step(np.zeros(4))
+            if sim.crashed:
+                break
+        assert sim.crashed
+
+
+class TestPilots:
+    @pytest.mark.parametrize("name", ["figure_eight.py", "flip.py"])
+    def test_the_example_pilots_fly_without_crashing(self, racer, name):
+        from camber.cli import _load_pilot
+        from camber.sim.run import fly
+        pilot = _load_pilot(str(ROOT / "examples" / "pilots" / name), None)
+        log = fly(Simulation(racer), pilot, 10.0)
+        assert not log.crashed
+
+    def test_the_flip_actually_goes_inverted(self, racer):
+        from camber.cli import _load_pilot
+        from camber.sim.run import fly
+        pilot = _load_pilot(str(ROOT / "examples" / "pilots" / "flip.py"), None)
+        log = fly(Simulation(racer), pilot, 10.0)
+        roll = np.degrees(np.abs(np.asarray(log.euler)[:, 0]))
+        assert roll.max() > 170 and pilot.phase == "recover"
+
+    def test_an_unknown_pilot_is_a_clear_error(self):
+        from camber.cli import _load_pilot
+        with pytest.raises(SystemExit, match="no pilot"):
+            _load_pilot("nonexistent.py", None)
+
+    def test_the_cli_flies_the_course(self):
+        from camber.cli import main
+        assert main(["sim", str(ROOT / "examples" / "racer5.toml"),
+                     "--pilot", "gates", "--duration", "10"]) == 0

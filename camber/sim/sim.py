@@ -148,9 +148,18 @@ class Simulation:
 
     @property
     def crashed(self) -> bool:
-        """Anything but the airframe's own contact with the floor at rest --
-        simplest honest test: upside down, or a contact while moving fast."""
+        """Touching something while inverted, or while moving fast.
+
+        Being upside down is not a crash: it is the whole of a flip. An earlier
+        version counted it as one and declared every flip a crash at 90 degrees
+        of roll. Contact is what makes it a crash -- and contact at walking pace,
+        upright, is a landing.
+        """
+        touching = any(
+            self.model.geom_bodyid[c.geom1] == self.body or
+            self.model.geom_bodyid[c.geom2] == self.body
+            for c in self.data.contact[:self.data.ncon])
+        if not touching:
+            return False
         s = self.state()
-        upside_down = s.rotation[2, 2] < 0.0
-        hard = self.data.ncon > 0 and np.linalg.norm(s.velocity) > 4.0
-        return bool(upside_down or hard)
+        return bool(s.rotation[2, 2] < 0.0 or np.linalg.norm(s.velocity) > 3.0)

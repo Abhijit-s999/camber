@@ -561,6 +561,133 @@ def cmd_generate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _load_pilot(spec: str, course):
+    """A built-in pilot by name, or a Python file defining one.
+
+    A file is loaded as a module and its `Pilot` class used -- or, failing
+    that, the first subclass of `Controller` it defines. Pilots that take a
+    `course` argument are given the course.
+    """
+    import importlib.util
+    import inspect
+
+    from .sim.flight import Cascade, Controller, GateRacer
+
+    if spec == "gates":
+        return GateRacer(course, speed=9.0)
+    if spec == "hover":
+        c = Cascade()
+        c.hover_target = np.array([0.0, 0.0, 1.5])
+        return c
+    path = Path(spec)
+    if not path.exists():
+        raise SystemExit(f"no pilot {spec!r}: give a .py file, or 'gates' or 'hover'")
+    mod_spec = importlib.util.spec_from_file_location(path.stem, path)
+    mod = importlib.util.module_from_spec(mod_spec)
+    mod_spec.loader.exec_module(mod)
+    cls = getattr(mod, "Pilot", None)
+    if cls is None:
+        found = [c for _, c in inspect.getmembers(mod, inspect.isclass)
+                 if issubclass(c, Controller) and c.__module__ == mod.__name__]
+        if not found:
+            raise SystemExit(f"{path} defines no Pilot class and no Controller subclass")
+        cls = found[0]
+    takes = inspect.signature(cls).parameters
+    return cls(course) if "course" in takes else cls()
+
+
+def cmd_sim(args: argparse.Namespace) -> int:
+    """Fly the vehicle in MuJoCo, with a built-in pilot or your own."""
+    try:
+        from .sim import Simulation
+        from .sim.aero import AeroTable, BodyDrag
+        from .sim.course import Course
+        from .sim.run import fly
+    except ImportError as exc:
+        print(f"the simulator needs MuJoCo: pip install 'camber[sim]' ({exc})",
+              file=sys.stderr)
+        return 3
+    try:
+        v = io.load(args.spec)
+    except io.SpecError as exc:
+        print(f"spec error: {exc}", file=sys.stderr)
+        return 2
+
+    course = Course.oval() if (args.course == "oval" or
+                               (args.course == "auto" and args.pilot == "gates")) else None
+    aero = AeroTable.load(args.aero) if args.aero else BodyDrag.estimate(v)
+    sim = Simulation(v, course=course, aero=aero)
+    pilot = _load_pilot(args.pilot, course)
+    if getattr(pilot, "hover_target", None) is not None:
+        orig = pilot.reset
+
+        def reset(s, _orig=orig, _p=pilot):
+            _orig(s)
+            _p.target = _p.hover_target
+        pilot.reset = reset
+
+    where = ("the viewer" if args.viewer else
+             args.record if args.record else "headless")
+    print(f"{v.name}: {sim.mass * 1000:.0f} g, {len(v.thrusters)} rotors, "
+          f"aero from {'CFD table ' + str(args.aero) if args.aero else 'the drag estimate'}; "
+          f"flying {args.pilot} for {args.duration:g} s in {where}")
+    log = fly(sim, pilot, args.duration, viewer=args.viewer, record=args.record,
+              camera=args.camera)
+    print(f"  top speed    {log.top_speed:.1f} m/s")
+    tilt = np.degrees(np.abs(np.asarray(log.euler)[:, :2]).max()) if log.euler else 0
+    print(f"  max tilt     {tilt:.0f} deg")
+    passed = getattr(pilot, "passed", None)
+    if passed is not None and course is not None:
+        lap = f", lap {passed[-1]:.2f} s" if len(passed) == len(course.gates) else ""
+        print(f"  gates        {len(passed)}/{len(course.gates)}{lap}")
+    if getattr(aero, "extrapolated", 0):
+        print(f"  WARNING: flew outside the CFD table's measured angles for "
+              f"{aero.extrapolated} steps; forces there are held at the edge value",
+              file=sys.stderr)
+    if log.crashed:
+        status = "CRASHED"
+    elif not log.t:
+        status = "no flight"
+    else:
+        h = float(np.asarray(log.position)[-1, 2])
+        status = f"still flying at {h:.1f} m" if h > 0.3 else "on the ground, upright"
+    print(f"  {status}")
+    if args.record:
+        print(f"  wrote {args.record}")
+    return 1 if log.crashed else 0
+
+
+def cmd_aero(args: argparse.Namespace) -> int:
+    """Measure the vehicle across its own flight envelope with OpenFOAM."""
+    from .cfd.case import CaseConfig
+    from .cfd.envelope import envelope
+    from .cfd.sweep import sweep
+    from .geometry.surface import airframe_surface
+
+    try:
+        v = io.load(args.spec)
+    except io.SpecError as exc:
+        print(f"spec error: {exc}", file=sys.stderr)
+        return 2
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    stl = out / "airframe_m.stl"
+    airframe_surface(v).export(stl)                      # metres, NED: CFD-02
+    points = envelope(v, n=args.n)
+    print(f"{v.name} ({v.mission.objective.value}): {len(points)} flight "
+          f"conditions from its own envelope")
+    table = sweep(v, stl, out, points=points,
+                  config=CaseConfig(n_processors=args.ranks,
+                                    n_iterations=args.iterations))
+    print(f"\n  {'alpha':>7s} {'V m/s':>7s} {'CX':>9s} {'CZ':>9s} {'Cm':>9s}")
+    for a, vv, cx, cz, cm in zip(table["alpha_deg"], table["speeds"],
+                                 table["CX"], table["CZ"], table["Cm"]):
+        print(f"  {a:7.1f} {vv:7.1f} {cx:9.4f} {cz:9.4f} {cm:9.4f}")
+    print(f"\n  wrote {out / 'aero.json'}  --  fly it with: "
+          f"camber sim {args.spec} --aero {out / 'aero.json'}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     # `argv` is for tests: a CLI that can only be driven through sys.argv
     # can only be tested by poking at its internals.
@@ -703,6 +830,30 @@ def main(argv: list[str] | None = None) -> int:
                           "direct factorisation's fill-in stops being viable")
     gen.add_argument("--verbose", action="store_true")
     gen.set_defaults(func=cmd_generate)
+
+    sm = sub.add_parser("sim", help="fly the vehicle in MuJoCo")
+    sm.add_argument("spec", type=Path)
+    sm.add_argument("--pilot", default="gates",
+                    help="'gates', 'hover', or a .py file defining a Pilot class")
+    sm.add_argument("--course", default="auto", choices=("auto", "oval", "none"))
+    sm.add_argument("--aero", type=Path,
+                    help="CFD aero table from `camber aero`; default is an "
+                         "estimate from the vehicle's extents")
+    sm.add_argument("--duration", type=float, default=20.0)
+    sm.add_argument("--viewer", action="store_true",
+                    help="open MuJoCo's interactive window, paced to real time")
+    sm.add_argument("--record", help="write an MP4 instead")
+    sm.add_argument("--camera", default="chase", choices=("chase", "fpv"))
+    sm.set_defaults(func=cmd_sim)
+
+    ae = sub.add_parser("aero", help="CFD across the vehicle's own flight envelope")
+    ae.add_argument("spec", type=Path)
+    ae.add_argument("--out", type=Path, default=Path("aero"))
+    ae.add_argument("--n", type=int, default=6, help="flight conditions to test")
+    ae.add_argument("--ranks", type=int, default=0,
+                    help="MPI ranks per case (default: the CPU budget)")
+    ae.add_argument("--iterations", type=int, default=600)
+    ae.set_defaults(func=cmd_aero)
 
     cat = sub.add_parser("catalogue", help="fetch component data, or show terms")
     cat.add_argument("action", choices=["fetch", "sources"])
