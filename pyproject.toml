@@ -17,13 +17,17 @@ dev = ["pytest>=8.0", "httpx>=0.27", "mcp>=1.2", "build123d>=0.11",
 cad = ["build123d>=0.11"]
 # Topology optimisation (GEN-02). Kept optional for the same reason as the
 # bench: `camber inspect` and `camber optimise` must still run with numpy and
-# nothing else (AI-07), and `tests/test_web.py` asserts the core imports pull
+# nothing else (AI-07), and `tests/test_topology.py` asserts the core imports pull
 # none of these. pyamg is what makes fine grids affordable -- see GEN-12 -- and
 # the solve falls back to a direct factorisation without it.
-generate = ["scipy>=1.11", "scikit-image>=0.22", "trimesh>=4.0", "pyamg>=5.0"]
+generate = ["scipy>=1.11", "scikit-image>=0.22", "trimesh>=4.0", "pyamg>=5.0",
+            "fast-simplification>=0.1"]
 # Flying the designed vehicle in MuJoCo (camber.sim). ROS 2 lives in ros/ and
 # brings its own environment; see ros/pixi.toml.
 sim = ["mujoco>=3.2", "trimesh>=4.0"]
+# The desktop app: everything above. Qt WebEngine comes from the system (pacman
+# python-pyqt6-webengine); see packaging/arch/install.sh.
+app = ["camber[generate,sim,cad]"]
 
 [project.scripts]
 camber = "camber.cli:main"

@@ -361,7 +361,37 @@ def to_dict(v: Vehicle) -> dict[str, Any]:
         out["thrusters"].append(d)
     if v.frame.members:
         out["frame"] = [body_of(b) for b in v.frame.members]
+    if v.constraints:
+        out["constraints"] = [_constraint_dict(c) for c in v.constraints]
     return out
+
+
+def _constraint_dict(c: Constraint) -> dict:
+    """The inverse of `_constraint`, key for key.
+
+    This did not exist, and `to_dict` simply omitted constraints -- so every
+    JSON save silently deleted the CG box, the camera's view cone and every
+    minimum distance a user had declared. The optimiser's `--out`, the framed
+    vehicle `camber generate --into` writes, and every app project (stored as
+    JSON) all lost them, and nothing complained: a vehicle with no constraints
+    is a perfectly valid vehicle.
+    """
+    v = lambda x: [float(x.x), float(x.y), float(x.z)]      # noqa: E731
+    if isinstance(c, Fixed):
+        return {"type": "fixed", "body": c.body, "position": v(c.position)}
+    if isinstance(c, Relative):
+        return {"type": "relative", "a": c.a, "b": c.b, "offset": v(c.offset)}
+    if isinstance(c, MinDistance):
+        return {"type": "min_distance", "a": c.a, "b": c.b, "distance": c.distance}
+    if isinstance(c, CGBox):
+        return {"type": "cg_box", "lower": v(c.lower), "upper": v(c.upper)}
+    if isinstance(c, Symmetry):
+        return {"type": "symmetry", "a": c.a, "b": c.b, "plane": c.plane}
+    if isinstance(c, ViewCone):
+        return {"type": "view_cone", "camera": c.camera,
+                "half_angle_deg": c.half_angle / DEG,
+                "obstructed_by": list(c.obstructed_by)}
+    raise TypeError(f"cannot serialise constraint {type(c).__name__}")
 
 
 def save_json(v: Vehicle, path: str | Path) -> None:

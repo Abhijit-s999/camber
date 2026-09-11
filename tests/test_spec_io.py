@@ -139,3 +139,33 @@ class TestRoundTrip:
         restored = io.from_dict(io.to_dict(original))
         assert restored.body("camera").boresight().as_list() == pytest.approx(
             original.body("camera").boresight().as_list())
+
+
+class TestNothingIsLostOnSave:
+    """to_dict silently omitted constraints: every JSON save deleted the CG
+    box, the camera view cone and the minimum distances, and a vehicle with no
+    constraints is perfectly valid, so nothing complained. The fix is a round
+    trip of the whole vehicle, not of the one field that was caught."""
+
+    @pytest.mark.parametrize("spec", ["racer5.toml", "quad5.toml"])
+    def test_the_whole_vehicle_round_trips(self, spec):
+        import pathlib
+        v = io.load(pathlib.Path(__file__).resolve().parent.parent / "examples" / spec)
+        d = io.to_dict(v)
+        # Saving what was loaded from a save changes nothing, field for field.
+        assert io.to_dict(io.from_dict(d)) == d
+        # And the TOML's top-level sections all made it into the document.
+        import tomllib
+        raw = tomllib.loads((pathlib.Path(__file__).resolve().parent.parent
+                             / "examples" / spec).read_text())
+        assert set(raw) <= set(d), f"lost on save: {set(raw) - set(d)}"
+        back = io.from_dict(d)
+        assert np.allclose(back.mass_properties().inertia, v.mass_properties().inertia)
+
+    @pytest.mark.parametrize("spec", ["racer5.toml", "quad5.toml"])
+    def test_constraints_survive_a_json_file(self, spec, tmp_path):
+        import pathlib
+        v = io.load(pathlib.Path(__file__).resolve().parent.parent / "examples" / spec)
+        assert v.constraints, "the example should declare some"
+        io.save_json(v, tmp_path / "v.json")
+        assert io.load(tmp_path / "v.json").constraints == v.constraints

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Camber
+GenericName=Aerodynamic design
+Comment=Design, grow, test and fly things that move through air
+Exec=@BIN@/camber-app
+Icon=camber
+Terminal=false
+Categories=Science;Engineering;
+Keywords=drone;quadcopter;aerodynamics;CFD;topology;optimisation;
+StartupWMClass=camber

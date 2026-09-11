@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camber</title>
+<link rel="stylesheet" href="app.css">
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three.module.min.js",
+    "three/addons/": "./vendor/addons/"
+} }
+</script>
+</head>
+<body>
+
+<!-- Home: projects -->
+<main id="home" class="home" hidden>
+  <header class="home-head">
+    <span class="wordmark">Camber</span>
+    <span class="home-sub">Design, grow, test and fly things that move through air.</span>
+  </header>
+  <div class="home-grid">
+    <section class="home-new">
+      <h2>New project</h2>
+      <label class="field"><span>Name</span>
+        <input id="new-name" type="text" placeholder="Freestyle 5-inch" maxlength="64" autocomplete="off">
+      </label>
+      <div class="field"><span>Start from</span>
+        <div class="templates" id="templates"></div>
+      </div>
+      <button class="primary" id="create">Create project</button>
+      <details class="import">
+        <summary>Open an existing vehicle file</summary>
+        <label class="field"><span>Path to .toml or .json</span>
+          <input id="import-path" type="text" placeholder="~/drones/lifter.toml" autocomplete="off">
+        </label>
+        <button id="import">Open</button>
+      </details>
+      <p class="home-note" id="home-where"></p>
+    </section>
+    <section class="home-list">
+      <h2>Projects</h2>
+      <ol id="projects" class="projects"></ol>
+      <p class="empty" id="no-projects" hidden>Nothing yet. Make one on the left.</p>
+    </section>
+  </div>
+</main>
+
+<!-- Workspace -->
+<div id="work" class="work" hidden>
+  <header class="bar">
+    <button class="wordmark ghost" id="to-home" title="All projects">Camber</button>
+    <span class="bar-project" id="project-name"></span>
+    <div class="bar-tools">
+      <button class="icon" id="undo" title="Undo (Ctrl+Z)">Undo</button>
+      <button class="icon" id="redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+      <span class="sep"></span>
+      <div class="seg" id="views" role="group" aria-label="View">
+        <button data-view="3d" class="on" title="3D (1)">3D</button>
+        <button data-view="top" title="Top (2)">Top</button>
+        <button data-view="front" title="Front (3)">Front</button>
+        <button data-view="side" title="Side (4)">Side</button>
+      </div>
+      <span class="sep"></span>
+      <div class="menu">
+        <button id="export-btn">Export</button>
+        <div class="menu-pop" id="export-menu" hidden>
+          <a data-export="stl">STL for printing (mm)</a>
+          <a data-export="step">STEP for CNC</a>
+          <a data-export="vehicle_json">Vehicle file (.json)</a>
+          <a data-open=".">Open project folder</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="steps" id="steps">
+    <button data-step="design" class="on"><b>1</b><span>Design<small id="s-design"></small></span></button>
+    <button data-step="optimise"><b>2</b><span>Optimise<small id="s-optimise"></small></span></button>
+    <button data-step="structure"><b>3</b><span>Structure<small id="s-structure"></small></span></button>
+    <button data-step="aero"><b>4</b><span>Aerodynamics<small id="s-aero"></small></span></button>
+    <button data-step="fly"><b>5</b><span>Fly<small id="s-fly"></small></span></button>
+  </nav>
+
+  <section class="stage">
+    <canvas id="view"></canvas>
+    <div class="labels" id="labels"></div>
+    <div class="vtools" id="vtools">
+      <div class="seg" id="tool" role="group" aria-label="Tool">
+        <button data-tool="move" class="on" title="Select and move (V)">Move</button>
+        <button data-tool="measure" title="Measure between two parts (M)">Measure</button>
+      </div>
+      <div class="seg" id="link" role="group" aria-label="Mirror while moving">
+        <button data-link="off" title="Move one part at a time">Free</button>
+        <button data-link="lr" class="on" title="Moving a part moves its left/right twin">Mirror L–R</button>
+        <button data-link="4way" title="Moving a part moves all of its twins">Mirror 4-way</button>
+      </div>
+      <label class="snap" title="Grid step while dragging">Snap
+        <select id="snap"><option value="0">off</option><option value="1">1 mm</option>
+          <option value="5" selected>5 mm</option><option value="10">10 mm</option></select>
+      </label>
+    </div>
+    <div class="readout" id="readout"></div>
+    <div class="axes" aria-hidden="true"><span class="ax-f">Forward ↑</span><span class="ax-r">Right →</span></div>
+  </section>
+
+  <aside class="panel" id="panel"></aside>
+
+  <footer class="jobs" id="jobs" hidden></footer>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

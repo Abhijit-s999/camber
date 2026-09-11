@@ -194,5 +194,35 @@
       ],
       "type": "body"
     }
+  ],
+  "constraints": [
+    {
+      "type": "cg_box",
+      "lower": [
+        -0.01,
+        -0.008,
+        -0.03
+      ],
+      "upper": [
+        0.01,
+        0.008,
+        0.03
+      ]
+    },
+    {
+      "type": "view_cone",
+      "camera": "camera",
+      "half_angle_deg": 22.0,
+      "obstructed_by": [
+        "front_right",
+        "front_left"
+      ]
+    },
+    {
+      "type": "min_distance",
+      "a": "battery",
+      "b": "vtx",
+      "distance": 0.03
+    }
   ]
 }

@@ -1953,3 +1953,101 @@ stops itself, the normal-force Cd is 1.4, and the side force is zero as symmetry
 demands instead of an invented 0.13 N. **The old boundaries inflated airframe
 drag 2.7x**, which would have flown the simulated racer well below its real top
 speed. Hover keeps the open boundaries, which are right there.
+
+---
+
+## 12. The app (P8)
+
+### UI-04 · Camber is an app: projects, a pipeline, background jobs — `PROVISIONAL`
+
+**Supersedes** the single-page viewport of UI-01 to UI-03, which is removed; its
+camera field of view and interference readout were carried over first.
+
+**Value:** `camber app`, or the Camber entry in the desktop launcher. A project is
+a folder in `~/Camber` -- the vehicle as JSON, an undo history of one snapshot per
+edit, results, and job logs -- so a project can be read, copied or backed up
+without the app. The workspace is the pipeline in order -- Design, Optimise,
+Structure, Aerodynamics, Fly -- around a 3D view that stays on screen throughout,
+because the vehicle is the thing every step is about.
+
+Long runs are the CLI in its own process group, recorded as JSON beside a log,
+so a two-hour topology run survives the window closing and the app picks it up
+again on reopening. Every job runs on a frozen copy of the design: editing on
+while a run is in flight must not change what it is computing. Progress is
+parsed from the log the CLI already writes. Only one topology or CFD job runs at
+a time, because two share memory bandwidth and both crawl (CFD concurrency was
+measured at 0.34x).
+
+**The window is Qt WebEngine, the logic is a local server.** The window runs
+under whichever Python has Qt -- on Arch the system's, from pacman -- and the
+server under Camber's, which has the numerical stack; they talk over loopback
+exactly as in one process. Without Qt it falls back to the browser.
+
+### UI-05 · Symmetry is measured, not eyeballed — `PROVISIONAL`
+
+The requirement, from use: during layout there was no way to tell whether rotors
+and payload were actually symmetric, and a vehicle a few millimetres off flies --
+the mixer hides it -- on an uneven thrust split, spending control authority to
+hold itself level, with a lopsided frame grown for it.
+
+So the design step gives every way of checking it that engineering drawings do:
+orthographic Top, Front and Side views with the centreline drawn; *Mirror L-R*
+and *Mirror 4-way*, which move a part's twins with it live during the drag and
+keep centred parts on their plane; grid snap; exact numeric entry in mm; a
+readout of each part's distance from the centreline; dimension lines to the
+centreline for a selected part *and its twin*, so 88.0 beside 85.0 is visible
+whatever the eye says; a symmetry report in millimetres, part by part, with a
+button that splits the difference; a measure tool between any two parts; and
+colour that means something -- amber for off-symmetric, red for clashing props.
+
+Balance is shown beside it -- the CG against the thrust centre, and each rotor's
+share of the hover thrust from `solve_hover` -- because that is what asymmetry
+actually costs.
+
+### UI-06 · The server needs a key now — `FIXED`
+
+UI-02 left the old viewport unauthenticated because it only moved parts. This
+server starts processes: CFD, topology runs, the simulator, and user pilot
+scripts. Any web page in any browser on the machine can send requests to
+127.0.0.1, so every API call carries a token generated at launch (handed to the
+window in its URL, kept in session storage), and the Host header must be the
+loopback address -- which is what stops a DNS-rebinding page reaching it by a
+hostname that resolves to 127.0.0.1. Files are served only from inside the
+project folder.
+
+### SPEC-02 · Saving a vehicle dropped its constraints — `FIXED`
+
+`to_dict` had no case for constraints and omitted them, so every JSON save
+silently deleted the CG box, the camera's view cone and every minimum distance
+a design declared: the optimiser's `--out`, the framed vehicle from
+`camber generate --into`, and every app project, since projects are JSON. A
+vehicle with no constraints is a valid vehicle, so nothing complained; it was
+found because the app's rules panel showed none for a design known to have
+three. Constraints now serialise as the exact inverse of their parser, and the
+test is the whole document -- save, load, save again, and the TOML's every
+top-level section present -- not the one field that was caught. The two example
+JSON files had theirs restored.
+
+The first thing the rules panel then showed: **racer5 fails its own camera
+constraint**, the front props blocking the view by 1.4 degrees. The check uses
+bounding spheres and is conservative, but it is exactly what hand placement
+misses.
+
+### PKG-01 · On Arch, an editable install with system Qt — `PROVISIONAL`
+
+**Value:** `packaging/arch/install.sh`. A venv in `~/.local/share/camber` made
+with `--system-site-packages`, so it sees `python-pyqt6-webengine` from pacman,
+with Camber and its numerical stack (MuJoCo, trimesh, pyamg, build123d)
+installed into the venv itself, where a system update cannot break them. A
+desktop entry and icon, `camber` and `camber-app` on `~/.local/bin`. Nothing
+needs root beyond the one pacman line the script prints if Qt or ffmpeg is
+missing; `uninstall.sh` removes it all and leaves projects alone.
+
+Editable, from the checkout: the app reads its templates, example pilots and
+fitted interference model from the repository. That is the honest state for a
+single-machine install and the obvious thing to change for distribution, which
+wants a PKGBUILD and package data.
+
+**Not in the installer:** OpenFOAM (hand-built, see the project notes) and ROS 2
+(its own pixi environment in `ros/`). The app works without either; the
+Aerodynamics step says so if OpenFOAM is missing.

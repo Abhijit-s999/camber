@@ -129,6 +129,24 @@ def _progress(kind: str, params: dict, log: str) -> tuple[float | None, str]:
     return None, ""
 
 
+def child_env() -> dict:
+    """Environment for a process the app starts.
+
+    Jobs run with the project folder as their working directory, so `camber`
+    has to be importable from anywhere, not just from a checkout's root --
+    which is all a development tree gives you for free. Found when the first
+    job the app started died with "No module named camber" while the same
+    command worked from the terminal.
+    """
+    pkg_root = str(Path(__file__).resolve().parent.parent.parent)
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join(
+        [pkg_root, *[p for p in env.get("PYTHONPATH", "").split(os.pathsep) if p]])
+    env.setdefault("MUJOCO_GL", "glfw")
+    env["PYTHONUNBUFFERED"] = "1"
+    return env
+
+
 class JobManager:
     def __init__(self, project) -> None:
         self.project = project
@@ -171,8 +189,7 @@ class JobManager:
         argv = [sys.executable, "-m", "camber.cli",
                 *_args(kind, spec or str(frozen), params, outputs)]
         job = Job(job_id, kind, LABELS[kind], params, argv, outputs)
-        env = dict(os.environ, MUJOCO_GL=os.environ.get("MUJOCO_GL", "glfw"),
-                   PYTHONUNBUFFERED="1")
+        env = child_env()
         log = open(self._log(job_id), "w")
         proc = subprocess.Popen(argv, cwd=self.project.root, stdout=log,
                                 stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,

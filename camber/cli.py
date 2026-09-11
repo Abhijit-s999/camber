@@ -318,15 +318,11 @@ def cmd_optimise(args: argparse.Namespace) -> int:
 
 
 def cmd_ui(args: argparse.Namespace) -> int:
-    """Serve the drag-to-place viewport on loopback."""
-    from .web.server import serve
-    try:
-        serve(args.spec, port=args.port, open_browser=not args.no_browser)
-    except OSError as exc:
-        print(f"could not start the server: {exc}", file=sys.stderr)
-        return 1
-    return 0
-
+    """Open a vehicle file in the app. Kept for muscle memory: `camber ui`
+    was the old single-page viewport, which the app replaces (UI-04)."""
+    from .app.launch import main as launch
+    from .app.server import App
+    return launch(project=App().import_spec(args.spec).id, browser=args.browser)
 
 def cmd_catalogue(args: argparse.Namespace) -> int:
     """Fetch source datasets, or print their terms."""
@@ -699,6 +695,16 @@ def cmd_aero(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_app(args: argparse.Namespace) -> int:
+    """Open the Camber app."""
+    from .app.launch import main as launch
+    project = None
+    if args.spec:
+        from .app.server import App
+        project = App().import_spec(args.spec).id
+    return launch(project=project, browser=args.browser)
+
+
 def main(argv: list[str] | None = None) -> int:
     # `argv` is for tests: a CLI that can only be driven through sys.argv
     # can only be tested by poking at its internals.
@@ -767,10 +773,10 @@ def main(argv: list[str] | None = None) -> int:
                           "objective, as a spec `camber generate` can read")
     opt.set_defaults(func=cmd_optimise)
 
-    ui = sub.add_parser("ui", help="3D viewport: drag payloads and rotors")
+    ui = sub.add_parser("ui", help="open a vehicle file in the app")
     ui.add_argument("spec", type=Path)
-    ui.add_argument("--port", type=int, default=5173)
-    ui.add_argument("--no-browser", action="store_true")
+    ui.add_argument("--browser", action="store_true",
+                    help="use the web browser instead of the app window")
     ui.set_defaults(func=cmd_ui)
 
     gen = sub.add_parser("generate",
@@ -843,6 +849,13 @@ def main(argv: list[str] | None = None) -> int:
                           "direct factorisation's fill-in stops being viable")
     gen.add_argument("--verbose", action="store_true")
     gen.set_defaults(func=cmd_generate)
+
+    ap = sub.add_parser("app", help="open the Camber app")
+    ap.add_argument("spec", type=Path, nargs="?",
+                    help="optionally, a vehicle file to open as a new project")
+    ap.add_argument("--browser", action="store_true",
+                    help="use the web browser instead of the app window")
+    ap.set_defaults(func=cmd_app)
 
     sm = sub.add_parser("sim", help="fly the vehicle in MuJoCo")
     sm.add_argument("spec", type=Path)

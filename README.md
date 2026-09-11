@@ -12,13 +12,16 @@ Design plan and full rationale:
 > wind-tunnel propellers, multi-objective optimiser, CFD calibration loop,
 > generated structure, and a 3D viewport.
 
+**The app:** `packaging/arch/install.sh`, then open *Camber* from the launcher (or
+run `camber-app`). Everything below is also a command.
+
 ```console
 $ camber inspect examples/quad5.toml     # mass, control, hover, constraints
 $ camber optimise examples/quad5.toml --prop gwsdd_5x4.3
 $ camber endurance examples/quad5.toml   # predicted flight time
 $ camber cad examples/quad5.toml out.step
 $ camber generate examples/racer5.toml --mass 40 --out frame.stl
-$ camber ui examples/quad5.toml          # drag payloads and rotors in 3D
+$ camber app                             # the desktop app (camber ui FILE opens one)
 $ camber sim examples/racer5.toml --viewer          # fly it (see docs/FLYING.md)
 $ camber aero examples/racer5.toml                  # CFD across its flight envelope
 $ camber validate                        # model vs UIUC wind-tunnel data
