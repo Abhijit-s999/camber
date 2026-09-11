@@ -91,9 +91,18 @@ def _write(path: Path, cls: str, obj: str, body: str) -> None:
 
 
 def rotor_span(vehicle: Vehicle) -> float:
-    """Largest distance from the origin to a rotor tip. Sizes the domain."""
+    """Largest plan-view reach of a rotor tip or a body. Sizes the domain.
+
+    Rotor tips alone used to set it, with a fixed 0.1 m when there were none.
+    A rotorless vehicle -- the fixed-wing case the aero envelope supports --
+    would then get a domain sized for a 5-inch quad whatever its span, and a
+    1.5 m wing would stick out of its own mesh.
+    """
     reach = [math.hypot(t.position.x, t.position.y) + getattr(t, "radius", 0.0)
              for t in vehicle.thrusters]
+    for b in vehicle.all_bodies():
+        h = b.shape.half_extents()
+        reach.append(math.hypot(abs(b.position.x) + h.x, abs(b.position.y) + h.y))
     return max(reach) if reach else 0.1
 
 
@@ -136,6 +145,16 @@ def discs_from(vehicle: Vehicle, thrusts: dict[str, float],
     return out
 
 
+#: Far-field cells above which the background is coarsened. The racing quad's
+#: hover cases use about 40,000; blockMesh on this machine dies somewhere well
+#: short of the 55 million an unguarded fixed-wing case asked for.
+MAX_BACKGROUND_CELLS = 400_000
+
+
+class CaseSizeError(ValueError):
+    """The case would not fit, and saying so beats blockMesh being killed."""
+
+
 class DiscGeometryError(ValueError):
     """The actuator disc intersects the airframe.
 
@@ -152,11 +171,21 @@ class CaseBuilder:
 
     def __init__(self, vehicle: Vehicle, thrusts: dict[str, float],
                  config: CaseConfig | None = None) -> None:
+        import dataclasses
+
         self.vehicle = vehicle
-        self.config = config or CaseConfig()
+        # A private copy: refinement levels may be raised below, and the
+        # caller's config is shared across every case of a sweep.
+        self.config = dataclasses.replace(config or CaseConfig())
         self.span = rotor_span(vehicle)
         radius = max((getattr(t, "radius", 0.0) for t in vehicle.thrusters),
-                     default=0.05)
+                     default=0.0)
+        if radius <= 0.0:
+            # No rotors: the length scale is the body's, not a phantom 5 cm
+            # rotor. With that default a 1 m flat-plate wing got 17 mm cells
+            # across a 6 m domain -- 55 million of them -- and blockMesh died
+            # trying to allocate them.
+            radius = 0.3 * self.span
         thickness = self._safe_thickness(radius)
         # The near-field cell must be smaller than the disc is thick, or the
         # refinement region is thinner than the cells it is trying to refine
@@ -166,6 +195,18 @@ class CaseBuilder:
         self.discs = discs_from(vehicle, thrusts, self.cell,
                                 max_thickness=thickness)
         self._check_disc_clearance()
+        # Guard the far field. Resolution near the body and discs is set by
+        # `cell`; the background only has to carry the freestream, so if it
+        # would run to millions of cells, coarsen it by adding refinement
+        # levels -- snappy then refines back down to the same near-body cell.
+        while (self.background_cells() > MAX_BACKGROUND_CELLS
+               and self.config.refinement_levels < 6):
+            self.config.refinement_levels += 1
+        if self.background_cells() > MAX_BACKGROUND_CELLS:
+            raise CaseSizeError(
+                f"background mesh would be {self.background_cells():,} cells even "
+                f"at {self.config.refinement_levels} refinement levels; shrink "
+                f"the domain or raise base_cell_per_radius")
 
     @property
     def ranks(self) -> int:
