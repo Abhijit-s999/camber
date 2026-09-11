@@ -383,12 +383,26 @@ def cmd_generate(args: argparse.Namespace) -> int:
         print(f"minimum feature {args.min_feature:g} mm "
               f"-> filter radius {args.filter:.2f} elements")
 
+    if not args.robust and not args.min_feature:
+        pass
+    elif d.nz < 2 * args.filter + 1:
+        # Air on both faces means a member needs a filter radius of clearance
+        # from each; a domain thinner than that has no interior, every element
+        # is "near a face", and the void boundary greys the entire field --
+        # measured at 57.5% grey on a two-element-thick test. Say so rather
+        # than return mush that looks like a convergence problem.
+        print(f"  WARNING: the domain is {d.nz} elements thick and the length "
+              f"scale needs {2 * args.filter + 1:.0f}. Use a finer --element "
+              f"or a smaller --min-feature, or expect a grey result",
+              file=sys.stderr)
+
     t0 = time.time()
     result = topology.optimise(
         problem, iterations=args.iterations, filter_radius=args.filter,
         penalty_start=args.penalty if args.no_continuation else 1.0,
         penalty=args.penalty, E0=args.modulus, Emin=args.modulus * 1e-9,
-        beta=args.beta, solver=args.solver, verbose=args.verbose)
+        beta=args.beta, robust=args.robust, solver=args.solver,
+        verbose=args.verbose)
     seconds = time.time() - t0
 
     c0, c1 = result.compliance_history[0], result.compliance_history[-1]
@@ -398,7 +412,8 @@ def cmd_generate(args: argparse.Namespace) -> int:
     print(f"\n{result.iterations} iterations in {seconds:.0f} s, "
           f"converged={result.converged}")
     scale = problem.compliance_scale
-    print(f"  compliance   {c0:.3e} -> {c1:.3e} J  ({c0 / c1:.1f}x stiffer)")
+    print(f"  compliance   {c0:.3e} -> {c1:.3e} J  ({c0 / c1:.1f}x stiffer)"
+          + ("  [eroded design: the worst case]" if args.robust else ""))
     # c = u.f, so c / F is the load-weighted mean deflection of the loaded
     # nodes -- not the peak, which is higher. Stated as what it is.
     load_n = float(abs(problem.load).sum()) / 2.0
@@ -408,6 +423,11 @@ def cmd_generate(args: argparse.Namespace) -> int:
     print(f"  islands      {islands}, largest holds {connected:.1%} "
           f"of the material")
     print(f"  hinges       {hinges} joins that hold only at an edge")
+    if args.min_feature:
+        # Diameter in cells of a ball the minimum feature must contain.
+        thin = result.thin_fraction(args.min_feature / 1000.0 / args.element)
+        print(f"  thin         {thin:.1%} of the material is narrower than "
+              f"{args.min_feature:g} mm")
     if connected < 0.95:
         print("  WARNING: material is stranded in islands that carry no load; "
               "the meshed part will weigh less than the target", file=sys.stderr)
@@ -569,9 +589,16 @@ def main(argv: list[str] | None = None) -> int:
                           "the scale stiffness is charged against")
     gen.add_argument("--iterations", type=int, default=80)
     gen.add_argument("--min-feature", type=float, dest="min_feature",
+                     default=3.0,
                      help="smallest structural member the design may contain, "
-                          "mm. Sets the density filter radius, which is what "
-                          "stops the optimiser building one-element webs")
+                          "mm (default 3). Sets the density filter radius and, "
+                          "with --robust, is enforced rather than encouraged")
+    gen.add_argument("--robust", type=float, default=0.2,
+                     help="erosion margin on the projection threshold (default "
+                          "0.2). The analysis runs on the eroded design, so a "
+                          "member must survive thinning to count as structure. "
+                          "0 gives the plain projection, which let stringy webs "
+                          "through")
     gen.add_argument("--filter", type=float, default=2.4,
                      help="density filter radius in elements; --min-feature "
                           "is the same knob in millimetres")

@@ -1412,6 +1412,68 @@ GEN-04's stopping rule were the same lesson.
 it is a run that never settles. `TestProjection` checks it against finite
 differences at three sharpnesses.
 
+### GEN-15 · Minimum thickness is enforced, not encouraged — `FIXED`
+
+GEN-14 made stringy webs rarer and did not remove them. Two reasons, which
+compound:
+
+**Plain projection does not guarantee a length scale.** Projecting at
+`eta = 0.5` pushes the filtered field to solid or void, but a member thinner
+than the filter can still project to solid if its filtered value clears the
+threshold. So the analysis now runs on the design projected at `eta + 0.2` --
+*eroded*, every boundary pulled in -- while the part that is built and weighed
+is projected at `eta`. A web too thin to survive erosion carries no load in the
+analysis, its sensitivity says so, and the optimiser thickens or deletes it.
+For compliance the eroded design is always the weakest of the
+eroded/blueprint/dilated set, so this is the full robust formulation at the
+cost of one solve per iteration rather than three.
+
+**The filter was flattering every surface.** The usual normalisation divides by
+the weights of the neighbours that *exist*, which is a mirror boundary: an
+element on the top face sees its own layer reflected above it, and a one-layer
+skin reads to the filter as twice as thick as it is. Erosion could never bite
+at the faces -- and the faces are where a plate in bending puts its skins. The
+normalisation is now the weight of the whole stencil, so outside the domain
+counts as void, which it is: the faces of this domain are the surfaces of the
+airframe.
+
+**Measured** on a 48 x 12 x 6 cantilever, 90 iterations, fixed volume, the
+fraction of material narrower than the minimum feature:
+
+```
+                        thin      blueprint compliance
+before (GEN-14)        83.0%          6.14e7
+erosion only           32.5%          9.37e7
+void boundary only     18.6%          1.02e8
+both                    8.0%          1.26e8
+```
+
+The two stack. **The cost is stated rather than hidden:** at a fixed volume
+the blueprint is about twice as compliant, because the thin members were doing
+real structural work that the constraint now forbids. Under `--price` the
+optimiser answers that by buying more material, so expect heavier frames
+rather than floppier ones.
+
+**The diagnostic needed fixing before it could be trusted.**
+`Result.thin_fraction` measures by morphological opening -- what a ball of the
+feature size cannot fit inside is thin -- and a ball centred on a voxel can only
+have an odd diameter. Asking for "narrower than 2 cells" that way silently
+tested "narrower than 3", and condemned every member that met the spec. The
+ball is now built by diameter, and calibrated on slabs of known thickness in
+the tests.
+
+**A domain can be too thin to host a length scale.** With air on both faces a
+member needs a filter radius of clearance from each, so a domain fewer than
+`2R + 1` elements thick has no interior and the void boundary greys the whole
+field -- 57.5% grey on a two-element-thick test. `camber generate` warns rather
+than returning mush that looks like a convergence problem. The 1.5 mm racing
+frame is 8 elements thick against a need of 5; coarse 5.5 mm runs are 2 and
+will warn.
+
+Also removed: the dead `elif False:` branch left from GEN-10's abandoned
+warm-start normalisation, and its unused `warmup` parameter. The reasoning it
+carried is recorded in GEN-10; the code was just in the way.
+
 The assembly was trimmed to suit: storing which entry of the 24x24 element
 matrix each non-zero carries, as int16, rather than the value as float64. At
 265,000 elements that is 152 million entries, so it is 300 MB instead of

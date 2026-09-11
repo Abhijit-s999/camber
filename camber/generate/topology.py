@@ -258,6 +258,37 @@ class Result:
         mass = ndimage.sum(self.density, labels, range(1, n + 1))
         return n, float(mass.max() / mass.sum())
 
+    def thin_fraction(self, diameter: float, threshold: float = 0.5) -> float:
+        """Fraction of the material narrower than `diameter` cells.
+
+        Morphological opening -- erode, then dilate back -- removes exactly the
+        solid that a ball of that diameter cannot fit inside, so what the
+        opening takes away is the stringy material, measured. It is the number
+        to look at instead of the render: a render cannot tell a 1.4 mm web
+        from a 1.6 mm one, and the difference is the whole question.
+
+        The ball is built by diameter, not radius. A ball centred on a voxel
+        can only have an odd diameter -- 1, 3, 5 cells -- so asking for
+        "narrower than 2 cells" that way silently tests "narrower than 3",
+        which on a 3 mm feature and a 1.5 mm grid condemned every member that
+        met the spec. An even diameter centres the ball on a cell corner.
+
+        Material at the domain faces is judged too: outside is air, not a wall
+        a thin skin can lean on.
+        """
+        from scipy import ndimage
+
+        solid = self.density >= threshold
+        if not solid.any():
+            return 0.0
+        n = max(1, int(round(diameter)))
+        c = (n - 1) / 2.0
+        g = np.arange(n) - c
+        ball = (g[:, None, None] ** 2 + g[None, :, None] ** 2
+                + g[None, None, :] ** 2) <= (n / 2.0) ** 2 + 1e-9
+        opened = ndimage.binary_opening(solid, structure=ball)
+        return float((solid & ~opened).sum() / solid.sum())
+
     def hinges(self, threshold: float = 0.4) -> int:
         """How many places the structure holds together only at an edge.
 
@@ -552,8 +583,9 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
              filter_radius: float = 1.5, move: float = 0.2,
              E0: float = 1.0, Emin: float = 1e-9, nu: float = 0.3,
              tol: float = 0.01, verbose: bool = False,
-             penalty_start: float = 1.0, warmup: int = 12,
-             beta: float = 16.0, eta: float = 0.5,
+             penalty_start: float = 1.0,
+             beta: float = 16.0, eta: float = 0.5, robust: float = 0.2,
+             outside_void: bool = True,
              solver: str = "auto", on_iteration=None) -> Result:
     """Run SIMP until the density field stops moving.
 
@@ -562,8 +594,10 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
 
     If ``problem.material_price`` is set the volume constraint is dropped and
     material is charged for instead, so the mass is chosen rather than given.
-    ``warmup`` is how many iterations run under the constraint first, purely to
-    measure the exchange rate the price is then quoted against.
+
+    ``robust`` is the erosion margin: the analysis runs on the design projected
+    at ``eta + robust``, so a member has to survive being thinned before it
+    counts as structure. 0 turns it off. See `physical` for why.
     """
     d = problem.domain
     # Unit modulus, real element size. Two scale errors lived here and both
@@ -580,13 +614,31 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
     n_dof = 3 * d.n_nodes
 
     H = _filter_matrix(d, filter_radius)
-    Hs = np.asarray(H.sum(axis=1)).ravel()
+    if outside_void:
+        # Normalise by the weight of the *whole* stencil, as if the domain
+        # carried on, so neighbours outside it count as void. The usual
+        # normalisation -- by the weights of the neighbours that exist -- is a
+        # mirror boundary: an element on the top face sees its own layer
+        # reflected above it, and a one-layer skin reads to the filter as
+        # twice as thick as it is. Erosion then never bites at the faces,
+        # which is exactly where a plate in bending puts its skins, and the
+        # stringy one-element flanges survive every length-scale control.
+        # The faces of this domain are the surfaces of the airframe; outside
+        # them is air.
+        r = int(math.ceil(filter_radius)) - 1
+        g = np.arange(-r, r + 1)
+        dist = np.sqrt(g[:, None, None] ** 2 + g[None, :, None] ** 2
+                       + g[None, None, :] ** 2)
+        Hs = np.full(d.n_elements, float(np.clip(filter_radius - dist, 0, None).sum()))
+    else:
+        Hs = np.asarray(H.sum(axis=1)).ravel()
 
     x = np.full(d.n_elements, problem.volume_fraction)
     keep_i = problem.keep.ravel() if problem.keep is not None else None
     void_i = problem.void.ravel() if problem.void is not None else None
 
-    def physical(design: np.ndarray, sharpness: float) -> np.ndarray:
+    def physical(design: np.ndarray, sharpness: float,
+                 level: float = eta) -> np.ndarray:
         """Design variables -> the density the structure actually has.
 
         **The filter was half-applied.** Sensitivities were transformed by
@@ -596,9 +648,14 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
         one-element web, and the sensitivity it read for doing so was the one
         it would have had if webs were smoothed. That is where the stringy
         single-element structure came from.
+
+        `level` is the projection threshold. At `eta` this is the blueprint,
+        the part that gets built. At `eta + robust` it is the same design
+        *eroded*: every boundary pulled inward, so anything thinner than the
+        erosion disappears. That second one is what the finite elements see.
         """
         rho = (H @ design) / Hs
-        rho = project(rho, sharpness, eta)
+        rho = project(rho, sharpness, level)
         if keep_i is not None:
             rho[keep_i] = 1.0
         if void_i is not None:
@@ -621,7 +678,6 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
     result = Result(density=x.reshape(d.shape))
     previous = x.copy()
     c_ref = None                       # set from the first solve; see below
-    lam_ref = None                     # exchange rate, measured in the warm start
 
     p_final = penalty
     sharp, since_sharpen = 1.0, 0
@@ -629,7 +685,17 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
     for it in range(iterations):
         penalty = penalty_at(it, iterations, p_final, penalty_start)
         xf = (H @ x) / Hs                    # filtered
-        xp = physical(x, sharp)              # filtered and projected
+        # Minimum thickness, enforced rather than hoped for. Projecting at
+        # eta = 0.5 does not guarantee a length scale: a member thinner than
+        # the filter can still project to solid, and on the racing frame some
+        # did -- stringy webs survived GEN-14. So the stiffness is computed on
+        # the *eroded* design. A web too thin to survive erosion carries no
+        # load there, its sensitivity says so, and the optimiser either thickens
+        # it or deletes it. For compliance the eroded design is always the
+        # weakest of the eroded/blueprint/dilated set, so this is the full
+        # robust formulation at the cost of one solve, not three.
+        level_fe = min(eta + robust, 0.95)
+        xp = physical(x, sharp, level_fe)    # eroded: what is analysed
         stiff = Emin + xp ** penalty * (E0 - Emin)
         u = np.zeros(n_dof)
         try:
@@ -652,11 +718,12 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
         # Chain rule all the way back to the design variables: through the
         # projection, then through the filter. Dropping the projection term is
         # the classic way to get a run that oscillates and never settles.
-        dproj = project_gradient(xf, sharp, eta)
+        # Stiffness is the eroded design's; material is the blueprint's, because
+        # that is what gets built and weighed. Each chains through its own
+        # projection threshold.
         dc = -penalty * xp ** (penalty - 1.0) * (E0 - Emin) * ce
-        dv = np.ones(d.n_elements)
-        dc = H @ (dc * dproj / Hs)
-        dv = H @ (dv * dproj / Hs)
+        dc = H @ (dc * project_gradient(xf, sharp, level_fe) / Hs)
+        dv = H @ (project_gradient(xf, sharp, eta) / Hs)
 
         # Every doubling of `beta` multiplies the projection gradient, so a
         # fixed move limit lets the optimality-criteria step saturate and the
@@ -688,28 +755,6 @@ def optimise(problem: Problem, iterations: int = 40, penalty: float = 3.0,
                     lo = mid
                 else:
                     hi = mid
-        elif False:
-            # Warm start: run the budget solver for a few iterations purely to
-            # find out what exchange rate it is implicitly using.
-            #
-            # The priced objective needs a unit for its price and there is no
-            # natural one. `J = c/c_ref + w * V/V_box` is dimensionally clean
-            # but w = 4 produced a 591 g frame and w = 0.5 an 1151 g one, which
-            # tells the user nothing about what number to type. The Lagrange
-            # multiplier the fixed-volume bisection converges to *is* that
-            # exchange rate, in the right units, for this mesh and this load --
-            # so it is measured rather than invented.
-            lo, hi = 1e-9, 1e9
-            target = problem.volume_fraction * d.n_elements
-            xnew = x
-            while (hi - lo) / (lo + hi) > 1e-6:
-                mid = 0.5 * (lo + hi)
-                xnew = bounded(x * np.sqrt(np.maximum(-dc / (dv * mid), 0.0)))
-                if xnew.sum() > target:
-                    lo = mid
-                else:
-                    hi = mid
-            lam_ref = mid
         else:
             # Priced material. The multiplier is not solved for -- it *is* the
             # price -- so the mass is an outcome rather than an input:

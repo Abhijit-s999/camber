@@ -145,8 +145,12 @@ def cantilever(nx=10, ny=4, nz=2, vf=0.4):
 class TestOptimise:
     @pytest.fixture(scope="class")
     def run(self):
+        # The SIMP loop itself, on a domain two elements thick. That is too
+        # thin to host a length scale with air on both faces -- every element
+        # is "near a face" -- so erosion and the void boundary are off here and
+        # tested where they can work, in TestMinimumThickness.
         return T.optimise(cantilever(), iterations=25, filter_radius=1.5,
-                          penalty_start=3.0)
+                          penalty_start=3.0, robust=0.0, outside_void=False)
 
     def test_it_gets_stiffer(self, run):
         c = run.compliance_history
@@ -174,8 +178,12 @@ class TestOptimise:
         and p = 1 does not, so the same problem run both ways must come out
         more binary at 3."""
         def grey(p):
+            # Isolated from the length-scale machinery: this domain is two
+            # elements thick, so with air outside every element touches a face
+            # and the void boundary greys the whole field. The claim here is
+            # about the penalty alone.
             r = T.optimise(cantilever(), iterations=25, filter_radius=1.5,
-                           penalty=p, penalty_start=p)
+                           penalty=p, penalty_start=p, robust=0.0, outside_void=False)
             return float(((r.density > 0.2) & (r.density < 0.8)).mean())
 
         assert grey(3.0) < grey(1.0)
@@ -521,7 +529,11 @@ class TestComplianceOfAGivenField:
         reproduce what `optimise` reported, or the comparison it enables is
         against a different physics problem."""
         p = cantilever(nx=8, ny=3, nz=2, vf=0.5)
-        r = T.optimise(p, iterations=1, penalty_start=3.0)
+        # Erosion and the void boundary change what the first iteration
+        # analyses -- by design, it is no longer the raw design field -- so they
+        # are switched off to test the claim that matters: both paths apply
+        # the same physics to the same field.
+        r = T.optimise(p, iterations=1, penalty_start=3.0, robust=0.0, outside_void=False)
         uniform = np.full(p.domain.shape, 0.5)
         assert T.compliance(p, uniform) == pytest.approx(
             r.compliance_history[0], rel=1e-9)
@@ -763,7 +775,7 @@ class TestModulusIsAppliedOnce:
         """Both paths must apply the modulus the same number of times."""
         p = cantilever(nx=8, ny=3, nz=2, vf=0.5)
         r = T.optimise(p, iterations=1, penalty_start=3.0,
-                       E0=70e9, Emin=70.0)
+                       E0=70e9, Emin=70.0, robust=0.0, outside_void=False)
         uniform = np.full(p.domain.shape, 0.5)
         assert T.compliance(p, uniform, E0=70e9, Emin=70.0) == pytest.approx(
             r.compliance_history[0], rel=1e-9)
@@ -1129,8 +1141,12 @@ class TestProjection:
 
     def test_a_projected_run_is_not_softer(self):
         def stiffness(beta):
+            # GEN-14's claim is about projection alone. With erosion on, the
+            # history records the eroded design, and a sharper projection
+            # erodes harder, so the comparison would be between two different
+            # designs rather than two formulations of one.
             r = T.optimise(cantilever(), iterations=60, filter_radius=1.5,
-                           penalty_start=3.0, beta=beta)
+                           penalty_start=3.0, beta=beta, robust=0.0, outside_void=False)
             return 1.0 / r.compliance_history[-1]
 
         assert stiffness(16.0) > stiffness(1.0)
@@ -1143,3 +1159,80 @@ class TestProjection:
         p.keep[5, :, :] = True
         r = T.optimise(p, iterations=8, penalty_start=3.0)
         assert np.all(r.density[5] == 1.0)
+
+
+class TestMinimumThickness:
+    """GEN-15: the length scale is enforced, not encouraged.
+
+    GEN-14's projection at eta = 0.5 let stringy webs through, for two
+    reasons that compound. Plain projection does not guarantee a minimum size
+    -- a member thinner than the filter can still project to solid. And the
+    filter's usual normalisation is a mirror boundary: a one-layer skin on a
+    domain face reads to the filter as twice as thick as it is, so no
+    length-scale control could reach the faces, which is where a plate in
+    bending puts its skins.
+    """
+
+    @pytest.mark.parametrize("t,passes_2,passes_3",
+                             [(1, False, False), (2, True, False), (3, True, True)])
+    def test_the_diagnostic_is_calibrated_on_slabs_of_known_thickness(
+            self, t, passes_2, passes_3):
+        """By diameter, so an even size means what it says. A voxel-centred
+        ball can only have an odd diameter, and testing "narrower than 2" that
+        way silently tests "narrower than 3"."""
+        rho = np.zeros((20, 20, 10))
+        rho[2:18, 2:18, 3:3 + t] = 1.0
+        r = T.Result(density=rho)
+        assert (r.thin_fraction(2) < 0.05) == passes_2
+        assert (r.thin_fraction(3) < 0.05) == passes_3
+
+    def test_a_skin_on_a_face_is_not_flattered_by_the_filter(self):
+        """The mirror boundary, demonstrated. One solid layer on the top face:
+        with void outside, the filter must see it as thinner than it does
+        with the neighbours-that-exist normalisation."""
+        d = T.Domain(10, 10, 6, 0.001)
+        x = np.zeros(d.shape)
+        x[:, :, -1] = 1.0
+        H = T._filter_matrix(d, 2.0)
+        mirror = (H @ x.ravel()) / np.asarray(H.sum(axis=1)).ravel()
+        r = 1
+        g = np.arange(-r, r + 1)
+        dist = np.sqrt(g[:, None, None]**2 + g[None, :, None]**2 + g[None, None, :]**2)
+        full = float(np.clip(2.0 - dist, 0, None).sum())
+        void = (H @ x.ravel()) / full
+        top = x.ravel() == 1.0
+        assert void[top].mean() < mirror[top].mean()
+
+    def test_erosion_and_the_void_boundary_remove_thin_material(self):
+        """Stated as a comparison on the same problem. Measured on a larger
+        version of this cantilever: 83% of the material thinner than the
+        feature without either, 8% with both."""
+        d = T.Domain(32, 8, 6, 0.002)
+        fixed = [3 * d.node_id(0, j, k) + c for j in range(d.ny + 1)
+                 for k in range(d.nz + 1) for c in range(3)]
+        load = np.zeros(3 * d.n_nodes)
+        for j in range(d.ny + 1):
+            load[3 * d.node_id(d.nx, j, d.nz) + 2] = -1.0
+        p = T.Problem(domain=d, fixed=np.array(fixed), load=load,
+                      volume_fraction=0.2)
+        loose = T.optimise(p, iterations=60, filter_radius=2.0, robust=0.0,
+                           outside_void=False)
+        tight = T.optimise(p, iterations=60, filter_radius=2.0)
+        assert tight.thin_fraction(2) < loose.thin_fraction(2) / 2
+
+    def test_robustness_costs_stiffness_and_that_is_stated(self):
+        """Thin members were doing real work that the constraint now forbids,
+        so at a fixed volume the blueprint is softer. Asserted so nobody
+        mistakes the direction for a regression."""
+        d = T.Domain(32, 8, 6, 0.002)
+        fixed = [3 * d.node_id(0, j, k) + c for j in range(d.ny + 1)
+                 for k in range(d.nz + 1) for c in range(3)]
+        load = np.zeros(3 * d.n_nodes)
+        for j in range(d.ny + 1):
+            load[3 * d.node_id(d.nx, j, d.nz) + 2] = -1.0
+        p = T.Problem(domain=d, fixed=np.array(fixed), load=load,
+                      volume_fraction=0.2)
+        loose = T.optimise(p, iterations=60, filter_radius=2.0, robust=0.0,
+                           outside_void=False)
+        tight = T.optimise(p, iterations=60, filter_radius=2.0)
+        assert T.compliance(p, tight.density) > T.compliance(p, loose.density)
