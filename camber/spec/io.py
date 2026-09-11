@@ -262,7 +262,35 @@ def load(path: str | Path) -> Vehicle:
                 else tomllib.loads(text))
     except (json.JSONDecodeError, tomllib.TOMLDecodeError) as exc:
         raise SpecError(f"{path}: {exc}") from exc
-    return from_dict(data)
+    return _anchor_sources(from_dict(data), path.parent, absolute=True)
+
+
+def _anchor_sources(v: Vehicle, base: Path, *, absolute: bool) -> Vehicle:
+    """Resolve generated-frame mesh paths against the spec file's own folder.
+
+    A `Tabulated` shape records the STL it was measured from. Taken literally,
+    a relative path resolves against wherever Camber happens to be run from, so
+    a spec that works from the repository root silently loses its frame mesh
+    one directory down -- the simulator draws a bounding box and the CFD tier
+    raises. On load a relative path is anchored to the spec's folder; on save it
+    is written relative to the new file's folder, so the pair can move together.
+    """
+    import dataclasses
+    import os
+
+    from .shapes import Tabulated
+
+    for b in v.all_bodies():
+        s = b.shape
+        if not isinstance(s, Tabulated) or not s.source:
+            continue
+        src = Path(s.source)
+        if absolute and not src.is_absolute():
+            src = (base / src).resolve()
+        elif not absolute and src.is_absolute():
+            src = Path(os.path.relpath(src, base.resolve()))
+        b.shape = dataclasses.replace(s, source=str(src))
+    return v
 
 
 def to_dict(v: Vehicle) -> dict[str, Any]:
@@ -337,4 +365,7 @@ def to_dict(v: Vehicle) -> dict[str, Any]:
 
 
 def save_json(v: Vehicle, path: str | Path) -> None:
-    Path(path).write_text(json.dumps(to_dict(v), indent=2) + "\n")
+    import copy
+    path = Path(path)
+    portable = _anchor_sources(copy.deepcopy(v), path.parent, absolute=False)
+    path.write_text(json.dumps(to_dict(portable), indent=2) + "\n")

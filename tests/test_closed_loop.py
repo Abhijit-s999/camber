@@ -77,7 +77,11 @@ class TestSerialisation:
                             (0.1, 0.1, 0.006), 0.0119, "frame.stl"))]
         io.save_json(v, tmp_path / "v.json")
         back = io.load(tmp_path / "v.json")
-        assert back.frame.members[0].shape == v.frame.members[0].shape
+        import dataclasses
+        a, b = v.frame.members[0].shape, back.frame.members[0].shape
+        # The source comes back anchored to the spec's folder, by design.
+        assert dataclasses.replace(b, source="") == dataclasses.replace(a, source="")
+        assert pathlib.Path(b.source) == (tmp_path / "frame.stl").resolve()
         assert np.allclose(back.mass_properties().inertia,
                            v.mass_properties().inertia)
 
@@ -194,3 +198,27 @@ class TestTheLoopEndToEnd:
         frame = after.frame.members[0].mass
         assert after.mass_properties().mass == pytest.approx(
             before.mass_properties().mass - chassis + frame)
+
+
+class TestPortableSources:
+    """A framed spec and its mesh must be able to move together."""
+
+    def test_a_relative_source_resolves_against_the_spec_not_the_cwd(
+            self, tmp_path, monkeypatch):
+        pytest.importorskip("trimesh")
+        import trimesh
+        from camber.spec.units import Vec3
+        from camber.spec.vehicle import Body, Placement
+        d = tmp_path / "vehicles"
+        d.mkdir()
+        trimesh.creation.box((0.1, 0.1, 0.01)).export(d / "frame.stl")
+        v = io.load(ROOT / "examples" / "racer5.toml")
+        v.frame.members = [Body("frame", mass=0.05, placement=Placement(Vec3(0, 0, 0)),
+                                shape=Tabulated(1e-4, np.eye(3) * 1e-3, (0.05, 0.05, 0.005),
+                                                0.01, str(d / "frame.stl")))]
+        io.save_json(v, d / "v.json")
+        written = __import__("json").loads((d / "v.json").read_text())
+        assert written["frame"][0]["shape"]["source"] == "frame.stl"
+        monkeypatch.chdir(tmp_path)                       # run from elsewhere
+        back = io.load(d / "v.json")
+        assert pathlib.Path(back.frame.members[0].shape.source).exists()
