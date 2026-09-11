@@ -19,6 +19,8 @@ $ camber endurance examples/quad5.toml   # predicted flight time
 $ camber cad examples/quad5.toml out.step
 $ camber generate examples/racer5.toml --mass 40 --out frame.stl
 $ camber ui examples/quad5.toml          # drag payloads and rotors in 3D
+$ camber sim examples/racer5.toml --viewer          # fly it (see docs/FLYING.md)
+$ camber aero examples/racer5.toml                  # CFD across its flight envelope
 $ camber validate                        # model vs UIUC wind-tunnel data
 $ camber catalogue fetch                 # get the source datasets
 ```

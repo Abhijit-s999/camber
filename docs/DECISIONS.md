@@ -1823,3 +1823,133 @@ intended and impossible to aim. Height stays editable in the spec file.
 The camera frames itself from the vehicle's own span rather than a fixed
 distance, because a 5-inch quad and a heavy-lift airframe differ by an order of
 magnitude and a fixed camera renders one of them as a speck.
+
+---
+
+## 11. Flying it: simulation, ROS 2, and aero across the envelope (P7)
+
+### SIM-01 · MuJoCo, driven by Camber's own allocation matrix — `PROVISIONAL`
+
+**Value:** `camber/sim`. MuJoCo 3 is the physics engine: research-grade
+rigid-body dynamics and contact, a Python API, a viewer, and it loads the
+generated frame's mesh directly -- so the part that flies is the part that was
+grown. It installs natively on this machine's Python 3.14. Gazebo, the usual
+ROS partner, has no clean install path on a rolling Arch system.
+
+**The model is built from the vehicle, not beside it.** Mass, CG and the full
+inertia tensor are Camber's, stated explicitly (`inertiafromgeom="false"`), so
+MuJoCo never re-derives them from geometry -- a generated frame's convex hull
+is a solid slab and would make the aircraft several times heavier. Rotor
+wrenches come from `control.allocation_matrix`, the matrix the optimiser
+designed against. A second, hand-written model of the aircraft would be a
+second thing to get wrong, and would let the simulator fly a better aircraft
+than the one that gets built.
+
+**Forces go in as a world wrench at the CG, not through MuJoCo actuators.**
+Actuators are linear in their control; a rotor is not. Speed follows command
+through a first-order lag (exact discrete solution, stable for any dt) and
+thrust goes as speed squared, so half throttle is a quarter of full thrust.
+
+**Checked against physics computable by hand, not against itself:**
+
+- mass and inertia eigenvalues match Camber exactly;
+- free fall matches the integrator's own discrete sum, g dt^2 N(N-1)/2, to
+  1e-6 -- not 1/2 g t^2, which it misses by 0.4% for a reason that is not a bug;
+- flying `solve_hover`'s trim -- rear rotors at 0.978 N, front at 0.939,
+  because the CG sits 1.8 mm aft -- holds zero velocity, zero rates and zero
+  drift for two seconds. A first version of this test used equal thrust on
+  every rotor, "failed", and was the physics being right and the test wrong.
+
+**Frames:** Camber is NED (GEOM-02); MuJoCo and ROS (REP-103) are FLU. One
+matrix, a half-turn about x, converts positions, forces, moments and tensors;
+it is a rotation, never a z sign flip, which would be a reflection.
+
+**Crash means contact.** A crash is touching something while inverted or above
+3 m/s. The first rule counted "upside down" as a crash and failed every flip at
+90 degrees of roll.
+
+### SIM-02 · Pilots are programmed at whichever layer the user cares about — `PROVISIONAL`
+
+Position -> attitude -> rates -> moments -> mixer -> motors, and a pilot can
+enter at any layer: `Controller.update` returns motor commands, and `Cascade`
+exposes `attitude()` and `rates()` so an acro pilot need not write a position
+loop and a trajectory pilot need not write a rate loop. Gains are stated as
+accelerations and multiplied by the designed mass and inertia, so one set of
+gains flies a 390 g racer and a 2 kg lifter. The mixer inverts the allocation
+matrix and, out of reach, gives up yaw first, then collective, and holds roll
+and pitch longest -- losing roll authority is how a quad flips over, losing
+yaw is how it drifts.
+
+### ROS-01 · ROS 2 Jazzy from RoboStack, in its own environment — `PROVISIONAL`
+
+**Value:** `ros/`, a pixi workspace of conda-forge ROS 2 builds with their own
+Python 3.12, per project, no root and no container. Jazzy targets 3.12; this
+system runs 3.14 and updates continuously, so apt was never available and an
+AUR build would break on the next system update. Camber is an editable
+dependency, so the bridge imports the same simulator as the CLI. pixi was
+installed with `PIXI_NO_PATH_UPDATE`: its installer otherwise appends to the
+user's fish config.
+
+**Four command levels, last one wins:** motors, a wrench (collective and body
+moments, allocated by the mixer), a pose, and a `MultiDOFJointTrajectoryPoint`
+setpoint with velocity and acceleration feed-forward. The last exists because a
+pose can only say "go here and stop": a carrot-chasing pilot on poses settles at
+about 2 m/s and never finished a lap in 26 s. With feed-forward, two laps in
+under 30 s. A command stream silent for 0.5 s is treated as lost; the bridge
+holds position and clears the feed-forward, so a dead pilot does not leave the
+vehicle accelerating toward wherever it was going.
+
+**The bridge refuses to be quiet about a second clock.** Testing left three
+orphaned simulations publishing onto the same topics; sim-time timers fired at
+400 Hz and odometry interleaved unrelated vehicles, with no error anywhere. The
+bridge now reports any other `/clock` publisher on its domain.
+
+### AERO-01 · The test conditions come from the vehicle — `PROVISIONAL`
+
+**Value:** `camber/cfd/envelope.py`. A fixed test matrix tests a racer where it
+never flies and misses where it lives. A multirotor has no angle of attack of
+its own: it tilts to fly, and in steady level flight the tilt fixes the speed,
+because thrust must hold the weight up (T cos = mg) and its horizontal part must
+balance drag (T sin = D). So test points are tilts, each paired with the speed
+the vehicle would be flying at there, and the range follows the mission: a
+MAX_SPEED racer out to 65 degrees nose down (capped where thrust-to-weight runs
+out, with 15% held back for control), an endurance vehicle to about 22. A
+vehicle without rotors gets an alpha sweep through stall.
+
+Angles use the aircraft convention everywhere, alpha = atan2(w, u): a multirotor
+flying forward is nose down, air on its top, alpha *negative*. The first draft
+of the aero table's docstring had that sign backwards.
+
+**Rotors are in the CFD** as actuator discs at each condition's trim thrust. A
+body in rotor wash is not a body in clean air, and testing the bare airframe
+would measure a vehicle that does not exist. What is tabulated is the force on
+the airframe patch only; the rotor thrust is the simulator's to apply, so
+nothing is counted twice.
+
+### CFD-09 · Forward flight needed a freestream, and the right sign on it — `FIXED`
+
+Two bugs that hover could never reveal, because hover's freestream is zero.
+
+**Sign.** The case wrote the freestream as (+V, 0, 0): air arriving from
+behind, which for a vehicle flying forward is flying backwards. The relative
+wind is now a vector from the test point's attitude, -V(cos a, 0, sin a) in NED.
+
+**Far field.** Every boundary held *total* pressure at zero -- right when the
+only flow is rotor-induced, wrong in a 31 m/s freestream, where it pins static
+pressure at -U^2/2 wherever air enters and 0 wherever it leaves, imposing a
+pressure drop that fights the flow. On the first forward-flight case the
+pressure residual stalled at 0.19 and never fell, and the body force came out
+at 14.9 N: a normal-force Cd near 3.8, about twice what a flat plate can do.
+
+```
+                     p residual     body force (NED)            time
+totalPressure        0.19, stuck    (-1.04, +0.13, +14.87) N     303 s
+freestream BCs       1.5e-4         (-0.39, -0.00, +5.49) N       87 s
+```
+
+`freestreamVelocity`/`freestreamPressure` switch between inflow and outflow on
+the flux and hold static pressure at freestream. The case now converges and
+stops itself, the normal-force Cd is 1.4, and the side force is zero as symmetry
+demands instead of an invented 0.13 N. **The old boundaries inflated airframe
+drag 2.7x**, which would have flown the simulated racer well below its real top
+speed. Hover keeps the open boundaries, which are right there.
