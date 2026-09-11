@@ -561,7 +561,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
     return 0
 
 
-def _load_pilot(spec: str, course):
+def _load_pilot(spec: str, course, speed: float = 14.0):
     """A built-in pilot by name, or a Python file defining one.
 
     A file is loaded as a module and its `Pilot` class used -- or, failing
@@ -574,7 +574,7 @@ def _load_pilot(spec: str, course):
     from .sim.flight import Controller, GateRacer, Hover
 
     if spec == "gates":
-        return GateRacer(course, speed=9.0)
+        return GateRacer(course, speed=speed)
     if spec == "hover":
         return Hover(1.5)
     path = Path(spec)
@@ -615,7 +615,7 @@ def cmd_sim(args: argparse.Namespace) -> int:
                                (args.course == "auto" and args.pilot == "gates")) else None
     aero = AeroTable.load(args.aero) if args.aero else BodyDrag.estimate(v)
     sim = Simulation(v, course=course, aero=aero)
-    pilot = _load_pilot(args.pilot, course)
+    pilot = _load_pilot(args.pilot, course, args.speed)
 
     where = ("the viewer" if args.viewer else
              args.record if args.record else "headless")
@@ -827,6 +827,8 @@ def main(argv: list[str] | None = None) -> int:
     sm.add_argument("--pilot", default="gates",
                     help="'gates', 'hover', or a .py file defining a Pilot class")
     sm.add_argument("--course", default="auto", choices=("auto", "oval", "none"))
+    sm.add_argument("--speed", type=float, default=14.0,
+                    help="target speed for the built-in gate pilot, m/s")
     sm.add_argument("--aero", type=Path,
                     help="CFD aero table from `camber aero`; default is an "
                          "estimate from the vehicle's extents")

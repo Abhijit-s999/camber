@@ -219,8 +219,14 @@ class GateRacer(Cascade):
         direction = (1 - w) * heading + w * g.normal
         direction /= np.linalg.norm(direction)
         self.velocity = self.speed * direction
-        self.target = g.centre + 0.5 * g.normal
+        # Correct only the cross-track error. Aiming the position loop at a
+        # point past the gate turned the whole remaining distance into a
+        # demand for more speed: it flew 13.2 m/s against a 9 m/s setpoint and
+        # tilted to 78 degrees against a 65-degree limit. Along the line, speed
+        # is the velocity setpoint's job; the position loop only keeps the
+        # vehicle *on* the line.
+        along = float(np.dot(state.position - g.centre, direction))
+        self.target = g.centre + along * direction
         self.accel = np.zeros(3)
         self.yaw = float(np.arctan2(direction[1], direction[0]))
-        self.kp_eff = self.kp
         return super().update(state, sim)
