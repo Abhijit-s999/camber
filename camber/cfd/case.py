@@ -64,6 +64,10 @@ class CaseConfig:
 
     #: Freestream speed. 0.0 is hover.
     v_inf: float = 0.0
+    #: Air velocity past the vehicle as a NED body-axis vector, which is what
+    #: forward flight at an attitude needs. Overrides `v_inf` when given.
+    #: See `envelope.TestPoint.relative_wind_ned` for the sign.
+    u_inf: tuple | None = None
     #: Domain extent as multiples of the vehicle's rotor span.
     domain_radii: float = 6.0
     domain_height_above: float = 5.0
@@ -604,29 +608,53 @@ mergeTolerance 1e-6;
 """
 
     def _write_fields(self, case: Path) -> None:
-        v = self.config.v_inf
-        # z is down; forward flight is along +x.
-        inlet = f"({v:.6g} 0 0)"
+        c = self.config
+        if c.u_inf is not None:
+            u = [float(x) for x in c.u_inf]
+        else:
+            # Kept for the hover campaign, where it is always zero. As a
+            # forward-flight freestream it had the wrong sign -- air arriving
+            # from behind -- which is why u_inf exists.
+            u = [float(c.v_inf), 0.0, 0.0]
+        v = math.sqrt(sum(x * x for x in u))
+        inlet = f"({u[0]:.6g} {u[1]:.6g} {u[2]:.6g})"
+        if v > 1e-9:
+            # Forward flight: freestream far-field. The hover boundaries below
+            # hold *total* pressure at zero on every face, which is right when
+            # the only flow is what the rotors induce and wrong in a 31 m/s
+            # freestream: static pressure is pinned at -U^2/2 wherever air
+            # enters and at 0 wherever it leaves, so the boundaries impose a
+            # pressure drop across the domain that fights the flow. The first
+            # forward-flight case ran that way; its pressure residual stalled at
+            # 0.19 and never fell, and its body force was about twice what a
+            # flat plate can produce. freestreamVelocity/Pressure switch between
+            # inflow and outflow on the flux and hold static pressure at
+            # freestream, which is what an external-aero far field is.
+            far_u = f"type freestreamVelocity; freestreamValue uniform {inlet}; value uniform {inlet};"
+            far_p = "type freestreamPressure; freestreamValue uniform 0; value uniform 0;"
+        else:
+            far_u = f"type inletOutlet; inletValue uniform {inlet}; value uniform {inlet};"
+            far_p = "type totalPressure; p0 uniform 0; value uniform 0;"
         _write(case / "0" / "U", "volVectorField", "U", f"""dimensions [0 1 -1 0 0 0 0];
 internalField uniform {inlet};
 
 boundaryField
 {{
-    top     {{ type inletOutlet; inletValue uniform {inlet}; value uniform {inlet}; }}
-    bottom  {{ type inletOutlet; inletValue uniform {inlet}; value uniform {inlet}; }}
-    sides   {{ type inletOutlet; inletValue uniform {inlet}; value uniform {inlet}; }}
+    top     {{ {far_u} }}
+    bottom  {{ {far_u} }}
+    sides   {{ {far_u} }}
     body    {{ type noSlip; }}
 }}""")
-        _write(case / "0" / "p", "volScalarField", "p", """dimensions [0 2 -2 0 0 0 0];
+        _write(case / "0" / "p", "volScalarField", "p", f"""dimensions [0 2 -2 0 0 0 0];
 internalField uniform 0;
 
 boundaryField
-{
-    top     { type totalPressure; p0 uniform 0; value uniform 0; }
-    bottom  { type totalPressure; p0 uniform 0; value uniform 0; }
-    sides   { type totalPressure; p0 uniform 0; value uniform 0; }
-    body    { type zeroGradient; }
-}""")
+{{
+    top     {{ {far_p} }}
+    bottom  {{ {far_p} }}
+    sides   {{ {far_p} }}
+    body    {{ type zeroGradient; }}
+}}""")
         # Modest freestream turbulence; the wake generates its own.
         k = max(1e-4, 1.5 * (0.05 * max(v, 1.0)) ** 2)
         omega = max(1e-2, math.sqrt(k) / (0.1 * self.span))

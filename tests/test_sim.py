@@ -1,0 +1,197 @@
+"""The simulator flies the vehicle Camber designed -- checked against physics
+that can be done by hand, not against itself."""
+
+import math
+import pathlib
+
+import numpy as np
+import pytest
+
+mujoco = pytest.importorskip("mujoco")
+
+from camber.control import solve_hover                        # noqa: E402
+from camber.sim import Simulation, frames                     # noqa: E402
+from camber.sim.aero import AeroTable, BodyDrag               # noqa: E402
+from camber.sim.course import Course, Gate                    # noqa: E402
+from camber.sim.flight import Cascade, GateRacer, Mixer       # noqa: E402
+from camber.sim.motors import MotorBank                       # noqa: E402
+from camber.spec import io                                    # noqa: E402
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+
+@pytest.fixture
+def racer():
+    return io.load(ROOT / "examples" / "racer5.toml")
+
+
+@pytest.fixture
+def still(racer):
+    """No aerodynamics: tests about rigid-body physics should not also be
+    tests of a drag estimate."""
+    return Simulation(racer, aero=BodyDrag([0.0, 0.0, 0.0]))
+
+
+class TestFrames:
+    def test_ned_to_flu_is_a_rotation_not_a_mirror(self):
+        assert np.linalg.det(frames.NED_TO_FLU) == pytest.approx(1.0)
+
+    def test_it_is_its_own_inverse(self):
+        assert np.allclose(frames.NED_TO_FLU @ frames.NED_TO_FLU, np.eye(3))
+
+    def test_up_is_up(self):
+        assert frames.vec([0.0, 0.0, -1.0]) == pytest.approx([0, 0, 1])
+
+    def test_inertia_keeps_its_eigenvalues(self):
+        I = np.array([[3.0, 0.2, -0.1], [0.2, 4.0, 0.3], [-0.1, 0.3, 5.0]])
+        assert np.allclose(np.linalg.eigvalsh(frames.tensor(I)),
+                           np.linalg.eigvalsh(I))
+
+
+class TestTheModelIsCambers:
+    def test_mass_is_exact(self, racer, still):
+        b = still.model.body("airframe").id
+        assert still.model.body_mass[b] == pytest.approx(
+            racer.mass_properties().mass, rel=1e-12)
+
+    def test_inertia_is_exact(self, still):
+        b = still.model.body("airframe").id
+        assert np.allclose(np.sort(still.model.body_inertia[b]),
+                           np.sort(np.linalg.eigvalsh(still.inertia)), rtol=1e-9)
+
+    def test_the_allocation_matrix_is_the_optimisers(self, racer, still):
+        from camber.control import allocation_matrix
+        assert np.allclose(still.allocation,
+                           frames.wrench(allocation_matrix(racer)))
+
+
+class TestRigidBodyPhysics:
+    def test_free_fall_matches_the_integrators_own_sum(self, still):
+        """Not 1/2 g t^2: MuJoCo integrates in steps, and after N steps of dt
+        the drop is g dt^2 N(N-1)/2. Matching that to the micron is the proof
+        gravity and units are right; matching 1/2 g t^2 to 0.4% is not."""
+        s0 = still.reset(position=(0, 0, 5))
+        n = 250
+        for _ in range(n):
+            s = still.step(np.zeros(4))
+        want = 9.80665 * still.dt ** 2 * n * (n - 1) / 2
+        assert s0.position[2] - s.position[2] == pytest.approx(want, rel=1e-6)
+
+    def test_cambers_hover_trim_holds_still(self, racer, still):
+        """The agreement that matters: the optimiser's static trim, flown
+        dynamically, must not move. Equal thrust on every rotor does NOT hover
+        this vehicle -- its CG is 1.8 mm aft -- and a test that assumed it would
+        mistook correct physics for a bug."""
+        u = MotorBank.command_for(solve_hover(racer).thrusts, still.max_thrust)
+        still.reset(position=(0, 0, 5), spin=u)
+        for _ in range(1000):
+            s = still.step(u)
+        assert np.abs(s.velocity).max() < 1e-4
+        assert np.abs(s.rates).max() < 1e-4
+
+    def test_yaw_goes_the_way_the_allocation_says(self, still):
+        uh = math.sqrt(still.weight / still.max_thrust.sum())
+        still.reset(position=(0, 0, 5), spin=uh)
+        u = np.full(4, uh)
+        u[[0, 2]] += 0.03
+        u[[1, 3]] -= 0.03
+        predicted = still.allocation[5] @ (still.max_thrust * u ** 2)
+        for _ in range(150):
+            s = still.step(u)
+        assert np.sign(s.rates[2]) == np.sign(predicted) != 0
+
+
+class TestMotors:
+    def test_thrust_goes_as_speed_squared(self):
+        m = MotorBank([10.0])
+        m.reset(0.5)
+        assert m.step([0.5], 0.001)[0] == pytest.approx(2.5)
+
+    def test_the_lag_is_the_exact_discrete_solution(self):
+        """Stable for any dt, including one longer than tau -- where an Euler
+        step would overshoot."""
+        m = MotorBank([1.0], tau=0.03)
+        m.step([1.0], 0.09)
+        assert m.speed[0] == pytest.approx(1.0 - math.exp(-3.0))
+
+    def test_command_for_inverts_the_square(self):
+        t = np.array([0.25, 4.0])
+        assert MotorBank.command_for(t, np.array([1.0, 16.0])) == pytest.approx([0.5, 0.5])
+
+
+class TestMixer:
+    def test_a_reachable_wrench_is_produced_exactly(self, still):
+        mix = Mixer(still.allocation, still.max_thrust)
+        want = np.array([still.weight, 0.01, -0.02, 0.003])
+        t = mix.thrusts(want[0], want[1:])
+        assert still.allocation[[2, 3, 4, 5]] @ t == pytest.approx(want, abs=1e-9)
+
+    def test_it_gives_up_yaw_before_roll(self, still):
+        mix = Mixer(still.allocation, still.max_thrust)
+        t = mix.thrusts(0.9 * still.max_thrust.sum(), np.array([0.3, 0.0, 0.5]))
+        got = still.allocation[[3, 4, 5]] @ t
+        assert got[0] == pytest.approx(0.3, rel=0.05)       # roll kept
+        assert abs(got[2]) < 0.5                            # yaw shed
+        assert (t >= -1e-9).all() and (t <= still.max_thrust + 1e-9).all()
+
+
+class TestAero:
+    def test_drag_opposes_motion(self):
+        d = BodyDrag([0.01, 0.02, 0.03])
+        f, _ = d.force(np.array([10.0, -5.0, 2.0]))
+        assert (np.sign(f) == -np.sign([10.0, -5.0, 2.0])).all()
+
+    def test_the_estimate_uses_the_footprint_not_the_bounding_box(self, racer):
+        d = BodyDrag.estimate(racer)
+        assert d.cda[2] == pytest.approx(
+            1.05 * sum(b.shape.planform_area() for b in racer.all_bodies()))
+
+    def test_forward_flight_nose_down_is_negative_alpha(self):
+        """Aircraft convention: a multirotor pitched forward meets the air on
+        its top. v in FLU body axes has +z when the nose is down."""
+        seen = []
+
+        class Probe(AeroTable):
+            def force(self, v):
+                seen.append(math.degrees(math.atan2(-v[2], v[0])))
+                return super().force(v)
+
+        t = Probe([-60, 0, 20], [0, 0, 0], [0, 0, 0], [0, 0, 0], area=1, length=1)
+        th = math.radians(40)
+        t.force(20 * np.array([math.cos(th), 0.0, math.sin(th)]))
+        assert seen[0] == pytest.approx(-40.0)
+
+    def test_extrapolation_is_counted_not_hidden(self):
+        t = AeroTable([-10, 10], [0, 0], [0, 0], [0, 0], area=1, length=1)
+        t.force(np.array([10.0, 0.0, 30.0]))                 # ~ -72 deg
+        assert t.extrapolated == 1
+
+
+class TestFlying:
+    def test_it_holds_a_point(self, racer):
+        sim = Simulation(racer)
+        c = Cascade()
+        s = sim.reset()
+        c.reset(sim)
+        c.target = np.array([0.0, 0.0, 1.0])
+        errs = []
+        for i in range(2500):
+            s = sim.step(c.update(s, sim))
+            if i > 1500:
+                errs.append(np.linalg.norm(s.position - c.target))
+        assert max(errs) < 0.1 and not sim.crashed
+
+    def test_it_flies_the_gate_course(self, racer):
+        from camber.sim.run import fly
+        course = Course.oval()
+        sim = Simulation(racer, course=course)
+        pilot = GateRacer(course, speed=9.0)
+        log = fly(sim, pilot, 12.0)
+        assert len(pilot.passed) == len(course.gates)
+        assert not log.crashed
+
+    def test_a_gate_is_crossed_only_through_its_opening(self):
+        g = Gate([0, 0, 1.5], [1, 0, 0])
+        assert g.crossed(np.array([0.1, 0.2, 1.4]))
+        assert not g.crossed(np.array([-0.1, 0.0, 1.5]))      # not yet
+        assert not g.crossed(np.array([0.1, 2.0, 1.5]))       # round the side

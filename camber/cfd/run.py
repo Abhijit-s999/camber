@@ -195,3 +195,22 @@ def read_body_force(case: Path) -> dict[str, float] | None:
     if len(values) < 4:
         return None
     return {"time": values[0], "fx": values[1], "fy": values[2], "fz": values[3]}
+
+
+def read_body_moment(case: Path) -> dict[str, float] | None:
+    """Total moment on the airframe about the forces object's CofR (origin)."""
+    candidates = sorted(Path(case).glob("postProcessing/bodyForces/*/moment*.dat"))
+    if not candidates:
+        return None
+    rows = [ln for ln in candidates[-1].read_text().splitlines()
+            if ln.strip() and not ln.startswith("#")]
+    if not rows:
+        return None
+    parts = rows[-1].replace("(", " ").replace(")", " ").split()
+    try:
+        values = [float(x) for x in parts]
+    except ValueError:
+        return None
+    if len(values) < 4:
+        return None
+    return {"time": values[0], "mx": values[1], "my": values[2], "mz": values[3]}

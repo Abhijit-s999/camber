@@ -97,8 +97,29 @@ def export(vehicle: Vehicle, path: str | Path, *, metres: bool = False) -> Path:
     refined nothing, and the forces function object finds no patch to
     integrate. See DECISIONS.md GEOM-04 and CFD-02.
     """
-    b3 = _b3()
+    from ..spec.shapes import Tabulated
+
     path = Path(path)
+    if any(isinstance(b.shape, Tabulated) for b in vehicle.all_bodies()):
+        # A generated frame is a mesh. STL can carry it; STEP cannot, short of
+        # converting a quarter of a million facets to B-rep, which would take
+        # longer than generating it did and produce a file no CAM package
+        # wants. Say so rather than failing with a TypeError from deep inside.
+        if path.suffix.lower() != ".stl":
+            raise ValueError(
+                f"{vehicle.name!r} has a generated (mesh) frame; export it as "
+                f".stl, or machine the frame from `camber generate`'s own STL")
+        from .surface import airframe_surface
+        import trimesh
+        mesh = airframe_surface(vehicle)                 # metres, NED
+        if not metres:
+            mesh.apply_scale(M_TO_MM)
+            mesh.apply_transform(trimesh.transformations.rotation_matrix(
+                math.pi, [1.0, 0.0, 0.0]))               # Z-up, see below
+        mesh.export(path)
+        return path
+
+    b3 = _b3()
     assembly = build(vehicle)
     if metres:
         assembly = assembly.scale(1.0 / M_TO_MM)
