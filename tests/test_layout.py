@@ -207,11 +207,12 @@ class TestBalance:
 
 class TestPresets:
     @pytest.mark.parametrize("kind,n", [("quad-x", 4), ("quad-plus", 4),
-                                        ("hex-x", 6), ("octo-x", 8)])
+                                        ("penta-x", 5), ("hex-x", 6),
+                                        ("hepta-x", 7), ("octo-x", 8)])
     def test_counts_and_wheelbase(self, kind, n):
         spec = rotor_layout(kind, 0.25)
         assert len(spec) == n
-        radii = [math.hypot(p.x, p.y) for _, p, _ in spec]
+        radii = [math.hypot(p.x, p.y) for _, p, _, _ in spec]
         assert radii == pytest.approx([0.125] * n)
 
     @pytest.mark.parametrize("kind", ["quad-x", "quad-plus", "hex-x", "octo-x"])
@@ -230,5 +231,29 @@ class TestPresets:
         assert all(t.static_thrust_n == thrust for t in racer.thrusters)
 
     def test_quad_x_uses_the_names_people_know(self):
-        assert [n for n, _, _ in rotor_layout("quad-x", 0.2)] == [
+        assert [n for n, _, _, _ in rotor_layout("quad-x", 0.2)] == [
             "front_right", "rear_right", "rear_left", "front_left"]
+
+    def test_even_rings_point_straight_up(self):
+        for _, _, _, axis in rotor_layout("hex-x", 0.25):
+            assert axis.z == pytest.approx(-1.0)              # UP in NED
+
+    def test_odd_rings_are_canted_for_yaw(self):
+        """An uncanted odd ring cannot alternate spin evenly, so it has almost
+        no yaw. The cant tilts each motor tangentially to make yaw from thrust."""
+        axes = [axis for _, _, _, axis in rotor_layout("penta-x", 0.25)]
+        assert all(axis.z < -0.98 for axis in axes)          # still mostly up
+        assert all(math.hypot(axis.x, axis.y) > 0.05 for axis in axes)  # but tilted
+
+    @pytest.mark.parametrize("kind", ["quad-x", "penta-x", "hex-x", "hepta-x",
+                                      "octo-x"])
+    def test_four_flight_axes_are_reachable(self, racer, kind):
+        """Thrust, roll, pitch and yaw, independently. This is what a
+        multirotor flight controller needs -- lateral force is not commandable
+        on any of them, and is not supposed to be. The tricopter is left out:
+        three fixed rotors give only three thrust degrees of freedom, so it
+        needs a tilting tail servo, which this fixed-rotor layout does not add."""
+        from camber.control import allocation_matrix
+        apply_layout(racer, kind, 0.22)
+        flight = allocation_matrix(racer)[[2, 3, 4, 5]]       # Fz, Mx, My, Mz
+        assert np.linalg.matrix_rank(flight, tol=1e-6) == 4
