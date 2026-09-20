@@ -2160,3 +2160,40 @@ is a layout aid, and `OrbitControls.update()`, which re-aims the camera at its
 own target *even when disabled* and silently undid the chase camera every
 frame -- the vehicle sat 2.8 m away, just outside the frame, while the camera
 looked wherever the editor had last been pointed.
+
+### SIM-05 · What the plant models, and what it was missing — `SETTLED`
+
+Asked directly what the simulator accounts for. Three of four were already
+there; the fourth was not, and it is the one that bites hardest on a vehicle
+whose rotors do not cancel.
+
+**Already modelled:** aerodynamic drag (estimated, or the measured CFD table),
+first-order motor lag with the exact discrete solution, thrust as speed
+*squared*, and the steady reaction torque that lets a multirotor yaw at all.
+
+**Added — the rotors' angular momentum.** They are not massless discs that
+make thrust appear:
+
+- *Reaction to spinning up*, −J dω/dt about each rotor axis. On a snap yaw
+  command every rotor changes speed at once and this arrives **before** the
+  aerodynamic yaw torque, which cannot change until the new speed exists.
+- *Gyroscopic precession*, −ω_body × h. Pitch a spinning rotor and it answers
+  in roll. A balanced quad cancels this in hover; three rotors, five, or a
+  tilting VTOL never do — which is exactly where this work is heading.
+
+Checked by conservation, not by eye: with thrust suppressed, spinning the
+rotors up turns the airframe the other way and the total angular momentum
+holds to within a percent.
+
+**Added — latency.** Everything between deciding and acting: the flight
+controller's loop, the link, the ESC. A pure transport delay, not a filter —
+the command sequence comes out unchanged, only later. Default 6 ms. Measured
+on the gate course: 0 ms laps in 6.62 s, 6 ms in 6.58, and 20 ms in 8.07,
+which is the real reason a laggy link cannot carry a hot rate loop.
+
+**Rotor speed** comes from static thrust by momentum theory, with the
+coefficient scaled by blade count (0.055 a blade). A 5-inch three-blade rated
+12.3 N lands at 29,000 rpm, against high-twenties on a bench; with a single
+blade's coefficient it read 37,000, which no 5-inch propeller survives. It is
+used only for the momentum terms — thrust itself still comes from the
+catalogue or the blade-element tier, never from a guess.

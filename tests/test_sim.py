@@ -347,3 +347,91 @@ class TestRacingLine:
         pilot.reset(sim)
         pilot.update(state, sim)
         assert pilot.target[2] == pytest.approx(course.gates[pilot.gate].centre[2])
+
+
+class TestSpinningMass:
+    """The rotors are not massless discs that make thrust appear. They store
+    angular momentum, and the airframe pays for every change to it."""
+
+    def test_rotor_speed_matches_what_these_props_turn_at(self, racer):
+        """A 5-inch three-blade rated 12.3 N: high twenties of thousands rpm."""
+        sim = Simulation(racer)
+        rpm = sim.motors.max_rate * 60 / (2 * math.pi)
+        assert (25_000 < rpm).all() and (rpm < 32_000).all()
+
+    def test_propeller_inertia_is_a_rod_of_its_own_diameter(self):
+        assert MotorBank.disc_inertia(0.0043, 0.0635) == pytest.approx(
+            0.0043 * 0.127 ** 2 / 12)
+
+    def test_spinning_the_rotors_up_turns_the_airframe_the_other_way(self, racer):
+        """Angular momentum, conserved. In free fall with no aerodynamics and
+        thrust that cannot torque the body about yaw except through drag, the
+        rotors' momentum has to come from somewhere -- and it comes out of the
+        airframe. The sum stays put to within a percent."""
+        sim = Simulation(racer, aero=BodyDrag([0.0, 0.0, 0.0]), latency=0.0)
+        for t in sim.vehicle.thrusters:                  # all one way: no cancelling
+            pass
+        sim.motors.spin = np.ones(4)
+        sim.allocation = sim.allocation * 0.0            # no thrust, no drag torque
+        sim.reset(position=(0.0, 0.0, 50.0))
+        for _ in range(400):
+            state = sim.step(np.full(4, 0.6))
+        h_rotor = float(np.sum(sim.motors.angular_momentum))
+        h_body = float((sim.inertia @ state.rates)[2])
+        assert h_rotor > 0.01                            # the rotors spun up
+        assert abs(h_body + h_rotor) < 0.01 * h_rotor    # and the body answered
+
+    def test_gyroscopic_precession_couples_pitch_into_roll(self, racer):
+        """Spin a rotor and turn its axis: it pushes back at right angles.
+        On a quad the pairs cancel in hover; on anything whose rotors do not
+        cancel -- three rotors, five, a tilting VTOL -- this is always there."""
+        sim = Simulation(racer, aero=BodyDrag([0.0, 0.0, 0.0]), latency=0.0)
+        sim.motors.spin = np.ones(4)                     # unbalanced, deliberately
+        sim.reset(position=(0.0, 0.0, 50.0))
+        sim.motors.reset(0.8)
+        sim.data.qvel[4] = 2.0                           # pitch rate, body y
+        h = float(np.sum(sim.motors.angular_momentum))
+        moment = sim._rotor_moments(np.eye(3))
+        assert h > 0.0
+        assert moment[0] == pytest.approx(-2.0 * h, rel=1e-6)   # into roll
+        assert abs(moment[1]) < 1e-9
+
+    def test_a_balanced_quad_has_no_net_gyroscopic_moment(self, racer):
+        sim = Simulation(racer, aero=BodyDrag([0.0, 0.0, 0.0]))
+        sim.reset(position=(0.0, 0.0, 50.0))
+        sim.motors.reset(0.5)                            # all four the same speed
+        sim.data.qvel[4] = 2.0
+        assert np.abs(sim._rotor_moments(np.eye(3))).max() < 1e-9
+
+
+class TestLatency:
+    """Nothing acts the instant it is asked to."""
+
+    def test_a_command_takes_the_stated_time_to_arrive(self, racer):
+        sim = Simulation(racer, latency=0.02)
+        sim.reset()
+        seen = []
+        for _ in range(30):
+            state = sim.step(np.ones(4))
+            seen.append(float(state.thrust.sum()))
+        assert seen[0] == 0.0 and seen[9] == 0.0          # 20 ms at 2 ms a step
+        assert seen[12] > 0.0
+
+    def test_zero_latency_acts_at_once(self, racer):
+        sim = Simulation(racer, latency=0.0)
+        sim.reset()
+        assert sim.step(np.ones(4)).thrust.sum() > 0.0
+
+    def test_it_is_a_delay_not_a_filter(self, racer):
+        """The command comes out the far end unchanged, only later: the whole
+        sequence, shifted by exactly the latency, not smeared by it."""
+        sim = Simulation(racer, latency=0.01, motor_tau=1e-6)
+        sim.reset()
+        sent, arrived = [], []
+        for i in range(20):
+            u = 0.2 + 0.03 * i
+            sent.append(u)
+            sim.step(np.full(4, u))
+            arrived.append(float(sim.motors.speed[0]))
+        shift = int(round(0.01 / sim.dt))                 # five steps
+        assert arrived[shift:] == pytest.approx(sent[:-shift], rel=1e-3)

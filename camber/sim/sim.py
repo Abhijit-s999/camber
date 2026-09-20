@@ -57,7 +57,7 @@ class Simulation:
 
     def __init__(self, vehicle, *, course=None, dt: float = 0.002,
                  motor_tau: float = 0.03, aero=None, wind=(0.0, 0.0, 0.0),
-                 start=None) -> None:
+                 start=None, latency: float = 0.006, prop_mass=None) -> None:
         import mujoco
 
         from ..control import allocation_matrix
@@ -79,7 +79,32 @@ class Simulation:
         # The optimiser's allocation matrix, in the simulator's axes.
         self.allocation = frames.wrench(allocation_matrix(vehicle))
         self.max_thrust = np.array([t.max_thrust() for t in vehicle.thrusters])
-        self.motors = MotorBank(self.max_thrust, motor_tau)
+        # What each rotor's spinning mass is, and how fast it turns at full
+        # throttle: the airframe feels both when the speeds change and when it
+        # is rotated. Propeller mass, where the spec does not carry one, from
+        # the usual relation for injection-moulded props -- about 4 g on a
+        # 5-inch. It is an estimate and is stated as one.
+        radii = np.array([getattr(t, "radius", 0.0) or 0.05
+                          for t in vehicle.thrusters])
+        masses = (np.broadcast_to(np.asarray(prop_mass, float), radii.shape)
+                  if prop_mass is not None else 0.0043 * (radii / 0.0635) ** 3)
+        self.motors = MotorBank(
+            self.max_thrust, motor_tau,
+            inertia=MotorBank.disc_inertia(masses, radii),
+            max_rate=MotorBank.rate_at_full(
+                self.max_thrust, radii,
+                [getattr(t, "blades", 2) for t in vehicle.thrusters]),
+            spin=np.array([float(getattr(t, "spin", None).value)
+                           if getattr(t, "spin", None) is not None else 1.0
+                           for t in vehicle.thrusters]))
+        # Thrust axes in body FLU, for the momentum terms.
+        self.thrust_axes = np.array([frames.vec(t.direction())
+                                     for t in vehicle.thrusters])
+        # Everything between deciding and acting: the flight controller's own
+        # loop, the link, and the ESC. Small, but it is the difference between
+        # a rate loop that can be tuned hot and one that rings.
+        self.latency = max(0.0, float(latency))
+        self._queue: list = []
         self.aero = aero if aero is not None else BodyDrag.estimate(vehicle)
         self.wind = np.asarray(wind, dtype=float)
         self._gyro = self.model.sensor("gyro").adr[0]
@@ -105,6 +130,7 @@ class Simulation:
         self.data.qpos[3:7] = quaternion
         self.data.qvel[:3] = velocity
         self.motors.reset(spin)
+        self._prime(spin)
         self.t = 0.0
         self._thrust = self.max_thrust * self.motors.speed ** 2
         mj.mj_forward(self.model, self.data)
@@ -113,17 +139,56 @@ class Simulation:
     # ------------------------------------------------------------------ step
     def step(self, command) -> "State":
         """Advance one timestep with motor commands in [0, 1]."""
+        command = self._delayed(command)
         thrust = self.motors.step(command, self.dt)
         wrench = self.allocation @ thrust                 # body FLU, about CG
         R = self.data.xmat[self.body].reshape(3, 3)       # body -> world
         v_com = self._com_velocity()
         f_aero, m_aero = self.aero.force(R.T @ (v_com - self.wind))
+        m_rotor = self._rotor_moments(R)
         self.data.xfrc_applied[self.body, :3] = R @ (wrench[:3] + f_aero)
-        self.data.xfrc_applied[self.body, 3:] = R @ (wrench[3:] + m_aero)
+        self.data.xfrc_applied[self.body, 3:] = R @ (wrench[3:] + m_aero + m_rotor)
         self._mj.mj_step(self.model, self.data)
         self.t += self.dt
         self._thrust = thrust
         return self.state()
+
+    def _prime(self, spin) -> None:
+        """Fill the delay line with what the rotors are already doing. A
+        vehicle reset mid-hover has commands in flight; starting the pipeline
+        empty fed it zeros for the first few milliseconds and it sank."""
+        n = (max(1, int(round(self.latency / self.dt)))
+             if self.latency > 0.0 else 0)
+        held = np.broadcast_to(np.asarray(spin, float), self.max_thrust.shape)
+        self._queue = [held.copy() for _ in range(n)]
+
+    def _delayed(self, command) -> np.ndarray:
+        """Hold each command for `latency` before it reaches the motors."""
+        command = np.asarray(command, dtype=float)
+        if self.latency <= 0.0:
+            return command
+        self._queue.append(command.copy())
+        n = max(1, int(round(self.latency / self.dt)))
+        if len(self._queue) <= n:
+            return np.zeros_like(command)                 # nothing has arrived yet
+        return self._queue.pop(0)
+
+    def _rotor_moments(self, R: np.ndarray) -> np.ndarray:
+        """What the spinning rotors do to the airframe, in body axes.
+
+        Two terms, both absent from the allocation matrix, which knows only
+        about steady thrust and the drag torque that comes with it:
+
+        * -J dw/dt about each rotor axis, the reaction to spinning it up. It
+          leads the aerodynamic yaw torque, because drag torque cannot change
+          until the speed has.
+        * -w_body x h, the gyroscopic couple, where h is the rotors' angular
+          momentum. Pitch a spinning rotor and it answers in roll.
+        """
+        h = self.thrust_axes.T @ self.motors.angular_momentum        # body, N m s
+        dh = self.thrust_axes.T @ self.motors.momentum_change        # body, N m
+        w = np.asarray(self.data.qvel[3:6], dtype=float)             # body rates
+        return -dh - np.cross(w, h)
 
     def _com_velocity(self) -> np.ndarray:
         out = np.zeros(6)
