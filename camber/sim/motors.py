@@ -42,6 +42,38 @@ RHO = 1.225                    # kg/m^3, sea level
 C_T_PER_BLADE = 0.055
 
 
+class TiltBank:
+    """Servo dynamics for independently tilting rotors.
+
+    A vectoring command is an angle, not an instantaneous geometry edit.  The
+    exact first-order update matches the motor model and clamps at physical
+    hard stops.  An empty bank keeps fixed-rotor aircraft on the same path.
+    """
+
+    def __init__(self, lower=(), upper=(), tau=()) -> None:
+        self.lower = np.asarray(lower, dtype=float)
+        self.upper = np.asarray(upper, dtype=float)
+        self.tau = np.asarray(tau, dtype=float)
+        if not (self.lower.shape == self.upper.shape == self.tau.shape):
+            raise ValueError("tilt servo arrays must have the same length")
+        if (self.lower > self.upper).any() or (self.tau <= 0).any():
+            raise ValueError("invalid tilt servo limits or time constant")
+        self.angle = np.zeros_like(self.lower)
+
+    def reset(self, angle=0.0) -> None:
+        self.angle = np.clip(np.broadcast_to(np.asarray(angle, float), self.lower.shape),
+                             self.lower, self.upper).copy()
+
+    def step(self, target, dt: float) -> np.ndarray:
+        if not len(self.angle):
+            return self.angle
+        target = np.clip(np.broadcast_to(np.asarray(target, float), self.angle.shape),
+                         self.lower, self.upper)
+        alpha = 1.0 - np.exp(-float(dt) / self.tau)
+        self.angle += alpha * (target - self.angle)
+        return self.angle
+
+
 class MotorBank:
     """N rotors, each spinning up and down with time constant `tau`.
 

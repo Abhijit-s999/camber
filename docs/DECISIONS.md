@@ -2237,3 +2237,25 @@ tail. Those matter to a real design and belong in the CFD tier, not in the
 loop that flies the plane a thousand times a second. Wings are not yet in the
 saved vehicle format or the app; this is the physics and the controller,
 tested, with the plane built in code.
+
+### SIM-07 · Thrust vectoring is a moving configuration, not a magic force — `SETTLED`
+
+`tilt_rotor` is a saved vehicle component: it records a neutral thrust axis,
+hinge axis, physical stops and a servo time constant.  It deliberately does
+not mutate the design specification during a flight.  The simulator owns the
+instantaneous servo angle, advances it with the same exact first-order update
+used for motor lag, then rebuilds the force-and-moment allocation at that
+angle.
+
+That last detail is non-negotiable.  At ninety degrees a rotor produces
+forward force rather than lift; retaining the allocation matrix from take-off
+would let the controller claim it was commanding one wrench while the plant
+received another.  A `Command` can therefore carry optional `tilts` alongside
+motors and control-surface deflections.  Existing fixed-rotor controllers are
+unchanged, and a tilt target has no effect until a vehicle actually declares a
+tilting rotor.
+
+This is the plant foundation for civilian tilt-rotor and VTOL transition
+controllers.  It intentionally does not prescribe a transition schedule:
+that depends on the aircraft's measured wing and prop-wash aerodynamics, and
+is a controller/design problem rather than an invented universal curve.

@@ -25,7 +25,7 @@ from .shapes import Box, Cylinder, PointMass, Shape, Sphere, Tabulated
 from .units import DEG, Vec3
 from .vehicle import (
     Battery, Body, Camera, Frame, Mission, Objective, Placement, Rotor, Spin,
-    Thruster, Vehicle,
+    Thruster, TiltRotor, Vehicle,
 )
 
 
@@ -136,23 +136,22 @@ def _body(d: dict, index: int) -> Body:
 def _thruster(d: dict, index: int) -> Thruster:
     where = f"thrusters[{index}]"
     kind = d.get("type", "rotor")
-    if kind != "rotor":
+    if kind not in ("rotor", "tilt_rotor"):
         raise SpecError(
-            f"{where}: thruster type {kind!r} is not implemented yet. "
-            f"v1 validates on electric multirotor (SCOPE-01); rocket, edf and "
-            f"control_surface come later."
+            f"{where}: thruster type {kind!r} is not implemented yet; "
+            f"expected rotor or tilt_rotor"
         )
     _reject_unknown(d, {
         "name", "type", "mass", "position", "rotation_deg", "radius", "pitch",
         "blades", "ducted", "spin", "motor_sku", "prop_sku", "static_thrust_n",
-        "torque_coefficient",
+        "torque_coefficient", "tilt_axis", "tilt_min_deg", "tilt_max_deg", "tilt_tau",
     }, where)
     spin_raw = str(d.get("spin", "ccw")).lower()
     if spin_raw not in ("cw", "ccw"):
         raise SpecError(f"{where}.spin: expected 'cw' or 'ccw', got {spin_raw!r}")
 
     try:
-        return Rotor(
+        common = dict(
             name=_require(d, "name", where),
             mass=float(_require(d, "mass", where)),
             placement=_placement(d, where),
@@ -167,6 +166,15 @@ def _thruster(d: dict, index: int) -> Thruster:
                              else float(d["static_thrust_n"])),
             torque_coefficient=float(d.get("torque_coefficient", 0.016)),
         )
+        if kind == "tilt_rotor":
+            return TiltRotor(
+                **common,
+                tilt_axis=Vec3.parse(d.get("tilt_axis", [0.0, 1.0, 0.0])),
+                tilt_min=float(d.get("tilt_min_deg", 0.0)) * DEG,
+                tilt_max=float(d.get("tilt_max_deg", 0.0)) * DEG,
+                tilt_tau=float(d.get("tilt_tau", 0.06)),
+            )
+        return Rotor(**common)
     except (TypeError, ValueError) as exc:
         raise SpecError(f"{where}: {exc}") from exc
 
@@ -345,13 +353,16 @@ def to_dict(v: Vehicle) -> dict[str, Any]:
     if v.mission.min_endurance is not None:
         out["mission"]["min_endurance"] = v.mission.min_endurance
     for t in v.thrusters:
-        d = {"name": t.name, "type": "rotor", "mass": t.mass,
+        d = {"name": t.name, "type": "tilt_rotor" if isinstance(t, TiltRotor) else "rotor", "mass": t.mass,
              "position": t.position.as_list()}
         if isinstance(t, Rotor):
             d.update(radius=t.radius, pitch=t.pitch, blades=t.blades,
                      ducted=t.ducted,
                      spin="cw" if t.spin is Spin.CW else "ccw",
                      torque_coefficient=t.torque_coefficient)
+            if isinstance(t, TiltRotor):
+                d.update(tilt_axis=t.tilt_axis.as_list(), tilt_min_deg=t.tilt_min / DEG,
+                         tilt_max_deg=t.tilt_max / DEG, tilt_tau=t.tilt_tau)
             if t.static_thrust_n is not None:
                 d["static_thrust_n"] = t.static_thrust_n
             if t.motor_sku:

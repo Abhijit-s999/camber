@@ -17,7 +17,7 @@ import numpy as np
 from . import frames
 from .aero import BodyDrag
 from .model import build_mjcf
-from .motors import MotorBank
+from .motors import MotorBank, TiltBank
 
 
 @dataclass
@@ -27,14 +27,17 @@ class Command:
 
     motors: np.ndarray
     surfaces: np.ndarray | None = None
+    #: Requested tilt angles (rad), one per tilting rotor.  Fixed rotors
+    #: simply ignore this channel.
+    tilts: np.ndarray | None = None
 
 
 def _split_command(command):
     """Accept either a bare motor array or a Command, so a multirotor pilot
     that returns an array still works unchanged."""
     if hasattr(command, "motors"):
-        return command.motors, command.surfaces
-    return command, None
+        return command.motors, command.surfaces, command.tilts
+    return command, None, None
 
 
 @dataclass
@@ -78,6 +81,7 @@ class Simulation:
         import mujoco
 
         from ..control import allocation_matrix
+        from ..spec.vehicle import TiltRotor
 
         self._mj = mujoco
         self.vehicle = vehicle
@@ -115,8 +119,23 @@ class Simulation:
                            if getattr(t, "spin", None) is not None else 1.0
                            for t in vehicle.thrusters]))
         # Thrust axes in body FLU, for the momentum terms.
-        self.thrust_axes = np.array([frames.vec(t.direction())
-                                     for t in vehicle.thrusters])
+        self._neutral_axes = np.array([frames.vec(t.direction())
+                                       for t in vehicle.thrusters])
+        self._tilt_indices = np.array([i for i, t in enumerate(vehicle.thrusters)
+                                       if isinstance(t, TiltRotor)], dtype=int)
+        tilt_min = [t.tilt_min for t in vehicle.thrusters if isinstance(t, TiltRotor)]
+        tilt_max = [t.tilt_max for t in vehicle.thrusters if isinstance(t, TiltRotor)]
+        tilt_tau = [t.tilt_tau for t in vehicle.thrusters if isinstance(t, TiltRotor)]
+        self.tilts = TiltBank(tilt_min, tilt_max, tilt_tau)
+        self._tilt_axes = np.array([frames.vec(t.tilt_axis.unit())
+                                    for t in vehicle.thrusters if isinstance(t, TiltRotor)])
+        self.thrust_axes = self._neutral_axes.copy()
+        self._arms = np.array([frames.vec(t.position - mp.cg) for t in vehicle.thrusters])
+        self._spin = np.array([float(getattr(t, "spin", None).value)
+                               if getattr(t, "spin", None) is not None else 1.0
+                               for t in vehicle.thrusters])
+        self._torque_coeff = np.array([float(getattr(t, "torque_coefficient", 0.0))
+                                       for t in vehicle.thrusters])
         # Everything between deciding and acting: the flight controller's own
         # loop, the link, and the ESC. Small, but it is the difference between
         # a rate loop that can be tuned hot and one that rings.
@@ -147,6 +166,8 @@ class Simulation:
         self.data.qpos[3:7] = quaternion
         self.data.qvel[:3] = velocity
         self.motors.reset(spin)
+        self.tilts.reset()
+        self._update_thrust_axes()
         self._prime(spin)
         self.t = 0.0
         self._thrust = self.max_thrust * self.motors.speed ** 2
@@ -162,8 +183,11 @@ class Simulation:
         ``.surfaces`` (deflections in [-1, 1] per channel). One call, whether
         the vehicle flies on rotors, on wings, or on both.
         """
-        motors, surfaces = _split_command(command)
+        motors, surfaces, tilts = _split_command(command)
         motors = self._delayed(motors)
+        if tilts is not None:
+            self.tilts.step(tilts, self.dt)
+            self._update_thrust_axes()
         thrust = self.motors.step(motors, self.dt)
         wrench = self.allocation @ thrust                 # body FLU, about CG
         R = self.data.xmat[self.body].reshape(3, 3)       # body -> world
@@ -179,6 +203,22 @@ class Simulation:
         self.t += self.dt
         self._thrust = thrust
         return self.state()
+
+    def _update_thrust_axes(self) -> None:
+        """Apply the tilt servos and rebuild the wrench map for this instant.
+
+        Allocation is configuration-dependent: at 90 degrees a rotor produces
+        forward force, not lift.  Keeping a startup matrix would make a VTOL
+        look controllable while commanding force in the wrong direction.
+        """
+        self.thrust_axes = self._neutral_axes.copy()
+        for i, axis, angle in zip(self._tilt_indices, self._tilt_axes, self.tilts.angle):
+            v = self._neutral_axes[i]
+            self.thrust_axes[i] = (v * np.cos(angle) + np.cross(axis, v) * np.sin(angle)
+                                   + axis * (axis @ v) * (1.0 - np.cos(angle)))
+        moments = np.cross(self._arms, self.thrust_axes)
+        moments -= self._spin[:, None] * self._torque_coeff[:, None] * self.thrust_axes
+        self.allocation = np.vstack([self.thrust_axes.T, moments.T])
 
     def _aero_wrench(self, v_body: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Body aero force and moment. A wing set needs the body rate too --

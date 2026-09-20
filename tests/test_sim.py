@@ -11,6 +11,7 @@ mujoco = pytest.importorskip("mujoco")
 
 from camber.control import solve_hover                        # noqa: E402
 from camber.sim import Simulation, frames                     # noqa: E402
+from camber.sim.sim import Command                            # noqa: E402
 from camber.sim.aero import AeroTable, BodyDrag               # noqa: E402
 from camber.sim.course import Course, Gate                    # noqa: E402
 from camber.sim.flight import Cascade, GateRacer, Mixer       # noqa: E402
@@ -117,6 +118,31 @@ class TestMotors:
     def test_command_for_inverts_the_square(self):
         t = np.array([0.25, 4.0])
         assert MotorBank.command_for(t, np.array([1.0, 16.0])) == pytest.approx([0.5, 0.5])
+
+
+class TestTiltRotors:
+    def test_a_tilt_servo_has_lag_and_changes_the_real_wrench(self, racer):
+        """The allocation must follow the physical servo, not a static spec."""
+        from camber.spec.units import Vec3
+        from camber.spec.vehicle import TiltRotor
+
+        old = racer.thrusters[0]
+        racer.thrusters[0] = TiltRotor(
+            name=old.name, mass=old.mass, placement=old.placement,
+            thrust_axis=old.thrust_axis, radius=old.radius, pitch=old.pitch,
+            blades=old.blades, ducted=old.ducted, spin=old.spin,
+            static_thrust_n=old.static_thrust_n,
+            torque_coefficient=old.torque_coefficient,
+            tilt_axis=Vec3(0, 1, 0), tilt_min=0, tilt_max=np.pi / 2,
+            tilt_tau=0.04,
+        )
+        sim = Simulation(racer, aero=BodyDrag([0, 0, 0]), latency=0)
+        before = sim.allocation.copy()
+        for _ in range(120):
+            sim.step(Command(np.ones(4), tilts=np.array([np.pi / 2])))
+        assert sim.tilts.angle[0] == pytest.approx(np.pi / 2, abs=0.01)
+        assert sim.allocation[0, 0] < -0.99
+        assert not np.allclose(sim.allocation, before)
 
 
 class TestMixer:
