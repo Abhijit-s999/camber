@@ -103,7 +103,11 @@ class AeroTable:
         if speed < 1e-6:
             return np.zeros(3), np.zeros(3)
         alpha = math.atan2(-v[2], v[0])              # see class docstring
-        if alpha < self.alpha[0] or alpha > self.alpha[-1]:
+        # Counted only when the air is fast enough for the forces to matter:
+        # climbing straight up at 1 m/s is alpha = -90, outside any multirotor
+        # table, and flagging it buried the warnings that meant something.
+        if (alpha < self.alpha[0] - 1e-9 or alpha > self.alpha[-1] + 1e-9) \
+                and speed > 5.0:
             self.extrapolated += 1
         q = 0.5 * self.rho * speed * speed
         cx = np.interp(alpha, self.alpha, self.cx)

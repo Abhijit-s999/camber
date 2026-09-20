@@ -2051,3 +2051,72 @@ wants a PKGBUILD and package data.
 **Not in the installer:** OpenFOAM (hand-built, see the project notes) and ROS 2
 (its own pixi environment in `ros/`). The app works without either; the
 Aerodynamics step says so if OpenFOAM is missing.
+
+### SIM-03 · The controller earned its integrators on the measured table — `SETTLED`
+
+Flying the framed racer on its own CFD table, instead of on an estimate, broke
+the flight controller three ways. Each failure was real, and none of them
+showed up on estimated drag because the estimate is roughly half the true load
+at cruising tilt.
+
+**Height: the position loop had no integral.** Aerodynamic down-load grows with
+the square of speed, so it is a disturbance that does not go away, and a P-D
+loop can only answer it by moving: it needed about 7 m of altitude error to
+balance 7 N. From 3 m, it flew into the ground at 38 m/s. There is now an
+integral on the velocity loop (clamped, and frozen on the horizontal axes while
+the tilt limit is saturated, or it winds up against a limit it cannot beat).
+Height also gets its own, stiffer gains, as it does on PX4 and Betaflight,
+because it faces the fastest-growing disturbance.
+
+**Attitude: the rate integrator's clamp was a constant.** 0.5, which on this
+vehicle caps the moment it can hold at 0.005 N m. The table's nose-down
+pitching moment at 36 m/s is 0.14 N m, thirty times that, so proportional
+action carried it at the price of a 25-degree attitude error: tilt ran from
+the 65-degree limit to 82, and past there the vertical component of thrust
+cannot hold the vehicle up. The clamp is now 30% of the moment the vehicle can
+actually produce about each axis, computed from its own allocation matrix and
+maximum thrusts. The gain went from 6 to 40 (against a proportional 22) for the
+same reason: at 6 the integrator needed 7 s to wind up against a moment that
+builds in 1.5 s.
+
+**Collective: the projection went negative.** Thrust along body z is the
+desired force projected onto the body's current z axis, which is negative when
+the attitude must swing more than 90 degrees -- as it does from 65 degrees of
+bank one way to 65 the other, coming out of a hairpin. Clamped at zero, the
+vehicle lost thrust *and* attitude authority together, because rotors cannot
+spin backwards and a mixer at zero collective cannot make a moment either. It
+fell 1.2 m through every reversal. The collective now has a floor of 40% of
+the demanded force.
+
+**Tests:** steady force and moment loads applied directly, so the behaviour is
+checked at hover instead of by flying fast and hoping. Including the negative
+one -- with the integrator disabled the vehicle sags, and the test asserts it.
+
+### AERO-02 · What the CFD sweep changed about the racer — `SETTLED`
+
+Six cases, 10 to 65 degrees nose-down, on the grown airframe. Body force along
+z, measured against the estimate the optimiser and simulator had been using:
+
+| tilt | speed | CFD | estimate |
+|---|---|---|---|
+| 65° | 30.6 m/s | 9.00 N | 9.75 N |
+| 43° | 27.8 m/s | 5.95 N | 4.56 N |
+| 32° | 27.3 m/s | 4.66 N | 2.65 N |
+| 21° | 24.1 m/s | 2.39 N | 0.95 N |
+
+The estimate is close at the steep end and wrong by a factor of two and a half
+in the middle, which is where a racer spends its lap. It is a flat-plate
+projection and cannot see the rotor wash over the frame or the shape the
+optimiser grew.
+
+**What it costs in the air:** on the measured table the framed racer's best lap
+is at the 14 m/s setting, 6.64 s. Asking for 18 or 25 is *slower*, 9.3 s,
+because the drag it did not know about makes the hairpins harder. On the
+estimate the same vehicle laps 6.5 s at any setting above 14 and never learns
+this. A vehicle that is faster on the estimate than on its own aerodynamics is
+the entire reason the CFD step exists.
+
+**Also fixed here:** the printed table paired each angle with the speed from a
+different case. Rows sort by angle; the speed column was left in run order, so
+-65 degrees was listed beside the speed measured at -10. The coefficients were
+right -- each used its own dynamic pressure -- but the table was unreadable.

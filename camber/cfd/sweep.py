@@ -97,12 +97,14 @@ def tabulate(vehicle, results: list[dict]) -> dict:
         M = np.asarray(r["moment_ned_origin"]) - np.cross(cg, F)
         Ff, Mf = frames.vec(F), frames.vec(M)
         rows.append((p["alpha_deg"], Ff[0] / (q * area), Ff[2] / (q * area),
-                     Mf[1] / (q * area * length)))
+                     Mf[1] / (q * area * length), p["speed"]))
+    # Everything sorts together. The speeds used to be listed in run order
+    # beside coefficients sorted by angle, so the printed table paired -65
+    # degrees with the speed measured at -10.
     rows.sort()
-    a, cx, cz, cm = (list(x) for x in zip(*rows))
+    a, cx, cz, cm, speeds = (list(x) for x in zip(*rows))
     return {"vehicle": vehicle.name, "alpha_deg": a, "CX": cx, "CZ": cz, "Cm": cm,
-            "area": area, "length": length,
-            "speeds": [r["point"]["speed"] for r in results],
+            "area": area, "length": length, "speeds": speeds,
             "cases": results}
 
 

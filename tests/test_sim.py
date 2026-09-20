@@ -243,3 +243,107 @@ class TestPilots:
         from camber.cli import main
         assert main(["sim", str(ROOT / "examples" / "racer5.toml"),
                      "--pilot", "gates", "--duration", "10"]) == 0
+
+
+class SteadyLoad:
+    """A constant force and moment in body axes: stands in for the aerodynamic
+    load at speed, without needing to reach speed to feel it."""
+
+    def __init__(self, force=(0.0, 0.0, 0.0), moment=(0.0, 0.0, 0.0)) -> None:
+        self.f, self.m = np.asarray(force, float), np.asarray(moment, float)
+
+    def force(self, v_air_body):
+        return self.f, self.m
+
+
+class TestSteadyLoads:
+    """What a controller must do that a P and D loop alone cannot: hold
+    position and attitude against a load that does not go away."""
+
+    def _height_error(self, racer, down, **gains):
+        from camber.sim.flight import Hover
+        sim = Simulation(racer, aero=SteadyLoad(force=(0.0, 0.0, -down)))
+        pilot = Hover(height=2.0, **gains)
+        state = sim.reset()
+        pilot.reset(sim)
+        for _ in range(6000):                             # 12 s
+            state = sim.step(pilot.update(state, sim))
+        return abs(state.position[2] - 2.0)
+
+    def test_it_holds_height_against_a_steady_down_load(self, racer):
+        """Aerodynamic down-load at speed is a steady disturbance. Held off by
+        the velocity integrator; without one the loop can only trade height
+        for force, and the racer flew into the ground from 3 m."""
+        assert self._height_error(racer, 4.0) < 0.05
+
+    def test_without_the_integrator_it_sags(self, racer):
+        held = self._height_error(racer, 4.0)
+        sagged = self._height_error(racer, 4.0, vel_int=0.0)
+        assert sagged > 20 * held and sagged > 1.0
+
+    def test_it_holds_attitude_against_a_steady_moment(self, racer):
+        """0.14 N m is what the measured CFD table puts on the racer flat out."""
+        from camber.sim.flight import Hover
+        sim = Simulation(racer, aero=SteadyLoad(moment=(0.0, 0.14, 0.0)))
+        pilot = Hover(height=2.0)
+        state = sim.reset()
+        pilot.reset(sim)
+        for _ in range(6000):
+            state = sim.step(pilot.update(state, sim))
+        tilt = math.degrees(math.acos(np.clip(state.rotation[2, 2], -1.0, 1.0)))
+        assert tilt < 3.0
+
+    def test_the_rate_integrator_is_sized_from_control_authority(self, racer):
+        """Its clamp used to be the constant 0.5, which on this vehicle caps
+        the moment it can hold at 0.005 N m -- far under the aerodynamic one."""
+        sim = Simulation(racer)
+        pilot = Cascade()
+        pilot.reset(sim)
+        holdable = pilot._int_clamp * pilot.kint * np.diag(pilot.inertia)
+        authority = 0.5 * np.abs(np.asarray(sim.allocation)[3:, :]) @ sim.max_thrust
+        assert np.all(holdable > 0.1)                     # N m, all three axes
+        assert np.all(holdable < authority)               # and within what it has
+
+
+class TestCollective:
+    def test_thrust_survives_a_reversal(self, racer):
+        """Swinging from hard one way to hard the other puts more than 90
+        degrees between the desired force and the body's z axis. Projecting
+        gave zero thrust -- and zero moment with it, since rotors cannot spin
+        backwards -- so the vehicle fell through the turn."""
+        sim = Simulation(racer)
+        pilot = Cascade()
+        state = sim.reset()
+        pilot.reset(sim)
+        pilot.target = np.array([0.0, 0.0, 6.0])
+        lowest = np.inf
+        for i in range(6000):
+            if sim.t > 2.0:                               # flip the demand
+                side = 30.0 if int(sim.t - 2.0) % 2 == 0 else -30.0
+                pilot.target = np.array([side, 0.0, 6.0])
+            state = sim.step(pilot.update(state, sim))
+            if sim.t > 2.0:
+                lowest = min(lowest, float(state.thrust.sum()))
+        assert lowest > 0.2 * sim.weight
+
+
+class TestRacingLine:
+    def test_it_slows_for_the_hairpins(self):
+        """The oval's ends are 3 m radius and its sides are not. A pilot that
+        flew every gate at the set speed lapped in the same 8 s whether set to
+        9 m/s or 14, and crashed at 18."""
+        pilot = GateRacer(Course.oval(), speed=40.0)
+        speeds = [pilot.corner_speed(i) for i in range(len(pilot.course.gates))]
+        assert min(speeds) < 0.6 * max(speeds)
+        assert max(speeds) < 40.0                         # the course, not the setting
+
+    def test_the_gate_line_does_not_dip(self, racer):
+        """Projected along a 3D direction, the line through a gate sinks
+        whenever the vehicle is above it -- and the height loop follows."""
+        course = Course.oval()
+        sim = Simulation(racer, course=course)
+        pilot = GateRacer(course, speed=12.0)
+        state = sim.reset(position=(0.0, 0.0, 6.0))       # well above the gates
+        pilot.reset(sim)
+        pilot.update(state, sim)
+        assert pilot.target[2] == pytest.approx(course.gates[pilot.gate].centre[2])

@@ -30,7 +30,7 @@ def call(port, token, method, path, body=None, host="127.0.0.1"):
     data = r.read()
     try:
         return r.status, json.loads(data)
-    except json.JSONDecodeError:
+    except ValueError:              # binary bodies (an STL) are not JSON
         return r.status, data
 
 
@@ -192,3 +192,18 @@ class TestJobs:
                       {"kind": "optimise", "params": {"population": 60, "generations": 400}})
         s, j = call(port, app.token, "POST", f"/api/p/{pid}/jobs/{job['id']}/cancel", {})
         assert s == 200 and j["status"] == "cancelled"
+
+
+class TestImport:
+    def test_a_framed_vehicle_brings_its_mesh(self, server):
+        """The project is a folder: its airframe must not depend on the file
+        it was imported from staying where it was."""
+        import pathlib
+        port, app = server
+        spec = pathlib.Path(__file__).resolve().parent.parent / "examples" / "racer5_framed.json"
+        p = app.import_spec(spec, "Imported")
+        frame = [b for b in p.vehicle.all_bodies() if b.name == "frame"][0]
+        src = pathlib.Path(frame.shape.source)
+        assert src.exists() and p.root.resolve() in src.resolve().parents
+        s, data = call(port, app.token, "GET", f"/api/p/{p.id}/frame.stl")
+        assert s == 200 and len(data) > 10_000

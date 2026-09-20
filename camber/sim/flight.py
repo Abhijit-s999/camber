@@ -117,10 +117,23 @@ class Cascade(Controller):
     `attitude()`/`rates()` directly from a subclass to fly acro.
     """
 
-    def __init__(self, *, pos_gain=2.2, vel_gain=3.2, att_gain=9.0,
-                 rate_gain=22.0, rate_int=6.0, max_tilt=np.radians(65),
-                 max_rate=np.radians(720)) -> None:
-        self.kp, self.kv = pos_gain, vel_gain
+    def __init__(self, *, pos_gain=2.2, vel_gain=3.2, vel_int=1.6, att_gain=9.0,
+                 rate_gain=22.0, rate_int=40.0, max_tilt=np.radians(65),
+                 max_rate=np.radians(720), vertical=(2.0, 1.6, 4.0)) -> None:
+        # Gains per axis, (x, y, z). Height gets its own, stiffer set -- as it
+        # does on PX4 and Betaflight -- because the disturbance it has to beat
+        # is the one that grows fastest: aerodynamic down-load rising with the
+        # square of speed as the vehicle accelerates. `vertical` multiplies
+        # (position, velocity, integral) gain on z.
+        kz = np.asarray(vertical, dtype=float)
+        self.kp = pos_gain * np.array([1.0, 1.0, kz[0]])
+        self.kv = vel_gain * np.array([1.0, 1.0, kz[1]])
+        self.ki = vel_int * np.array([1.0, 1.0, kz[2]])
+        # rate_int was 6, a quarter of the proportional gain. Measured on the
+        # racer flying flat out on its CFD table: at 6 the integrator needed
+        # seven seconds to wind up enough to hold the aerodynamic pitching
+        # moment, which builds in one and a half. Real flight controllers run
+        # rate I comparable to P.
         self.katt, self.krate, self.kint = att_gain, rate_gain, rate_int
         self.max_tilt, self.max_rate = max_tilt, max_rate
         self.target = np.zeros(3)
@@ -133,12 +146,27 @@ class Cascade(Controller):
         self.mass, self.inertia = sim.mass, sim.inertia
         self.hover = sim.weight
         self._integral = np.zeros(3)
+        self._vint = np.zeros(3)
+        # The rate integrator is what holds off a *steady* moment -- an
+        # aerodynamic pitching moment at speed, a CG off the thrust centre.
+        # Its clamp was a constant 0.5, which on the racer caps the moment it
+        # can hold at 0.005 N m; the CFD table's nose-down moment at 36 m/s is
+        # 0.14 N m, so proportional action alone had to carry it, at the cost
+        # of a 25-degree attitude error -- tilt ran from the 65-degree limit to
+        # 82 and the vehicle flew into the ground. The clamp is now sized from
+        # this vehicle's own control authority: 30% of the moment it can make
+        # about each axis, whatever the airframe.
+        B = np.asarray(sim.allocation)[3:, :]
+        authority = 0.5 * np.abs(B) @ np.asarray(sim.max_thrust)        # N m per axis
+        inertia = np.maximum(np.diag(self.inertia), 1e-9)
+        self._int_clamp = 0.3 * authority / (inertia * max(self.kint, 1e-9))
         self.target = sim.state().position.copy()
 
     # --- the three loops, usable on their own ---------------------------------
     def rates(self, state, rate_sp: np.ndarray, fz: float, dt: float) -> np.ndarray:
         err = np.asarray(rate_sp) - state.rates
-        self._integral = np.clip(self._integral + err * dt, -0.5, 0.5)
+        self._integral = np.clip(self._integral + err * dt,
+                                 -self._int_clamp, self._int_clamp)
         alpha = self.krate * err + self.kint * self._integral
         w = state.rates
         # Gyroscopic term, so the rate loop does not have to discover it.
@@ -153,22 +181,45 @@ class Cascade(Controller):
         return self.rates(state, rate_sp, fz, dt)
 
     def update(self, state, sim) -> np.ndarray:
-        a = (self.kp * (self.target - state.position)
-             + self.kv * (self.velocity - state.velocity) + self.accel)
+        # Integral action on the velocity loop, which is what rejects a steady
+        # disturbance. Without it the loop can only push back in proportion to
+        # how far it has already been pushed: flat out at the tilt limit, the
+        # airframe's aerodynamic down-load (7 N at 38 m/s on the racer) needed
+        # about 7 m of altitude error to balance, and the vehicle flew into the
+        # ground from 3 m. PX4 and every real flight controller integrate here
+        # for the same reason.
+        err = (self.kp / self.kv) * (self.target - state.position) \
+            + (self.velocity - state.velocity)
+        a = self.kv * err + self.ki * self._vint + self.accel
         f = self.mass * (a + np.array([0.0, 0.0, G]))
         # Tilt limit: keep enough of the thrust vector vertical to hold height.
         horiz, vert = np.linalg.norm(f[:2]), max(f[2], 0.2 * self.hover)
-        if horiz > vert * np.tan(self.max_tilt):
+        limited = horiz > vert * np.tan(self.max_tilt)
+        if limited:
             f[:2] *= vert * np.tan(self.max_tilt) / horiz
         f[2] = vert
+        # Anti-windup: height always integrates; the horizontal axes only
+        # while the tilt limit is not already the thing holding them back,
+        # or the integral winds up against a limit and overshoots on release.
+        step = err * sim.dt
+        if limited:
+            step[:2] = 0.0
+        self._vint = np.clip(self._vint + step, -8.0, 8.0)
         z_b = f / np.linalg.norm(f)
         x_c = np.array([np.cos(self.yaw), np.sin(self.yaw), 0.0])
         y_b = np.cross(z_b, x_c)
         y_b /= np.linalg.norm(y_b)
         x_b = np.cross(y_b, z_b)
         q_sp = quat_from_matrix(np.column_stack([x_b, y_b, z_b]))
-        fz = float(f @ state.rotation[:, 2])           # thrust along body z
-        return self.attitude(state, q_sp, max(fz, 0.0), sim.dt)
+        # Collective is the desired force along the body's current z -- but
+        # never less than 40% of it. The plain projection goes to zero when the
+        # attitude has to swing more than 90 degrees, as it does from 65 degrees
+        # of bank one way to 65 the other after a hairpin, and at zero
+        # collective the rotors cannot make a moment either (they cannot spin
+        # backwards): the vehicle lost thrust and attitude authority together
+        # for half a second and fell 1.2 m into the next gate's approach.
+        fz = max(float(f @ state.rotation[:, 2]), 0.4 * float(np.linalg.norm(f)))
+        return self.attitude(state, q_sp, fz, sim.dt)
 
 
 class Hover(Cascade):
@@ -191,9 +242,30 @@ class GateRacer(Cascade):
     clipping the frame on the way to the next one.
     """
 
-    def __init__(self, course, speed: float = 8.0, **gains) -> None:
+    def __init__(self, course, speed: float = 8.0, grip: float = 0.7, **gains) -> None:
         super().__init__(**gains)
         self.course, self.speed = course, speed
+        # Sideways acceleration it will commit to in a corner, as a fraction
+        # of what the tilt limit allows. A multirotor turns by tilting, so the
+        # most it can pull is g tan(max_tilt); planning to use all of it leaves
+        # nothing for the height loop, which is what put it into the floor.
+        self.a_lat = grip * G * np.tan(self.max_tilt)
+
+    def corner_speed(self, i: int) -> float:
+        """Fastest it can pass gate i: sqrt(a R), R the radius of the circle
+        through the gates either side. Without this the pilot flew every gate
+        at the set speed, and the oval's hairpins -- 3 m radius -- set the lap
+        at 8 s whether the set speed was 9 m/s or 14, and crashed it at 18."""
+        gs = self.course.gates
+        n = len(gs)
+        a, b, c = gs[(i - 1) % n].centre, gs[i].centre, gs[(i + 1) % n].centre
+        ab, bc, ca = (np.linalg.norm(b - a), np.linalg.norm(c - b),
+                      np.linalg.norm(a - c))
+        area = 0.5 * np.linalg.norm(np.cross(b - a, c - a))
+        if area < 1e-9:
+            return self.speed
+        radius = ab * bc * ca / (4.0 * area)
+        return float(min(self.speed, np.sqrt(self.a_lat * radius)))
 
     def reset(self, sim) -> None:
         super().reset(sim)
@@ -218,7 +290,17 @@ class GateRacer(Cascade):
         w = np.clip(1.0 - dist / 4.0, 0.0, 1.0)
         direction = (1 - w) * heading + w * g.normal
         direction /= np.linalg.norm(direction)
-        self.velocity = self.speed * direction
+        # Brake in time: the fastest speed from which the corner speed can
+        # still be reached over the distance left, at the same grip.
+        # Braking is planned at half the cornering grip and with the velocity
+        # loop's lag taken off the distance: the loop needs about 1/kv seconds
+        # to act on a new setpoint, and planning as if it were instant had the
+        # vehicle arrive at hairpins at 25 m/s and miss them.
+        v_gate = self.corner_speed(self.gate)
+        now = float(np.linalg.norm(state.velocity))
+        room = max(0.0, dist - now / float(self.kv[0]))
+        v = min(self.speed, float(np.sqrt(v_gate ** 2 + self.a_lat * room)))
+        self.velocity = v * direction
         # Correct only the cross-track error. Aiming the position loop at a
         # point past the gate turned the whole remaining distance into a
         # demand for more speed: it flew 13.2 m/s against a 9 m/s setpoint and
@@ -227,6 +309,10 @@ class GateRacer(Cascade):
         # vehicle *on* the line.
         along = float(np.dot(state.position - g.centre, direction))
         self.target = g.centre + along * direction
+        # The line through a gate is at the gate's height. Projected along a
+        # 3D direction it dips whenever the vehicle is above the gate, and
+        # with a stiff height loop the vehicle followed it into the floor.
+        self.target[2] = g.centre[2]
         self.accel = np.zeros(3)
         self.yaw = float(np.arctan2(direction[1], direction[0]))
         return super().update(state, sim)

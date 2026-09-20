@@ -105,3 +105,15 @@ class TestFarField:
     def test_hover_keeps_the_open_boundaries(self, tmp_path, racer):
         case = self._case(tmp_path, racer, (0.0, 0.0, 0.0))
         assert "totalPressure" in (case / "0" / "p").read_text()
+
+
+class TestTableOrder:
+    def test_speeds_stay_with_their_angles(self, racer):
+        """Rows sort by angle; the speed column must sort with them."""
+        from camber.cfd.sweep import tabulate
+        res = [{"point": {"alpha_deg": a, "speed": v},
+                "force_ned": [0.0, 0.0, 1.0], "moment_ned_origin": [0, 0, 0]}
+               for a, v in [(-10.0, 16.8), (-65.0, 30.6), (-40.0, 25.0)]]
+        t = tabulate(racer, res)
+        assert list(zip(t["alpha_deg"], t["speeds"])) == [(-65.0, 30.6), (-40.0, 25.0),
+                                                           (-10.0, 16.8)]

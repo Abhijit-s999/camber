@@ -63,10 +63,27 @@ class App:
         return p
 
     def import_spec(self, path: Path, name: str | None = None) -> Project:
+        """A new project from a vehicle file, carrying its meshes with it.
+
+        A generated frame's mesh is copied into the project and repointed, so
+        the project is a self-contained folder: moving or deleting the file it
+        was imported from must not leave the airframe drawn as a box.
+        """
+        import dataclasses
+
         from ..spec import io
+        from ..spec.shapes import Tabulated
         v = io.load(path)
         p = self.create(name or v.name, "racer5")
         v.name = p.vehicle.name
+        meshes = p.root / "results" / "imported"
+        for b in v.all_bodies():
+            if isinstance(b.shape, Tabulated) and b.shape.source \
+                    and Path(b.shape.source).exists():
+                meshes.mkdir(parents=True, exist_ok=True)
+                dst = meshes / f"{b.name}{Path(b.shape.source).suffix}"
+                shutil.copy(b.shape.source, dst)
+                b.shape = dataclasses.replace(b.shape, source=str(dst))
         p.vehicle = v
         p.commit(f"imported {Path(path).name}")
         return p
