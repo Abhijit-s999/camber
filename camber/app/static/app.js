@@ -1,4 +1,5 @@
 import { Viewport } from "./viewport.js";
+import { Live } from "./flying.js";
 
 // ---- plumbing ----------------------------------------------------------------
 const params = new URLSearchParams(location.search);
@@ -38,9 +39,11 @@ const guard = (fn) => async (...a) => { try { return await fn(...a); } catch (e)
 // ---- state -------------------------------------------------------------------
 const S = { pid: null, v: null, step: "design", jobs: [], sel: null, measure: null,
             dragging: false, pilots: [], pilot: "gates", flyAero: false, envelope: null,
+            live: null, flyMode: "assist",
             gen: { mode: "price", price: 1.0, mass: 40, min_feature: 3, quality: "standard" },
             opt: { population: 40, generations: 30 } };
 const P = () => `/api/p/${S.pid}`;
+let live = null;
 
 // ---- home --------------------------------------------------------------------
 const TEMPLATES = {
@@ -90,6 +93,10 @@ async function open(pid) {
   $("#home").hidden = true;
   $("#work").hidden = false;
   if (!vp) {
+    live = new Live(null, (m, path, body) => api(m, P() + path, body), $("#hud"),
+                    { exit: () => land(), lost: (e) => { land(); toast(e.message, true); } });
+    // Handles for the console, and for automated checks of the 3D view.
+    window.__camber = { S, vp: () => vp, live: () => live };
     vp = new Viewport($("#view"), $("#labels"), {
       select: (n) => { S.sel = n; if (S.step === "design") panel(); },
       moved: guard(async (name, pos) => { await setV(await api("POST", `${P()}/move`, { name, pos, link: vp.link })); }),
@@ -324,15 +331,46 @@ function aero() {
 
 function fly() {
   const rec = latest("record");
-  let html = `<section class="sec"><h3>Pilot</h3><div class="cards">${S.pilots.map((p) => `
-    <button class="card ${p.id === S.pilot ? "on" : ""}" data-pilot="${esc(p.id)}"><b>${esc(p.name)}</b><small>${esc(p.about)}</small></button>`).join("")}</div>
-    <div class="actions"><button data-act="new-pilot">Write a new pilot…</button><button class="ghost" data-open="pilots">Open pilots folder</button></div>
-    <p class="hint">A pilot is a short Python file. Writing one opens it in your editor; save it and pick it here.</p></section>
-    <section class="sec"><h3>Flight</h3>
-    ${S.pilot === "gates" ? `<label class="lab"><span>Target speed m/s</span><input type="number" id="f-speed" value="${S.speed ?? 14}" min="1" max="40"></label>` : ""}
-    <div class="seg"><button data-aero="0" class="${!S.flyAero ? "on" : ""}">Estimated drag</button><button data-aero="1" class="${S.flyAero ? "on" : ""}" ${S.v.aero_table ? "" : "disabled"}>CFD aerodynamics</button></div>
-    <div class="actions"><button class="primary" data-act="fly-live">Fly it live</button><button data-act="record">Record a video</button></div>
-    <p class="hint">Live opens the physics engine in its own window: drag to orbit, double-click the drone then Ctrl+right-drag to shove it.</p></section>`;
+  const flying = !!S.live;
+  const pilots = [{ id: "manual", name: "You", about: "Fly it yourself, keyboard or gamepad" },
+                  ...S.pilots];
+  let html = `<section class="sec"><h3>Who flies</h3><div class="cards">${pilots.map((p) => `
+    <button class="card ${p.id === S.pilot ? "on" : ""}" data-pilot="${esc(p.id)}" ${flying ? "disabled" : ""}><b>${esc(p.name)}</b><small>${esc(p.about)}</small></button>`).join("")}</div>
+    ${S.pilot === "manual" ? "" : `<div class="actions"><button data-act="new-pilot" ${flying ? "disabled" : ""}>Write a new pilot…</button><button class="ghost" data-open="pilots">Open pilots folder</button></div>`}</section>`;
+
+  if (S.pilot === "manual") {
+    html += `<section class="sec"><h3>Mode</h3>
+      <div class="seg wide" id="fly-mode">${[["assist", "Assist"], ["angle", "Angle"], ["acro", "Acro"]].map(([m, label]) =>
+        `<button data-mode="${m}" class="${S.flyMode === m ? "on" : ""}">${label}</button>`).join("")}</div>
+      <p class="hint">${{
+        assist: "Sticks ask for a speed; let go and it stops and holds its height. Start here.",
+        angle: "Sticks ask for a bank angle, throttle is yours. Let go and it levels.",
+        acro: "Sticks ask for rotation rates. Nothing levels it — this is how racers fly, and the only mode that can fly inverted.",
+      }[S.flyMode]}</p>
+      <table class="keys"><tbody>
+        <tr><td><kbd>W</kbd><kbd>S</kbd></td><td>pitch — forward, back</td></tr>
+        <tr><td><kbd>A</kbd><kbd>D</kbd></td><td>roll — left, right</td></tr>
+        <tr><td><kbd>Q</kbd><kbd>E</kbd></td><td>yaw — turn left, right</td></tr>
+        <tr><td><kbd>Space</kbd><kbd>Z</kbd></td><td>throttle up, down</td></tr>
+        <tr><td><kbd>R</kbd></td><td>reset where you started</td></tr>
+        <tr><td><kbd>G</kbd></td><td>arm / disarm the motors</td></tr>
+        <tr><td><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></td><td>chase, FPV, orbit view</td></tr>
+      </tbody></table>
+      <p class="hint">A gamepad works too — plug it in and move a stick. Mode 2: left is throttle and yaw, right is pitch and roll.</p></section>`;
+  } else if (S.pilot === "gates") {
+    html += `<section class="sec"><h3>Flight</h3><label class="lab"><span>Target speed m/s</span>
+      <input type="number" id="f-speed" value="${S.speed ?? 14}" min="1" max="40" ${flying ? "disabled" : ""}></label></section>`;
+  }
+
+  html += `<section class="sec"><h3>Air</h3>
+    <div class="seg"><button data-aero="0" class="${!S.flyAero ? "on" : ""}" ${flying ? "disabled" : ""}>Estimated drag</button><button data-aero="1" class="${S.flyAero ? "on" : ""}" ${S.v.aero_table && !flying ? "" : "disabled"}>CFD aerodynamics</button></div>
+    ${S.v.aero_table ? "" : `<p class="hint">Run step 4 to measure this airframe's real aerodynamics.</p>`}
+    <div class="actions">${flying
+      ? `<button class="primary" data-act="land">Land and stop</button><button data-act="reset-live">Reset</button>`
+      : `<button class="primary" data-act="fly-here">Fly it here</button><button data-act="record">Record a video</button>`}</div>
+    ${flying ? `<p class="hint">Click the view first, then fly. <kbd>Esc</kbd> stops.</p>`
+             : `<p class="hint">It flies right here, in real time. <button class="linky" data-act="fly-live">Open the physics engine window</button> instead for MuJoCo's own view.</p>`}</section>`;
+
   if (rec?.status === "done") html += `<section class="sec"><h3>Last recording</h3>
     <video controls src="${P()}/file?path=${encodeURIComponent(rec.outputs.video)}&t=${encodeURIComponent(TOKEN)}"></video></section>`;
   else if (rec?.status === "failed") html += failed(rec);
@@ -340,6 +378,26 @@ function fly() {
     <p class="hint" style="margin-top:8px">The same simulator, as a ROS 2 node. Publishes <code>/camber/odom</code>, <code>/camber/imu</code>; accepts motors, a wrench, a pose or a trajectory setpoint.</p>
     <pre class="log">~/.pixi/bin/pixi run -m ros/pixi.toml fly</pre><p class="hint">See docs/FLYING.md for the topics.</p></details></section>`;
   return html;
+}
+
+async function takeOff() {
+  live.vp = vp;
+  await live.start({ pilot: S.pilot, mode: S.flyMode, aero: S.flyAero,
+                     speed: S.speed ?? 14, course: true });
+  S.live = true;
+  $("#vtools").hidden = true;
+  $(".axes").hidden = true;                 // a layout legend, not a flight one
+  $("#view").focus();
+  panel();
+}
+
+async function land() {
+  if (!S.live) return;
+  S.live = null;
+  await live.stop();
+  $("#vtools").hidden = false;
+  $(".axes").hidden = false;
+  panel();
 }
 
 function failed(j) {
@@ -357,18 +415,28 @@ function bindPanel(el) {
     if (t.dataset.gmode) { S.gen.mode = t.dataset.gmode; return panel(); }
     if (t.dataset.pilot) { S.pilot = t.dataset.pilot; return panel(); }
     if (t.dataset.aero) { S.flyAero = t.dataset.aero === "1"; return panel(); }
+    if (t.dataset.mode) {
+      S.flyMode = t.dataset.mode;
+      if (S.live) await live.setMode(S.flyMode);
+      return panel();
+    }
     if (t.dataset.file) return download(`${P()}/file?path=${encodeURIComponent(t.dataset.file)}&download=1&t=${encodeURIComponent(TOKEN)}`);
     if (t.dataset.open) return api("POST", `${P()}/open`, { path: t.dataset.open }).catch((x) => toast(x.message, true));
     const act = t.dataset.act;
     if (!act) return;
     const run = async (kind, params) => { await api("POST", `${P()}/jobs`, { kind, params }); await pollJobs(); panel(); };
     const actions = {
-      "sym-lr": edit("symmetrise", { link: "lr" }, "Made left–right symmetric"),
-      "sym-4": edit("symmetrise", { link: "4way" }, "Made 4-way symmetric"),
-      layout: edit("layout", { kind: $("#lay-kind").value, wheelbase_mm: +$("#lay-wb").value, height_mm: +$("#lay-h").value }, "Rotors placed"),
-      add: edit("add", { kind: $("#add-kind")?.value, name: $("#add-name")?.value, mass_g: +$("#add-m")?.value,
-                          size_mm: [+$("#add-l")?.value, +$("#add-w")?.value, +$("#add-hh")?.value], pos: [0, 0, 20] }),
-      remove: edit("remove", { name: S.sel }),
+      "sym-lr": () => edit("symmetrise", { link: "lr" }, "Made left–right symmetric")(),
+      "sym-4": () => edit("symmetrise", { link: "4way" }, "Made 4-way symmetric")(),
+      // Lazy, all of them: this object is rebuilt on every click in every
+      // panel, so an action that reads a field must not read it until it is
+      // the action being run. Eagerly, `$("#lay-kind").value` threw on every
+      // click outside the design panel and swallowed the click with it.
+      layout: () => edit("layout", { kind: $("#lay-kind").value, wheelbase_mm: +$("#lay-wb").value,
+                                     height_mm: +$("#lay-h").value }, "Rotors placed")(),
+      add: () => edit("add", { kind: $("#add-kind")?.value, name: $("#add-name")?.value, mass_g: +$("#add-m")?.value,
+                               size_mm: [+$("#add-l")?.value, +$("#add-w")?.value, +$("#add-hh")?.value], pos: [0, 0, 20] })(),
+      remove: () => edit("remove", { name: S.sel })(),
       "run-opt": guard(() => run("optimise", { population: +$("#o-pop").value, generations: +$("#o-gen").value })),
       "run-gen": guard(() => {
         const q = { draft: [0.004, 40, 0.016], standard: [0.003, 80, 0.012], fine: [0.0015, 110, 0.012] }[S.gen.quality];
@@ -376,7 +444,10 @@ function bindPanel(el) {
                                  element: q[0], iterations: q[1], thickness: q[2] });
       }),
       "run-aero": guard(() => run("aero", { n: 6 })),
-      apply: edit("apply", { job: t.dataset.job }, "Applied — undo to go back"),
+      apply: () => edit("apply", { job: t.dataset.job }, "Applied — undo to go back")(),
+      "fly-here": guard(takeOff),
+      land: guard(land),
+      "reset-live": guard(() => live.send({ do: "reset" })),
       "fly-live": guard(async () => {
         await api("POST", `${P()}/fly`, { pilot: S.pilot, speed: S.speed ?? 14, aero: S.flyAero });
         toast("Opening the physics engine…");
@@ -565,12 +636,13 @@ function drawJobs() {
 }
 
 // ---- chrome -----------------------------------------------------------------------
-$("#to-home").onclick = () => home();
+$("#to-home").onclick = () => { land(); home(); };
 $("#undo").onclick = edit("undo", {});
 $("#redo").onclick = edit("redo", {});
 $("#steps").onclick = (e) => {
   const b = e.target.closest("[data-step]");
   if (!b) return;
+  if (S.live && b.dataset.step !== "fly") land();
   S.step = b.dataset.step;
   rail();
   panel();
@@ -608,6 +680,7 @@ $("#export-menu").onclick = (e) => {
 document.addEventListener("click", (e) => { if (!e.target.closest(".menu")) $("#export-menu").hidden = true; });
 document.addEventListener("keydown", (e) => {
   if (!S.pid || e.target.matches("input, select, textarea")) return;
+  if (S.live) return;               // the sticks have the keyboard
   const k = e.key.toLowerCase();
   if ((e.ctrlKey || e.metaKey) && k === "z") { e.preventDefault(); (e.shiftKey ? edit("redo", {}) : edit("undo", {}))(); }
   else if ((e.ctrlKey || e.metaKey) && k === "y") { e.preventDefault(); edit("redo", {})(); }

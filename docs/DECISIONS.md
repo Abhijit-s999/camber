@@ -2120,3 +2120,43 @@ the entire reason the CFD step exists.
 different case. Rows sort by angle; the speed column was left in run order, so
 -65 degrees was listed beside the speed measured at -10. The coefficients were
 right -- each used its own dynamic pressure -- but the table was unreadable.
+
+
+### SIM-04 · Flying it by hand, and watching it live — `SETTLED`
+
+**Value:** the simulation runs in the app, in a thread paced to the wall
+clock, and the browser sends sticks and receives telemetry in one round trip
+per animation frame. No second channel, so what you see and what you are
+steering cannot drift apart.
+
+**Why not a stream plus a separate input channel:** two channels need keeping
+in step, and the stdlib server this app is built on does not do WebSockets.
+One POST carrying sticks in and state out is simpler and, measured, faster
+than it needs to be: 0.19 ms median round trip, against the 16 ms a 60 Hz
+frame allows.
+
+**Two bugs this turned up, both from turning on keep-alive** (at 60 requests a
+second, HTTP/1.0's connection-per-request leaves tens of thousands of sockets
+in TIME_WAIT):
+
+- *Nagle's algorithm.* Small request, small response, one after another, is
+  the exact pattern where it waits for the other end's delayed ACK: 41 ms a
+  round trip, which would have capped the view at 24 Hz and looked like slow
+  physics. `TCP_NODELAY`, and it went to 0.19 ms.
+- *An unread body poisons the connection.* A request refused before its body
+  is read -- an unauthorised POST -- leaves the body in the socket, and the
+  next request on that connection parses `{"do": "start"}` as its request
+  line. Bodies are now read before anything can refuse them.
+
+**Modes:** assist, angle, acro, and a throttle curve with hover at mid-stick
+on any vehicle. In assist, the hold point rides with the vehicle until it has
+actually stopped -- latching it where the stick was released made it brake
+from 12 m/s, overshoot by 11 m and then fly *backwards* to the release point.
+
+**In the 3D view**, three cameras: chase, FPV at the nose (at the centre of
+mass you are inside the battery), and orbit. Two things the layout editor left
+behind had to be turned off for flight: the camera's field-of-view cone, which
+is a layout aid, and `OrbitControls.update()`, which re-aims the camera at its
+own target *even when disabled* and silently undid the chase camera every
+frame -- the vehicle sat 2.8 m away, just outside the frame, while the camera
+looked wherever the editor had last been pointed.

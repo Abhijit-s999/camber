@@ -4,6 +4,47 @@ Three ways to fly what Camber designed, from least to most setup. All three
 run the same simulator: MuJoCo, with the vehicle's mass, inertia and rotor
 allocation taken straight from its spec (DECISIONS SIM-01).
 
+## 0. Fly it yourself, in the app
+
+Step 5 of the app, "Fly", with **You** as the pilot. It flies in the window,
+in real time, and you have the sticks.
+
+| | |
+|---|---|
+| `W` `S` | pitch — forward, back |
+| `A` `D` | roll — left, right |
+| `Q` `E` | yaw — turn left, right |
+| `Space` `Z` | throttle up, down |
+| `R` | reset to where you started |
+| `G` | arm / disarm |
+| `1` `2` `3` | chase, FPV, orbit camera |
+| `Esc` | stop flying |
+
+A gamepad works as well, and better: plug it in, move a stick, and the HUD
+says `gamepad`. Mode 2, as sold — left stick throttle and yaw, right stick
+pitch and roll.
+
+**Three modes**, the ones a real radio has:
+
+- **Assist** — the sticks ask for a *speed*, and centring them stops the
+  vehicle and holds it there. Tilt is limited to 35 degrees. Start here.
+- **Angle** — the sticks ask for a bank angle, up to 35 degrees, and the
+  throttle is yours. Let go and it levels itself.
+- **Acro** — the sticks ask for *rates*. Nothing levels it, and it is the only
+  mode that can fly inverted. What FPV racers use.
+
+Throttle is 0 to 1 with **hover at mid-stick** in every mode, on every
+vehicle. Without that curve, hover on an 11:1 racer sits at 8.5% of the stick.
+
+The same view watches any pilot fly: pick "Gate race", or one of your own
+Python pilots, and press *Fly it here* to watch it in real time, with lap
+times, instead of waiting for a recording.
+
+The physics is the same simulator used everywhere else in Camber -- same
+integrator, same motors, same aerodynamics -- only paced to the wall clock.
+The HUD says `real time` and how much computing headroom is spare; if the
+machine cannot keep up it says that instead, rather than quietly running slow.
+
 ## 1. From the command line
 
 ```console

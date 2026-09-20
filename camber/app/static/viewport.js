@@ -15,7 +15,10 @@ const C = {
   ground: 0x0b0c0d, fill: 0x5c646b, fillBattery: 0x7a8288, edge: 0xa9b1b7,
   accent: 0xff5a1f, warn: 0xe9b43c, bad: 0xff5252, frame: 0x2b2f33,
   gridMinor: 0x16191b, gridMajor: 0x23272b, centre: 0x4a5157, disc: 0xffffff,
+  gate: 0x7c848a,
 };
+
+const M = 1000;            // scene units per metre
 
 export const toThree = ([f, r, u]) => new THREE.Vector3(r, u, -f);
 export const fromThree = (v) => [-v.z, v.x, v.y];
@@ -76,7 +79,11 @@ export class Viewport {
     this._resize();
     const loop = () => {
       requestAnimationFrame(loop);
-      this.controls.update();
+      // OrbitControls.update() re-aims the camera at its own target even when
+      // it is disabled, which silently undid the chase and FPV cameras every
+      // frame: the vehicle sat 2.8 m away, just outside the frame, while the
+      // camera looked at wherever the layout editor had last been pointed.
+      if (!this.flying || this.camMode === "orbit") this.controls.update();
       this.renderer.render(this.scene, this.camera);
       this._placeLabels();
     };
@@ -158,8 +165,10 @@ export class Viewport {
       new THREE.Vector3(x, y, -L).applyQuaternion(q));
     const seg = [];
     for (let i = 0; i < 4; i++) seg.push(new THREE.Vector3(), pts[i], pts[i], pts[(i + 1) % 4]);
-    g.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(seg),
-      new THREE.LineBasicMaterial({ color: 0x6f777d, transparent: true, opacity: 0.8 })));
+    const cone = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(seg),
+      new THREE.LineBasicMaterial({ color: 0x6f777d, transparent: true, opacity: 0.8 }));
+    cone.userData.designOnly = true;          // a layout aid, not part of the vehicle
+    g.add(cone);
   }
 
   _rotor(p) {
@@ -420,6 +429,200 @@ export class Viewport {
   setTool(t) { this.tool = t; this.measure = []; this._drawMeasure(); this.select(this.selected, false); }
   setLink(l) { this.link = l; if (this.v) { this._decorate(); this._helpers(); this._drawMeasure(); } }
   setSnap(s) { this.snap = s; this.gizmo.setTranslationSnap(s > 0 ? s : null); }
+
+  // ---- flight -------------------------------------------------------------
+  // The simulator speaks FLU metres (x forward, y left, z up); this view is
+  // millimetres in three's (right, up, back). One rotation and one scale, and
+  // the vehicle built for the layout editor flies without being rebuilt.
+  //
+  // C: sim -> three is (x, y, z) -> (-y, z, -x). A proper rotation (det +1),
+  // so attitudes convert by conjugation and nothing turns inside out.
+  static SIM = new THREE.Matrix4().set(0, -1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0, 0, 0, 0, 1);
+
+  static toScene([x, y, z]) { return new THREE.Vector3(-y * M, z * M, -x * M); }
+
+  static toSceneQuat([w, x, y, z]) {
+    const c = new THREE.Quaternion().setFromRotationMatrix(Viewport.SIM);
+    return c.clone().multiply(new THREE.Quaternion(x, y, z, w))
+      .multiply(c.clone().invert());
+  }
+
+  enterFlight(scene) {
+    this.flying = true;
+    this.gizmo.detach();
+    this.gizmo.visible = false;
+    this.helpers.visible = false;
+    this.labels = [];
+    this.labelsEl.innerHTML = "";
+    this.craft = new THREE.Group();
+    this.craft.add(this.world);                 // the design, now airborne
+    this.world.traverse((o) => { if (o.userData.designOnly) o.visible = false; });
+    this.world.position.set(0, 0, 0);
+    this.world.quaternion.identity();
+    this.air = new THREE.Group();
+    this.air.add(this.craft);
+    this._buildAir(scene);
+    this.scene.add(this.air);
+    // Where an FPV camera actually sits: at the nose, just clear of the
+    // airframe. At the centre of mass you look at the inside of the battery.
+    const box = new THREE.Box3().setFromObject(this.world);
+    this._nose = new THREE.Vector3(0, box.max.y * 0.35, box.min.z - 30);
+    this.camera = this.persp;
+    this.controls.object = this.persp;
+    this.persp.near = 20;
+    this.persp.far = 600000;
+    this.persp.updateProjectionMatrix();
+    this.setFlightCamera("chase");
+  }
+
+  exitFlight() {
+    if (!this.flying) return;
+    this.flying = false;
+    this.scene.add(this.world);
+    this.world.position.set(0, 0, 0);
+    this.world.quaternion.identity();
+    this.world.traverse((o) => { if (o.userData.designOnly) o.visible = true; });
+    this.air?.removeFromParent();
+    this.air = this.craft = null;
+    this.gizmo.visible = true;
+    this.helpers.visible = true;
+    this.controls.enabled = true;
+    this.persp.near = 1;
+    this.persp.far = 20000;
+    this.persp.fov = 38;
+    this.persp.updateProjectionMatrix();
+    this.setView(this.view);
+  }
+
+  setFlightCamera(mode) {
+    this.camMode = mode;
+    this.controls.enabled = mode === "orbit";
+    this.persp.fov = mode === "fpv" ? 95 : 38;
+    this.persp.updateProjectionMatrix();
+    this._chase = null;                          // re-place, do not glide there
+  }
+
+  _buildAir(scene) {
+    const g = new THREE.Group();
+    const half = 40 * M, minor = 1 * M, major = 5 * M;
+    const grid = (step, color) => {
+      const pts = [];
+      for (let x = -half; x <= half + 1e-6; x += step) {
+        pts.push(x, 0, -half, x, 0, half, -half, 0, x, half, 0, x);
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+      return new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color }));
+    };
+    g.add(grid(minor, C.gridMinor), grid(major, C.gridMajor), this._sky());
+    this.gates = [];
+    for (const gate of scene.gates || []) {
+      const frame = this._gate(gate);
+      g.add(frame);
+      this.gates.push(frame);
+    }
+    this.air.add(g);
+  }
+
+  // A horizon. Without one there is no up: in the FPV view the sky and the
+  // unlit ground are the same black, and a vehicle rolling has nothing to roll
+  // against. Two greys either side of y = 0, inside a dome.
+  _sky() {
+    const mat = new THREE.ShaderMaterial({
+      side: THREE.BackSide, depthWrite: false,
+      uniforms: { sky: { value: new THREE.Color(0x141719) },
+                  ground: { value: new THREE.Color(0x090a0b) },
+                  line: { value: new THREE.Color(0x2c3236) } },
+      vertexShader: `varying float h;
+        void main() {
+          vec4 w = modelMatrix * vec4(position, 1.0);
+          h = normalize(w.xyz).y;
+          gl_Position = projectionMatrix * viewMatrix * w;
+        }`,
+      fragmentShader: `uniform vec3 sky; uniform vec3 ground; uniform vec3 line;
+        varying float h;
+        void main() {
+          vec3 c = mix(ground, sky, smoothstep(-0.08, 0.35, h));
+          c = mix(c, line, smoothstep(0.02, 0.0, abs(h)) * 0.5);   // the horizon itself
+          gl_FragColor = vec4(c, 1.0);
+        }`,
+    });
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(300 * M, 32, 16), mat);
+    dome.renderOrder = -1;
+    return dome;
+  }
+
+  // A gate, built the way the simulator builds it: four bars round a 1.5 m
+  // opening, standing on a post.
+  _gate(gate) {
+    const grp = new THREE.Group();
+    const s = gate.size * M, t = 0.05 * M, h = s / 2 + t;
+    const mat = new THREE.MeshStandardMaterial({ color: C.gate, roughness: 0.6 });
+    const bar = (x, y, sx, sy) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, t), mat);
+      m.position.set(x, y, 0);
+      return m;
+    };
+    // The frame turns to face along the gate's normal; the post does not --
+    // it holds the gate up, and gravity is not part of the racing line. Making
+    // the post a child of the turned frame laid every gate's post on its side.
+    const frame = new THREE.Group();
+    frame.add(bar(-h, 0, t, s + 2 * t), bar(h, 0, t, s + 2 * t),
+              bar(0, h, s, t), bar(0, -h, s, t));
+    const centre = Viewport.toScene(gate.centre);
+    const n = Viewport.toScene(gate.normal).normalize();
+    frame.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n);
+    const stand = Math.max(centre.y - h, 1);
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.06 * M, stand, 0.06 * M),
+      new THREE.MeshStandardMaterial({ color: 0x4d5257, roughness: 0.9 }));
+    post.position.y = -(h + stand / 2);
+    grp.add(frame, post);
+    grp.position.copy(centre);
+    grp.userData.bars = mat;
+    return grp;
+  }
+
+  telemetry(s) {
+    if (!this.flying || !this.craft) return;
+    this.craft.position.copy(Viewport.toScene(s.pos));
+    this.craft.quaternion.copy(Viewport.toSceneQuat(s.quat));
+    const next = s.gates_total ? s.gates_passed % s.gates_total : -1;
+    this.gates?.forEach((g, i) => {
+      g.userData.bars.color.setHex(i === next ? C.accent : C.gate);
+    });
+    this._camera(s);
+  }
+
+  _camera(s) {
+    const p = this.craft.position, q = this.craft.quaternion;
+    if (this.camMode === "orbit") {
+      this.controls.target.copy(p);
+      return;
+    }
+    if (this.camMode === "fpv") {
+      // Where the pilot's camera sits: at the vehicle, tilted up 25 degrees,
+      // which is what a racer flies with -- level in cruise, nose down.
+      this.persp.position.copy(p).add(this._nose.clone().applyQuaternion(q));
+      this.persp.quaternion.copy(q).multiply(
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0),
+          THREE.MathUtils.degToRad(25)));
+      return;
+    }
+    // Chase: behind and above, following the heading but not the roll, so the
+    // horizon stays level and you can see what the vehicle is doing.
+    const yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z),
+                           1 - 2 * (q.y * q.y + q.x * q.x));
+    const back = new THREE.Vector3(Math.sin(yaw) * 2.6 * M, 0.85 * M,
+                                   Math.cos(yaw) * 2.6 * M);
+    const want = p.clone().add(back);
+    this._chase = this._chase ? this._chase.lerp(want, 0.10) : want;
+    this.persp.position.copy(this._chase);
+    // Aim ahead of the vehicle, not at it: aiming at the vehicle tips the view
+    // down at the ground and puts everything it is flying towards -- the next
+    // gate -- just above the top of the frame.
+    this.persp.lookAt(p.clone().add(new THREE.Vector3(
+      -Math.sin(yaw) * 3.5 * M, 0.25 * M, -Math.cos(yaw) * 3.5 * M)));
+  }
 
   setView(view) {
     this.view = view;

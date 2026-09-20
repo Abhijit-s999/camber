@@ -40,6 +40,7 @@ class App:
         self.home.mkdir(parents=True, exist_ok=True)
         self.token = secrets.token_urlsafe(24)
         self._open: dict[str, Project] = {}
+        self._flights: dict[str, object] = {}
         self._lock = threading.RLock()
 
     def project(self, pid: str) -> Project:
@@ -53,6 +54,38 @@ class App:
 
     def jobs(self, pid: str) -> JobManager:
         return JobManager(self.project(pid))
+
+    def flight(self, pid: str, start: dict | None = None):
+        """The live flight for a project, started on demand. Starting a new
+        one ends the old one: two simulations of the same vehicle running at
+        once would both be real, and only one of them would be watched."""
+        from .live import Flight, aero_for
+        with self._lock:
+            if start is not None:
+                old = self._flights.pop(pid, None)
+                if old is not None:
+                    old.stop()
+                proj = self.project(pid)
+                f = Flight(proj.vehicle,
+                           pilot=str(start.get("pilot", "manual")),
+                           mode=str(start.get("mode", "assist")),
+                           course=bool(start.get("course", True)),
+                           speed=float(start.get("speed", 14.0)),
+                           aero=aero_for(proj, bool(start.get("aero"))),
+                           pilot_factory=_project_pilot(proj))
+                self._flights[pid] = f.start()
+            if pid not in self._flights:
+                raise KeyError("no flight is running")
+            return self._flights[pid]
+
+    def land(self, pid: str | None = None) -> None:
+        """Stop one flight, or all of them when the app closes."""
+        with self._lock:
+            ids = [pid] if pid else list(self._flights)
+            for i in ids:
+                f = self._flights.pop(i, None)
+                if f is not None:
+                    f.stop()
 
     def create(self, name: str, template: str) -> Project:
         p = Project.create(name, template, home=self.home)
@@ -123,6 +156,26 @@ class Pilot(Cascade):
 '''
 
 
+def _project_pilot(proj: Project):
+    """Load a pilot from the project's own `pilots/` folder, by path."""
+    def factory(kind: str, course, speed: float):
+        import importlib.util
+        f = proj.path(kind)
+        if not f.is_file() or f.suffix != ".py":
+            raise ValueError(f"no such pilot: {kind}")
+        spec = importlib.util.spec_from_file_location(f"camber_pilot_{f.stem}", f)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        cls = getattr(mod, "Pilot", None)
+        if cls is None:
+            raise ValueError(f"{f.name} defines no Pilot class")
+        try:
+            return cls(course, speed=speed)              # a racing pilot
+        except TypeError:
+            return cls()
+    return factory
+
+
 def _open_path(path: Path) -> None:
     """Hand a file or folder to the desktop: the user's editor, file manager."""
     opener = shutil.which("xdg-open")
@@ -134,6 +187,16 @@ def _open_path(path: Path) -> None:
 class Handler(BaseHTTPRequestHandler):
     app: App = None                     # set by serve()
     server_version = "Camber"
+    # The flight view sends sticks and reads telemetry every animation frame.
+    # On HTTP/1.0 that is a new TCP connection 60 times a second, and a long
+    # flight leaves tens of thousands of sockets in TIME_WAIT. Every response
+    # here carries a Content-Length, so keep-alive is safe.
+    protocol_version = "HTTP/1.1"
+    # And TCP_NODELAY with it. Small request, small response, one after the
+    # other, is exactly the pattern where Nagle's algorithm waits for the
+    # other end's delayed ACK: measured at 41 ms a round trip, which would
+    # have held the flight view to 24 Hz and blamed it on the physics.
+    disable_nagle_algorithm = True
 
     def log_message(self, *args) -> None:
         pass
@@ -200,13 +263,26 @@ class Handler(BaseHTTPRequestHandler):
                 remaining -= len(chunk)
 
     def _body(self) -> dict:
+        """Read the request body -- always, even when the request is about to
+        be refused. On a kept-alive connection an unread body is still sitting
+        in the socket when the next request arrives, and the server parses
+        `{"do": "start"}` as a request line ("Bad HTTP/0.9 request type").
+        A refusal must not poison the connection it was sent on."""
         n = int(self.headers.get("Content-Length") or 0)
         if n > 4_000_000:
+            self.close_connection = True          # too big to drain; hang up
             raise ValueError("request too large")
         return json.loads(self.rfile.read(n) or b"{}")
 
+    def _drain(self) -> None:
+        try:
+            self._body()
+        except (ValueError, json.JSONDecodeError):
+            pass
+
     # --- routing ---------------------------------------------------------------
     def do_GET(self) -> None:
+        self._drain()                             # a GET may still carry one
         if not self._host_ok():
             return self._error(403, "bad host")
         url = urlparse(self.path)
@@ -220,14 +296,14 @@ class Handler(BaseHTTPRequestHandler):
         self._dispatch("GET", url.path, parse_qs(url.query), {})
 
     def do_POST(self) -> None:
+        try:
+            body = self._body()                   # first, whatever happens next
+        except (ValueError, json.JSONDecodeError) as exc:
+            return self._error(400, str(exc))
         if not self._host_ok():
             return self._error(403, "bad host")
         if not self._authorised():
             return self._error(401, "missing token")
-        try:
-            body = self._body()
-        except (ValueError, json.JSONDecodeError) as exc:
-            return self._error(400, str(exc))
         self._dispatch("POST", urlparse(self.path).path, {}, body)
 
     def _static(self, path: str) -> None:
@@ -305,6 +381,10 @@ class Handler(BaseHTTPRequestHandler):
                                    for p in envelope(proj.vehicle, n=int(q.get("n", ["6"])[0]))]}
             if action == "pilots":
                 return {"pilots": _pilots(proj)}
+            if action == "live":
+                f = app.flight(pid)
+                f.touch()
+                return f.snapshot()
             if action == "export":
                 return self._export(proj, q.get("what", ["vehicle_json"])[0])
             raise KeyError(f"no GET {action}")
@@ -346,6 +426,8 @@ class Handler(BaseHTTPRequestHandler):
         elif action == "fly":
             self._fly(proj, b)
             return {"ok": True}
+        elif action == "live":
+            return self._live(pid, b)
         elif action == "pilot":
             return self._new_pilot(proj, b.get("name", "my pilot"))
         elif action == "open":
@@ -355,6 +437,32 @@ class Handler(BaseHTTPRequestHandler):
         else:
             raise KeyError(f"no POST {action}")
         return api.vehicle_view(proj)
+
+    def _live(self, pid: str, b: dict) -> dict:
+        """Fly here, in the app: one round trip carries the sticks in and the
+        telemetry out, so there is no second channel to keep in step."""
+        app = self.app
+        what = str(b.get("do", "poll"))
+        if what == "start":
+            f = app.flight(pid, start=b)
+            return {"scene": f.scene(), "state": f.snapshot()}
+        if what == "stop":
+            app.land(pid)
+            return {"stopped": True}
+        f = app.flight(pid)
+        f.touch()
+        if what == "input":
+            s = b.get("sticks") or [0.0, 0.0, 0.0, 0.5]
+            f.set_sticks(*[float(x) for x in s[:4]])
+        elif what == "mode":
+            f.set_mode(str(b.get("mode", "assist")))
+        elif what == "arm":
+            f.arm(bool(b.get("on", True)))
+        elif what == "reset":
+            f.reset()
+        elif what != "poll":
+            raise ValueError(f"no such flight action: {what}")
+        return {"state": f.snapshot()}
 
     def _fly(self, proj: Project, b: dict) -> None:
         """Open MuJoCo's own window, flying the current design. Not a job: it
