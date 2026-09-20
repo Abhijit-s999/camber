@@ -2197,3 +2197,43 @@ coefficient scaled by blade count (0.055 a blade). A 5-inch three-blade rated
 blade's coefficient it read 37,000, which no 5-inch propeller survives. It is
 used only for the momentum terms — thrust itself still comes from the
 catalogue or the blade-element tier, never from a guess.
+
+### SIM-06 · Wings, so an aeroplane can be a first-class vehicle — `SETTLED`
+
+A multirotor's body aerodynamics are drag: a force that only opposes motion.
+A wing turns forward speed into a force *across* the flight path, and that is
+what holds a plane up and lets it turn. `camber/sim/wing.py` adds it, as a
+strip model -- one panel per surface, the way flight simulators have done it
+for decades:
+
+- The air a surface meets is the body velocity plus the spin carried to where
+  it sits, `v + omega x r`. A tail behind the CG feels the pitch rate as a
+  change in angle of attack, which is most of what damps a plane's pitch;
+  without it an aircraft porpoises. Verified: a tail opposes a pitch rate with
+  no deflection.
+- Lift grows linearly with angle of attack, matching thin-wing theory to a
+  percent, then **stalls** -- folded to the flat-plate curve past the stall
+  angle, so a controller cannot buy unlimited force by pulling harder.
+- A control surface adds camber: its deflection shifts the lift curve.
+  Elevator makes a clean pitching moment, ailerons a clean roll with no net
+  lift change, a fin yaws.
+
+**Wired into the plant** through one generalisation: a controller may return a
+`Command` carrying motor commands *and* control-surface deflections, and an
+aero model offering `wrench(v, omega)` is given the body rate as well as the
+velocity. A multirotor pilot that returns a bare motor array still works
+unchanged -- the plant splits whatever it is handed.
+
+**A fixed-wing autopilot** (`FixedWing`) flies the standard cascade: speed to
+throttle, height to a pitch attitude to elevator, heading to a bank angle to
+ailerons, with rudder to coordinate. Flown on a 1.25 kg pusher aeroplane it
+holds 50 m and 18 m/s, beats the single prop's reaction torque to stay
+wings-level, and turns to a commanded heading -- banking 35 degrees into the
+turn and rolling out on the new heading, not skidding round flat.
+
+**What this is not:** the strip model has no compressibility, no Reynolds
+effects, no wing-body interference, and no downwash from the wing onto the
+tail. Those matter to a real design and belong in the CFD tier, not in the
+loop that flies the plane a thousand times a second. Wings are not yet in the
+saved vehicle format or the app; this is the physics and the controller,
+tested, with the plane built in code.

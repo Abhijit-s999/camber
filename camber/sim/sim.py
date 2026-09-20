@@ -21,6 +21,23 @@ from .motors import MotorBank
 
 
 @dataclass
+class Command:
+    """What a controller hands the plant when a vehicle has more than rotors:
+    motor commands in [0, 1], and control-surface deflections in [-1, 1]."""
+
+    motors: np.ndarray
+    surfaces: np.ndarray | None = None
+
+
+def _split_command(command):
+    """Accept either a bare motor array or a Command, so a multirotor pilot
+    that returns an array still works unchanged."""
+    if hasattr(command, "motors"):
+        return command.motors, command.surfaces
+    return command, None
+
+
+@dataclass
 class State:
     """What a flight controller gets to see. World axes are x forward, y left,
     z up (ROS REP-103, and MuJoCo's own); body axes are FLU."""
@@ -138,13 +155,23 @@ class Simulation:
 
     # ------------------------------------------------------------------ step
     def step(self, command) -> "State":
-        """Advance one timestep with motor commands in [0, 1]."""
-        command = self._delayed(command)
-        thrust = self.motors.step(command, self.dt)
+        """Advance one timestep.
+
+        ``command`` is the motor commands in [0, 1] -- an array -- or, for a
+        vehicle with control surfaces, an object carrying ``.motors`` and
+        ``.surfaces`` (deflections in [-1, 1] per channel). One call, whether
+        the vehicle flies on rotors, on wings, or on both.
+        """
+        motors, surfaces = _split_command(command)
+        motors = self._delayed(motors)
+        thrust = self.motors.step(motors, self.dt)
         wrench = self.allocation @ thrust                 # body FLU, about CG
         R = self.data.xmat[self.body].reshape(3, 3)       # body -> world
         v_com = self._com_velocity()
-        f_aero, m_aero = self.aero.force(R.T @ (v_com - self.wind))
+        v_body = R.T @ (v_com - self.wind)
+        if surfaces is not None and hasattr(self.aero, "set_controls"):
+            self.aero.set_controls(surfaces)
+        f_aero, m_aero = self._aero_wrench(v_body)
         m_rotor = self._rotor_moments(R)
         self.data.xfrc_applied[self.body, :3] = R @ (wrench[:3] + f_aero)
         self.data.xfrc_applied[self.body, 3:] = R @ (wrench[3:] + m_aero + m_rotor)
@@ -152,6 +179,16 @@ class Simulation:
         self.t += self.dt
         self._thrust = thrust
         return self.state()
+
+    def _aero_wrench(self, v_body: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Body aero force and moment. A wing set needs the body rate too --
+        the tail's angle of attack depends on how fast the nose is pitching --
+        so a model offering ``wrench(v, omega)`` is given both; a plain drag
+        model keeps the ``force(v)`` interface."""
+        if hasattr(self.aero, "wrench"):
+            omega = np.asarray(self.data.qvel[3:6], dtype=float)
+            return self.aero.wrench(v_body, omega)
+        return self.aero.force(v_body)
 
     def _prime(self, spin) -> None:
         """Fill the delay line with what the rotors are already doing. A
