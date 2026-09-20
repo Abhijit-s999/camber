@@ -15,7 +15,7 @@ const C = {
   ground: 0x0b0c0d, fill: 0x5c646b, fillBattery: 0x7a8288, edge: 0xa9b1b7,
   accent: 0xff5a1f, warn: 0xe9b43c, bad: 0xff5252, frame: 0x2b2f33,
   gridMinor: 0x16191b, gridMajor: 0x23272b, centre: 0x4a5157, disc: 0xffffff,
-  gate: 0x7c848a,
+  gate: 0x7c848a, floor: 0x101315,
 };
 
 const M = 1000;            // scene units per metre
@@ -482,6 +482,7 @@ export class Viewport {
     this.world.position.set(0, 0, 0);
     this.world.quaternion.identity();
     this.world.traverse((o) => { if (o.userData.designOnly) o.visible = true; });
+    this.scene.fog = null;                          // the editor draws crisp to the edge
     this.air?.removeFromParent();
     this.air = this.craft = null;
     this.gizmo.visible = true;
@@ -504,7 +505,17 @@ export class Viewport {
 
   _buildAir(scene) {
     const g = new THREE.Group();
-    const half = 40 * M, minor = 1 * M, major = 5 * M;
+    const half = 60 * M, minor = 1 * M, major = 5 * M;
+    // A filled ground, not just lines. A grid floating on black reads as
+    // nothing -- there is no surface, so height and distance are guesswork.
+    // A lit plane a shade above the sky gives the grid something to sit on and
+    // the vehicle a shadow-catching floor to fly over.
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(half * 2, half * 2),
+      new THREE.MeshStandardMaterial({ color: C.floor, roughness: 1.0, metalness: 0.0 }));
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.02 * M;                 // just under the grid, no z-fight
+    ground.receiveShadow = true;
     const grid = (step, color) => {
       const pts = [];
       for (let x = -half; x <= half + 1e-6; x += step) {
@@ -514,7 +525,12 @@ export class Viewport {
       geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
       return new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color }));
     };
-    g.add(grid(minor, C.gridMinor), grid(major, C.gridMajor), this._sky());
+    g.add(this._sky(), ground, grid(minor, C.gridMinor), grid(major, C.gridMajor),
+          this._rangeRings(), this._markers(scene));
+    // Depth: distant grid lines and gates fade into the horizon instead of
+    // drawing crisp all the way to the edge, which is what made 60 m of world
+    // read as a flat wall. Matched to the sky colour so the fade is invisible.
+    this.scene.fog = new THREE.Fog(C.ground, 22 * M, 95 * M);
     this.gates = [];
     for (const gate of scene.gates || []) {
       const frame = this._gate(gate);
@@ -529,27 +545,63 @@ export class Viewport {
   // against. Two greys either side of y = 0, inside a dome.
   _sky() {
     const mat = new THREE.ShaderMaterial({
-      side: THREE.BackSide, depthWrite: false,
-      uniforms: { sky: { value: new THREE.Color(0x141719) },
-                  ground: { value: new THREE.Color(0x090a0b) },
-                  line: { value: new THREE.Color(0x2c3236) } },
+      side: THREE.BackSide, depthWrite: false, fog: false,
+      uniforms: { sky: { value: new THREE.Color(0x171b1e) },
+                  horizon: { value: new THREE.Color(0x0b0c0d) },
+                  high: { value: new THREE.Color(0x090a0c) },
+                  line: { value: new THREE.Color(0x363d42) } },
       vertexShader: `varying float h;
         void main() {
           vec4 w = modelMatrix * vec4(position, 1.0);
           h = normalize(w.xyz).y;
           gl_Position = projectionMatrix * viewMatrix * w;
         }`,
-      fragmentShader: `uniform vec3 sky; uniform vec3 ground; uniform vec3 line;
+      fragmentShader: `uniform vec3 sky; uniform vec3 horizon; uniform vec3 high; uniform vec3 line;
         varying float h;
         void main() {
-          vec3 c = mix(ground, sky, smoothstep(-0.08, 0.35, h));
-          c = mix(c, line, smoothstep(0.02, 0.0, abs(h)) * 0.5);   // the horizon itself
+          // Brighter band at the horizon fading up to a darker zenith, the way
+          // a real sky sits; ground below stays flat and dark.
+          vec3 up = mix(sky, high, smoothstep(0.0, 0.8, h));
+          vec3 c = mix(horizon, up, smoothstep(-0.04, 0.14, h));
+          c = mix(c, line, smoothstep(0.015, 0.0, abs(h)) * 0.6);   // the horizon line
           gl_FragColor = vec4(c, 1.0);
         }`,
     });
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(300 * M, 32, 16), mat);
-    dome.renderOrder = -1;
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(300 * M, 48, 24), mat);
+    dome.renderOrder = -2;
     return dome;
+  }
+
+  // Range rings every 10 m from the origin: a ruler laid on the floor, so a
+  // glance says how far away something is without hunting for the grid count.
+  _rangeRings() {
+    const g = new THREE.Group();
+    const mat = new THREE.LineBasicMaterial({ color: C.gridMajor });
+    for (let r = 10 * M; r <= 50 * M; r += 10 * M) {
+      const pts = [];
+      for (let i = 0; i <= 96; i++) {
+        const a = (i / 96) * Math.PI * 2;
+        pts.push(new THREE.Vector3(Math.cos(a) * r, 0.01 * M, Math.sin(a) * r));
+      }
+      g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
+    }
+    return g;
+  }
+
+  // Tall thin posts at the far edges of the field: fixed landmarks that stay
+  // put while the vehicle moves, so "where am I facing" is answerable even
+  // with the drone off-screen. One per compass direction.
+  _markers(scene) {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: C.edge, roughness: 0.7,
+      emissive: new THREE.Color(0x0a0b0c) });
+    const at = [[55, 0], [-55, 0], [0, 55], [0, -55]];
+    for (const [x, z] of at) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.15 * M, 0.15 * M, 6 * M, 8), mat);
+      post.position.set(x * M, 3 * M, z * M);
+      g.add(post);
+    }
+    return g;
   }
 
   // A gate, built the way the simulator builds it: four bars round a 1.5 m
