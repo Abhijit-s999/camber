@@ -202,28 +202,31 @@ code { font-family: var(--num); font-size: 11.5px; background: var(--ground); pa
 
 /* ---- flying: the head-up display -------------------------------------------
    Over the 3D view, so it must stay quiet: numbers in the corner, nothing
-   that grabs the eye except what has gone wrong. Pointer events only on the
-   controls, or the HUD would eat clicks meant for the scene. */
-.hud { position: absolute; inset: 0; pointer-events: none; font: 12px var(--num); }
+   that grabs the eye except what has gone wrong. Laid out as rows rather than
+   pinned to corners -- pinned, the top row ran straight through the readouts
+   as soon as the window was narrow. Pointer events only on the controls, or
+   the HUD would eat clicks meant for the scene. */
+.hud { position: absolute; inset: 0; pointer-events: none; font: 12px var(--num);
+  display: grid; grid-template-rows: auto 1fr auto; gap: 8px; padding: 10px 12px; }
 .hud button, .hud .seg { pointer-events: auto; }
-.hud-top { position: absolute; top: 10px; left: 12px; right: 12px; display: flex;
-  align-items: center; gap: 6px; }
-.hud-grow { flex: 1; }
-.hud-chip { background: rgba(11,12,13,.72); border: 1px solid var(--line);
-  border-radius: var(--r); padding: 3px 8px; color: var(--text); letter-spacing: .02em; }
+.hud-top { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; }
+.hud-grow { flex: 1 1 0; min-width: 0; }
+.hud-chip { background: rgba(11,12,13,.85); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 3px 8px; color: var(--text); letter-spacing: .02em;
+  white-space: nowrap; }
 .hud-chip b { font-weight: 500; }
 .hud-chip.dim { color: var(--muted); }
 .hud-chip.off { color: var(--warn); border-color: var(--warn); }
-.hud-chip.slow { color: var(--warn); }
-.hud-seg { background: rgba(11,12,13,.72); }
-.hud-btn { background: rgba(11,12,13,.72); }
-.hud-side { position: absolute; top: 46px; right: 12px; width: 124px; display: grid; gap: 5px;
-  text-align: right; }
+.hud-chip.slow { color: var(--warn); border-color: var(--warn); }
+.hud-seg { background: rgba(11,12,13,.85); }
+.hud-btn { background: rgba(11,12,13,.85); }
+.hud-mid { display: flex; justify-content: flex-end; align-items: flex-start; min-height: 0; }
+.hud-side { width: 124px; display: grid; gap: 5px; text-align: right; }
 .hud-read { display: flex; justify-content: flex-end; align-items: baseline; gap: 5px; }
 .hud-read b { font: 500 20px/1 var(--num); }
 .hud-read span { color: var(--muted); font-size: 11px; }
 .hud-bar { position: relative; height: 16px; border: 1px solid var(--line-2);
-  border-radius: var(--r); background: rgba(11,12,13,.72); overflow: hidden; }
+  border-radius: var(--r); background: rgba(11,12,13,.85); overflow: hidden; }
 .hud-bar::before { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--v, 0%);
   background: var(--accent); opacity: .55; }
 .hud-bar span { position: relative; font-size: 10px; color: var(--text); line-height: 14px;
@@ -233,19 +236,20 @@ code { font-family: var(--num); font-size: 11.5px; background: var(--ground); pa
   border-radius: 2px; background: rgba(11,12,13,.72); }
 .hud-motors i::after { content: ""; position: absolute; inset: auto 0 0 0; height: var(--v, 0%);
   background: var(--text); opacity: .7; }
-.hud-sticks { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
-  display: none; gap: 10px; }
+.hud-sticks { display: none; gap: 10px; justify-content: center; padding-bottom: 16px; }
 .hud.manual .hud-sticks { display: flex; }
 .hud-stick { position: relative; width: 74px; height: 74px; border: 1px solid var(--line);
   border-radius: var(--r); background: rgba(11,12,13,.62); }
 .hud-stick::before { content: ""; position: absolute; left: var(--x, 50%); top: var(--y, 50%);
   width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: var(--accent); }
-.hud-stick span { position: absolute; left: 0; right: 0; bottom: -16px; text-align: center;
+.hud-stick span { position: absolute; left: 0; right: 0; bottom: -15px; text-align: center;
   font-size: 10px; color: var(--faint); }
 .hud-crash { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   background: rgba(11,12,13,.9); border: 1px solid var(--bad); color: var(--bad);
   border-radius: var(--r); padding: 8px 12px; }
 .hud-crash button { margin-left: 4px; }
+/* Narrow window: the numbers matter more than the labels. */
+@media (max-width: 1240px) { .hud-chip.dim { display: none; } }
 /* the keyboard map in the panel */
 .keys { width: 100%; border-collapse: collapse; margin-top: 6px; }
 .keys td { padding: 3px 0; color: var(--muted); }

@@ -221,7 +221,7 @@ const TEMPLATE = `
   <span class="hud-chip" data-hud="mode">assist</span>
   <span class="hud-chip" data-hud="armed">armed</span>
   <span class="hud-chip dim" data-hud="pad">keyboard</span>
-  <span class="hud-chip dim" data-hud="rate">1.00×</span>
+  <span class="hud-chip dim" data-hud="rate">real time</span>
   <span class="hud-grow"></span>
   <span class="hud-chip">Gates <b data-hud="gates">–</b></span>
   <span class="hud-chip">Lap <b data-hud="lap">–</b></span>
@@ -231,13 +231,15 @@ const TEMPLATE = `
   </span>
   <button class="hud-btn" data-hud-act="stop">Land</button>
 </div>
-<div class="hud-side">
-  <div class="hud-read"><b data-hud="speed">0.0</b><span>m/s</span></div>
-  <div class="hud-read"><b data-hud="alt">0.00</b><span>m</span></div>
-  <div class="hud-read"><b data-hud="climb">+0.0</b><span>m/s climb</span></div>
-  <div class="hud-read"><b data-hud="tilt">0</b><span>° tilt</span></div>
-  <div class="hud-bar" data-hud="thr"><span>throttle</span></div>
-  <div class="hud-motors" data-hud="bars"><i></i><i></i><i></i><i></i></div>
+<div class="hud-mid">
+  <div class="hud-side">
+    <div class="hud-read"><b data-hud="speed">0.0</b><span>m/s</span></div>
+    <div class="hud-read"><b data-hud="alt">0.00</b><span>m</span></div>
+    <div class="hud-read"><b data-hud="climb">+0.0</b><span>m/s climb</span></div>
+    <div class="hud-read"><b data-hud="tilt">0</b><span>° tilt</span></div>
+    <div class="hud-bar" data-hud="thr"><span>throttle</span></div>
+    <div class="hud-motors" data-hud="bars"><i></i><i></i><i></i><i></i></div>
+  </div>
 </div>
 <div class="hud-sticks">
   <div class="hud-stick" data-hud="stickL"><span>throttle / yaw</span></div>
