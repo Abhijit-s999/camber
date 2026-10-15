@@ -1,7 +1,7 @@
 """LIC-01 as an executable guard.
 
-None of Camber's four data sources grants redistribution rights, so none of
-their data may enter the repository. That is a licence obligation, and a
+None of Camber's data sources grants redistribution rights, so none of their
+data may enter the repository. That is a licence obligation, and a
 licence obligation that depends on someone remembering is one that will
 eventually be broken by a stray `git add -A`.
 """

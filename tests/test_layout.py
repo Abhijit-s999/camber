@@ -250,9 +250,8 @@ class TestPresets:
     def test_four_flight_axes_are_reachable(self, racer, kind):
         """Thrust, roll, pitch and yaw, independently. This is what a
         multirotor flight controller needs -- lateral force is not commandable
-        on any of them, and is not supposed to be. The tricopter is left out:
-        three fixed rotors give only three thrust degrees of freedom, so it
-        needs a tilting tail servo, which this fixed-rotor layout does not add."""
+        on any of them, and is not supposed to be. There is no tricopter
+        preset: three fixed rotors give only three thrust degrees of freedom."""
         from camber.control import allocation_matrix
         apply_layout(racer, kind, 0.22)
         flight = allocation_matrix(racer)[[2, 3, 4, 5]]       # Fz, Mx, My, Mz

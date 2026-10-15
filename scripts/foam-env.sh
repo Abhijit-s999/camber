@@ -28,34 +28,27 @@
 # From fish:
 #   bash scripts/foam-env.sh checkMesh -case cases/Ac0.000_a08
 
-FOAM_INSTALL="${FOAM_INSTALL:-$HOME/.local/opt/OpenFOAM-v2606}"
+# An OpenFOAM already loaded in this shell (a distribution package, a module)
+# is used as it is, unless FOAM_INSTALL names one explicitly.
+if [ -n "${FOAM_INSTALL:-}" ] || ! command -v simpleFoam >/dev/null 2>&1; then
+    FOAM_INSTALL="${FOAM_INSTALL:-$HOME/.local/opt/OpenFOAM-v2606}"
 
-if [ ! -f "$FOAM_INSTALL/etc/bashrc" ]; then
-    echo "ERROR: OpenFOAM not found at $FOAM_INSTALL" >&2
-    echo "       Set FOAM_INSTALL to the installation directory." >&2
-    return 1 2>/dev/null || exit 1
-fi
+    if [ ! -f "$FOAM_INSTALL/etc/bashrc" ]; then
+        echo "ERROR: OpenFOAM not found at $FOAM_INSTALL" >&2
+        echo "       Set FOAM_INSTALL to the installation directory." >&2
+        return 1 2>/dev/null || exit 1
+    fi
 
-# OpenFOAM's bashrc refuses to load if a version is already sourced, and
-# returns a spurious non-zero status under `set -e`.
-unset WM_PROJECT_DIR
-export FOAM_CONFIG_MODE=o
-unset FOAM_SETTINGS
+    # OpenFOAM's bashrc refuses to load if a version is already sourced, and
+    # returns a spurious non-zero status under `set -e`.
+    unset WM_PROJECT_DIR
+    export FOAM_CONFIG_MODE=o
+    unset FOAM_SETTINGS
 
-set +e
-# shellcheck disable=SC1090,SC1091
-source "$FOAM_INSTALL/etc/bashrc" >/dev/null 2>&1
-set -e
-
-# PETSc (GPU linear solvers) lives in a userland build. Adding it here rather
-# than to the OpenFOAM installation keeps ENV-01 intact: the install shared
-# with that study is never modified, and a shell without this wrapper sees no
-# change at all.
-PETSC_DIR="${PETSC_DIR:-$HOME/.local/opt/src/petsc}"
-PETSC_ARCH="${PETSC_ARCH:-arch-cuda-opt}"
-if [ -d "$PETSC_DIR/$PETSC_ARCH/lib" ]; then
-    export PETSC_DIR PETSC_ARCH
-    export LD_LIBRARY_PATH="$PETSC_DIR/$PETSC_ARCH/lib:${LD_LIBRARY_PATH}"
+    set +e
+    # shellcheck disable=SC1090,SC1091
+    source "$FOAM_INSTALL/etc/bashrc" >/dev/null 2>&1
+    set -e
 fi
 
 if ! command -v simpleFoam >/dev/null 2>&1; then

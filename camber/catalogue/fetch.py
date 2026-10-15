@@ -1,8 +1,8 @@
 """Fetch source datasets onto the user's machine.
 
 This is what Camber ships instead of the data: a builder. See sources.py for
-why -- none of the four datasets grants redistribution rights, so the catalogue
-is assembled locally from the originals.
+why -- no source grants redistribution rights, so the catalogue is assembled
+locally from the originals.
 
 That costs a network connection on first run, which is the one place AI-07's
 "works with nothing installed and no network" does not hold. The distinction
@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import shutil
 import urllib.request
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -51,8 +52,10 @@ def fetch(key: str, root: Path = DEFAULT_ROOT, force: bool = False,
 
     if target.exists() and not force:
         ok = md5_of(target) == source.md5 if source.md5 else None
-        return FetchResult(key, target, target.stat().st_size, True, ok,
-                           "already present")
+        message = "already present"
+        if ok is not False and unpack(source, target, root):
+            message += ", extracted"
+        return FetchResult(key, target, target.stat().st_size, True, ok, message)
 
     if not source.url.endswith((".zip", ".tar.gz", ".tgz", ".csv", ".json")):
         return FetchResult(
@@ -76,7 +79,35 @@ def fetch(key: str, root: Path = DEFAULT_ROOT, force: bool = False,
                 f"{source.name} downloaded but its checksum does not match the "
                 f"published value. Refusing to use it: silently proceeding with "
                 f"altered source data would poison every result downstream.")
+    unpack(source, target, root, force=force)
     return FetchResult(key, target, target.stat().st_size, False, verified)
+
+
+def unpack(source: Source, archive: Path, root: Path, force: bool = False) -> bool:
+    """Extract an archive source next to it, once. True if it extracted.
+
+    Every reader takes the extracted tree (`paths.propdb()` for UIUC), so a
+    fetch that left only the zip behind would leave the user one undocumented
+    step from a working catalogue.
+    """
+    if not source.unpacks_to or not str(archive).endswith(".zip"):
+        return False
+    dest = Path(root) / source.unpacks_to
+    if dest.exists() and not force:
+        return False
+    base = Path(root).resolve()
+    with zipfile.ZipFile(archive) as zf:
+        for name in zf.namelist():
+            # An entry that resolves outside the root is a path-traversal
+            # attempt or a broken archive; either way it is not extracted.
+            if not (base / name).resolve().is_relative_to(base):
+                raise FetchError(f"{source.name}: archive entry {name!r} "
+                                 f"would land outside {root}; refusing to extract")
+        zf.extractall(base)
+    if not dest.exists():
+        raise FetchError(f"{source.name}: extracted, but {source.unpacks_to}/ "
+                         f"is not in the archive")
+    return True
 
 
 def fetch_all(root: Path = DEFAULT_ROOT, force: bool = False) -> list[FetchResult]:

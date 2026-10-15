@@ -314,8 +314,8 @@ def remove(project, name: str) -> None:
     v = project.vehicle
     p = _part(v, name)
     if isinstance(p, Rotor):
-        if len(v.thrusters) <= 3:
-            raise ValueError("a multirotor needs at least three rotors")
+        if len(v.thrusters) <= 4:
+            raise ValueError("a multirotor needs at least four rotors to hold heading")
         v.thrusters.remove(p)
     elif p in v.frame.members:
         v.frame.members.remove(p)

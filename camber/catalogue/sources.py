@@ -1,22 +1,19 @@
 """Where component data comes from, and why Camber fetches it rather than ships it.
 
-**No third-party measurements are redistributed with Camber.** Every source
-below was checked (2026-09-09) and none of them grants redistribution rights:
-
-* UIUC Propeller Database -- "(c) 1994-2026 UIUC Applied Aerodynamics Group",
-  a requested citation, and no licence. Under copyright the default is
-  reserved.
-* APC performance files -- downloadable, with no licence statement anywhere.
-* Tyto Robotics database -- "(c) 2026"; the terms of service are silent on
-  reuse, and silence is not permission.
-* ThrustCurve.org -- licences are declared **per file** and range from public
-  domain to "other (restricted) with explicit copyright", so no blanket
-  redistribution is possible even in principle.
+**No third-party measurements are redistributed with Camber.** The one source
+it reads today, the UIUC Propeller Database, says "(c) 1994-2026 UIUC Applied
+Aerodynamics Group", requests a citation, and grants no licence. Under
+copyright the default is reserved.
 
 Raw measurements may not be copyrightable everywhere, but a *compiled* database
 attracts protection for its selection and arrangement in most jurisdictions,
 and more strongly in some than in US law. So the catalogue is built on the
-user's machine from the original sources, and what Camber ships is the builder.
+user's machine from the original source, and what Camber ships is the builder.
+
+APC, Tyto Robotics and ThrustCurve.org were checked as well (2026-09-09, see
+DECISIONS.md LIC-01) and none of them grants redistribution either. They are
+not listed here because nothing reads them yet; they come back with component
+selection.
 
 Each source keeps its citation, and honouring UIUC's requested form is both
 free and correct.
@@ -40,6 +37,8 @@ class Source:
     redistributable: bool
     citation: str = ""
     md5: str = ""
+    #: The directory an archive extracts to, when the source is one.
+    unpacks_to: str = ""
 
     def cache_path(self, root: Path) -> Path:
         return Path(root) / f"{self.key}{Path(self.url).suffix or '.dat'}"
@@ -59,33 +58,7 @@ SOURCES: dict[str, Source] = {
                  "Illinois at Urbana-Champaign, Department of Aerospace "
                  "Engineering, https://m-selig.ae.illinois.edu/props/propDB.html",
         md5="a41e484f1fd0fb6ff80b76e27410808b",
-    ),
-    "apc": Source(
-        key="apc",
-        name="APC propeller performance files",
-        url="https://www.apcprop.com/technical-information/file-downloads/",
-        terms="No licence statement is published with the data files.",
-        redistributable=False,
-        citation="APC Propellers, performance data, https://www.apcprop.com/",
-    ),
-    "tyto": Source(
-        key="tyto",
-        name="Tyto Robotics motor, propeller and ESC database",
-        url="https://database.tytorobotics.com/",
-        terms="(c) 2026 Tyto Robotics Inc. The terms of service do not address "
-              "reuse or redistribution.",
-        redistributable=False,
-        citation="Tyto Robotics, drone motor and propeller database, "
-                 "https://database.tytorobotics.com/",
-    ),
-    "thrustcurve": Source(
-        key="thrustcurve",
-        name="ThrustCurve.org certified motor data",
-        url="https://www.thrustcurve.org/",
-        terms="Licences are declared per file and range from public domain to "
-              "explicitly restricted. No blanket redistribution is possible.",
-        redistributable=False,
-        citation="J. Coker, ThrustCurve.org, https://www.thrustcurve.org/",
+        unpacks_to="UIUC-propDB",
     ),
 }
 

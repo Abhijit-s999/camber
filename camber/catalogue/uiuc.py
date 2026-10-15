@@ -188,8 +188,8 @@ def load(root: Path | str) -> Database:
     root = Path(root)
     if not root.exists():
         raise UiucError(
-            f"{root} not found. Download and extract the archive first:\n"
-            f"  curl -O https://m-selig.ae.illinois.edu/props/download/UIUC-propDB.zip"
+            f"{root} not found. Fetch the propeller data first:\n"
+            f"  camber catalogue fetch"
         )
 
     geometry: dict[str, PropGeometry] = {}

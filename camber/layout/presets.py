@@ -25,7 +25,7 @@ from ..spec.vehicle import Rotor, Spin
 #: yaw. An odd ring cannot alternate evenly -- a five-rotor ring has three of
 #: one sense and two of the other -- so its reaction torques do not cancel in
 #: hover and it has almost no clean yaw. Canting the motors makes yaw out of
-#: differential *thrust* instead, which is how real tri- and penta-copters fly.
+#: differential *thrust* instead, which is how real penta-copters fly.
 PRESETS = {
     "quad-x": (4, 45.0, 0.0),
     "quad-plus": (4, 0.0, 0.0),
@@ -34,12 +34,10 @@ PRESETS = {
     "hex-plus": (6, 0.0, 0.0),
     "hepta-x": (7, 0.0, 8.0),
     "octo-x": (8, 22.5, 0.0),
-    # A tricopter is here for its geometry, but three fixed rotors give only
-    # three thrust degrees of freedom and it needs four to fly (thrust, roll,
-    # pitch, yaw). A real one adds a tilting tail servo -- a thrust-vectoring
-    # actuator -- for the fourth; until that is modelled, this one will not
-    # hold heading. Cant alone cannot make a fourth independent axis.
-    "tri-y": (3, 60.0, 12.0),
+    # No tricopter: three fixed rotors give only three thrust degrees of
+    # freedom and flight needs four (thrust, roll, pitch, yaw). A real one adds
+    # a tilting tail servo, and cant alone cannot make the fourth axis. It
+    # returns with thrust vectoring (SIM-07, parked).
 }
 
 NAMES = {
