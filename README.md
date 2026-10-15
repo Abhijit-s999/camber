@@ -1,39 +1,90 @@
 # Camber
 
-Closed-loop airframe optimiser: place payloads and thrusters under constraints,
-state what the aircraft is *for*, and get back a Pareto front of real designs
-with the components chosen, the layout solved, and manufacturable CAD out the
-other end.
+**A drone design optimiser. You give it a mission, and it designs the drone for
+it.**
 
-Design plan and full rationale:
-<https://claude.ai/code/artifact/c48a6764-85d8-4645-b309-0f73e68d70c8>
+You place the payloads and rotors, say what the aircraft is *for* (stay up as
+long as possible, or go as fast as possible) and set the constraints. Camber
+searches the layout and sizing for the best trade-offs, grows a load-bearing
+frame by topology optimisation, checks the aerodynamics with CFD, and flies the
+result in a physics simulator. It exports the frame for CNC or 3D printing.
 
-> **All phases delivered.** Vehicle model, physics validated against 115
-> wind-tunnel propellers, multi-objective optimiser, CFD calibration loop,
-> generated structure, and a 3D viewport.
+It is a desktop app and a command line, and it works offline.
 
-**The app:** `packaging/arch/install.sh`, then open *Camber* from the launcher (or
-run `camber-app`). Everything below is also a command.
+| step in the app | what happens | under the hood |
+|---|---|---|
+| 1 · Design | place parts; symmetry, balance and clearance are measured, not eyeballed | analytic mass properties, control allocation, hover trim |
+| 2 · Optimise | a Pareto front of designs for the mission; pick one | NSGA-II with constrained domination |
+| 3 · Structure | the frame is *grown*: material goes only where the loads run | SIMP topology optimisation with hex8 FEA in the loop |
+| 4 · Aerodynamics | CFD across the flight envelope the vehicle will actually fly | OpenFOAM, actuator-disc rotors (optional) |
+| 5 · Fly | autopilots, your own Python pilot, or the sticks yourself | MuJoCo, with the vehicle's own aerodynamics |
 
-```console
-$ camber inspect examples/quad5.toml     # mass, control, hover, constraints
-$ camber optimise examples/quad5.toml --prop gwsdd_5x4.3
-$ camber endurance examples/quad5.toml   # predicted flight time
-$ camber cad examples/quad5.toml out.step
-$ camber generate examples/racer5.toml --mass 40 --out frame.stl
-$ camber app                             # the desktop app (camber ui FILE opens one)
-$ camber sim examples/racer5.toml --viewer          # fly it (see docs/FLYING.md)
-$ camber aero examples/racer5.toml                  # CFD across its flight envelope
-$ camber validate                        # model vs UIUC wind-tunnel data
-$ camber catalogue fetch                 # get the source datasets
+## Install
+
+Linux, Python 3.11 or newer. Developed and tested on Arch (CachyOS) with
+Python 3.14.
+
+**Arch and derivatives**, as a desktop app with a launcher entry:
+
+```sh
+git clone https://github.com/Abhijit-s999/camber
+cd camber
+packaging/arch/install.sh        # asks for one pacman line if Qt is missing
 ```
 
-The whole chain, spec to manufacturable output, is exercised by
-`tests/test_end_to_end.py`: optimise a real vehicle, generate an airframe for
-the winner, confirm it still flies, export STEP and STL, and load the result
-back as input.
+Then open *Camber* from the app launcher, or run `camber-app`. The install
+lives in `~/.local/share/camber` and runs from the checkout, so `git pull`
+updates it. `packaging/arch/uninstall.sh` removes it and leaves your projects
+alone.
 
-## What it does, and how far to trust it
+**Any Linux**, from the release wheel:
+
+```sh
+uv tool install "camber[app,qt] @ https://github.com/Abhijit-s999/camber/releases/download/v0.1.0/camber-0.1.0-py3-none-any.whl"
+camber app
+```
+
+(`pipx install` takes the same argument.) Leave out `qt` and the app opens in
+your browser instead of its own window.
+
+**Propeller data.** The physics tier needs the UIUC propeller database, which
+Camber is not allowed to redistribute (see below). Fetch it once, about 87 MB:
+
+```sh
+camber catalogue fetch
+```
+
+**Optional:** OpenFOAM for the Aerodynamics step (v2606 is what it was built
+against; set `FOAM_INSTALL`, or have `simpleFoam` on your `PATH`), and ROS 2
+Jazzy for the bridge in `ros/`, which brings its own environment
+(`ros/pixi.toml`). Everything else works without either.
+
+## Command line
+
+Every app step is also a command:
+
+```console
+$ camber inspect examples/quad5.toml              # mass, control, hover, constraints
+$ camber optimise examples/quad5.toml --prop gwsdd_5x4.3
+$ camber endurance examples/quad5.toml            # predicted flight time
+$ camber generate examples/racer5.toml --mass 40 --out frame.stl
+$ camber cad examples/quad5.toml out.step         # STEP for CNC, or .stl / .3mf
+$ camber sim examples/racer5.toml --viewer        # fly it (docs/FLYING.md)
+$ camber aero examples/racer5.toml                # CFD across its flight envelope
+$ camber validate                                 # the model against wind-tunnel data
+$ camber app                                      # the desktop app
+```
+
+A vehicle is a TOML file: bodies, rotors, frame, constraints and a
+`[mission]`. `examples/quad5.toml` (an endurance quad) and
+`examples/racer5.toml` (a 5-inch racer) are commented, and they are the two
+templates the app starts from.
+
+The whole chain is exercised by `tests/test_end_to_end.py`: optimise a real
+vehicle, grow a frame for the winner, confirm it still flies, export STEP and
+STL, and load the result back in.
+
+## How far to trust it
 
 | tier | what it is | validated against |
 |---|---|---|
@@ -42,126 +93,85 @@ back as input.
 | physics | blade-element propellers, motors, packs | **115 UIUC propellers, CT median +7.1%** |
 | optimiser | NSGA-II with constrained domination | Pareto fronts, not a weighted score |
 | CFD | actuator discs, RANS | momentum theory to 1.6% |
-| calibration | interference GP | **25 CFD cases, LOO 1.34%, R2 0.952** |
+| calibration | interference model fitted to CFD | **25 CFD cases, leave-one-out 1.34%, R² 0.952** |
 | structure | cantilever sizing, 3-axis CNC rules | closed forms; stock section ladder |
-| generation | SIMP topology optimisation, hex8 FEA | element has exactly 6 rigid-body modes |
+| generation | SIMP topology optimisation, hex8 FEA | the element has exactly 6 rigid-body modes |
 
-Known limits, stated rather than buried: the interference model has seen 25
-cases of one airframe family in hover only; static thrust (J = 0) is not
-claimed; blade count is assumed to be two; the generated frame is a structural
-lower bound with no fasteners or crash margin.
+**Known limits, stated rather than buried:**
+
+- **Components are not chosen yet.** The optimiser searches part positions,
+  arm length, one rotor size shared by every rotor, and battery capacity. The
+  motor is set by flags (`--kv --rm --i0`), and the propeller is one UIUC map
+  scaled across sizes. Picking motors, props and cell counts from a catalogue
+  is the next major piece of work.
+- **The app's Optimise step ranks on a rough endurance estimate** (momentum
+  theory, no motor or ESC losses), which reads far too long; the app says so
+  beside the chart. `camber optimise --prop` uses the validated blade-element
+  model.
+- **Multirotors only, four rotors or more.** Wings and tilting rotors are built
+  in the simulator but not yet in the app, so this release leaves them out
+  (DECISIONS SIM-06, SIM-07).
+- The interference model has seen 25 cases of one airframe family, in hover.
+  Generated frames can leave that envelope, and the CLI says when they do.
+- Static thrust (J = 0) is not claimed.
+- The grown frame is a stiffness design with drilled bolt circles. It carries
+  no crash or landing load case yet.
+
+Every one of these, and every non-obvious choice behind the rest, is in
+[`docs/DECISIONS.md`](docs/DECISIONS.md) with its reasoning.
 
 ## Data, and what is not shipped
 
-**No third-party measurements are redistributed.** None of the four sources --
-UIUC, APC, Tyto Robotics, ThrustCurve -- grants a redistribution right, so
-Camber ships the *builder*: `camber catalogue fetch` downloads from the
-originals, `camber catalogue sources` prints the terms, and `NOTICE` carries the
-citations. `tests/test_licensing.py` fails the build if any source data ever
-enters the tree. See `DECISIONS.md` LIC-01.
+**No third-party measurements are redistributed.** The UIUC Propeller Database
+grants no redistribution right, so Camber ships the *builder*:
+`camber catalogue fetch` downloads it from the original site and checks its
+checksum, `camber catalogue sources` prints the terms, and `NOTICE` carries the
+citation. `tests/test_licensing.py` fails the build if any source data ever
+enters the tree. See DECISIONS LIC-01.
 
-## The two halves, and the wall between them
+What does ship is Camber's own: `data/interference.json` (fitted from Camber's
+own OpenFOAM runs) and `data/validation_summary.json` (aggregate error
+statistics).
+
+## How it was built
+
+Camber is built with AI assistance: Claude (Anthropic), in Claude Code, wrote
+and reviewed most of the code, and `bench/` delegated some implementation to
+open models over NVIDIA NIM. The bench is development tooling. It is not part
+of Camber, in the same way a compiler is not part of what it compiles:
 
 | | `camber/` | `bench/` |
 |---|---|---|
 | what it is | the product | development tooling |
-| network | never | NVIDIA NIM, or a local server |
+| network | never, except `catalogue fetch` | NVIDIA NIM, or a local server |
 | ships in the wheel | yes | **no** |
 | may import the other | **no** | yes |
 
-`bench/` orchestrates three models to help *build* Camber. It is not part of
-Camber, the same way a compiler is not part of what it compiles. `camber/` runs
-with no network, no API key and no model loaded — component selection is a
-numerical search over a catalogue that ships with the release, not a model call.
+`tests/test_isolation.py` fails the build if `camber/` ever imports `bench/` or
+a network client enters the runtime dependencies. No model picks a component or
+evaluates a design; the optimiser decides, offline and deterministically. Tests
+come before implementation, and for physics they are analytic limits and
+published wind-tunnel data. DECISIONS section 0 has the bench's own record.
 
-That boundary is enforced, not merely intended: `tests/test_isolation.py` fails
-the build if `camber/` ever imports `bench/`, if a network client appears in the
-runtime dependencies, or if `bench` is added to the packaged modules.
+## Development
 
-## The bench
-
-Three models, routed by what they are measurably good at:
-
-| role | model | why |
-|---|---|---|
-| architect | Opus 5, via Claude Code | decomposition, physics review, `DECISIONS.md` |
-| `implementer` | `deepseek-v4-pro-0813` | 80.6% SWE-bench, #1 LiveCodeBench (93.5%) |
-| `investigator` | `kimi-k3` | 89.5 agentic vs 59.1, and **native vision** |
-| `janitor` | local, ternary | unmetered, always on, escalates when stuck |
-
-Kimi is the only route that can look at a residual plot, a mesh screenshot or a
-ParaView render — which is most of what diagnosing a failed CFD case involves.
-
-### Setup
-
-```fish
-uv venv --python 3.14 .venv
+```sh
+uv venv .venv
 uv pip install --python .venv/bin/python -e '.[dev]'
+.venv/bin/python -m pytest -q                     # about 2.5 minutes
 ```
-
-Then the key. Either an environment variable:
-
-```fish
-set -Ux NVIDIA_API_KEY nvapi-...   # free tier, 40 req/min account-wide
-```
-
-...or, preferably, a key file — because Claude Code launches the MCP server as
-a subprocess with the environment *it* started with, so a variable exported in
-a live shell will not reach the server until Claude Code restarts:
-
-```fish
-mkdir -p ~/.config/camber
-echo 'NVIDIA_API_KEY=nvapi-...' > ~/.config/camber/env
-chmod 600 ~/.config/camber/env
-bench status
-```
-
-The file is read at call time. It is never logged, never cached, and never
-committed.
-
-### Use
-
-Normally you do not — Claude Code calls it over MCP:
-
-```fish
-claude mcp add bench -- (pwd)/.venv/bin/python -m bench.mcp_server
-```
-
-which exposes `implement`, `investigate`, `review` and `budget` as tools.
-Directly, for a quick check:
-
-```fish
-bench status                       # budget, routing, call totals
-bench ask janitor "reply with OK"  # smallest possible live test
-bench serve                        # MCP server on stdio
-```
-
-## Rules that are not negotiable
-
-1. **The bench never ships.** See `docs/DECISIONS.md` AI-04.
-2. **Models populate and explain; the optimiser decides.** No model ever picks
-   a motor — it fills catalogue rows with sources, and NSGA-II searches them.
-3. **Tests before implementation, and not written by the implementer.** For
-   physics that means analytic limits and published wind-tunnel data, not
-   invented unit tests.
-4. **CFD never enters the optimiser's inner loop.** Its job is refitting the
-   mid-fidelity model's correction factors.
-5. **Other projects on this machine are off-limits.** Copy
-   and vendor; never extract, never refactor. `~/.local/opt/OpenFOAM-v2606` is
-   shared and is strictly read-only, pinned at v2606.
-
-## Layout
 
 | path | what it is |
 |---|---|
-| `docs/DECISIONS.md` | every non-obvious choice, with reasoning and source |
-| `bench/` | model orchestration — build-time only |
 | `camber/` | the product |
-| `tests/` | including `test_isolation.py`, which guards the wall |
+| `camber/app/` | the desktop app: a standard-library server and a three.js front end |
+| `docs/DECISIONS.md` | every non-obvious choice, with reasoning and source |
+| `docs/FLYING.md` | flying a vehicle by hand, by script, or over ROS 2 |
+| `tests/` | including the isolation and licensing guards |
+| `ros/` | the ROS 2 bridge, in its own pixi environment |
+| `bench/` | model orchestration, build-time only (`python -m bench.cli`) |
 
 ## Licence
 
-GPL-3.0-or-later. Note that the component catalogue is a **separate** question:
-UIUC, APC and Tyto Robotics each set their own terms on their measurements, and
-those must be verified before any compiled catalogue is redistributed. See
-`DECISIONS.md` LIC-01.
+GPL-3.0-or-later; see `LICENSE`. The UIUC data you fetch keeps its own terms;
+see `NOTICE` and cite it if you publish results.

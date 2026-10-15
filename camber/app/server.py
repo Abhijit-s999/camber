@@ -24,12 +24,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from .. import paths
 from . import api
 from .jobs import JobManager, child_env
 from .project import HOME, TEMPLATES, Project
 
 STATIC = Path(__file__).resolve().parent / "static"
-PILOTS = Path(__file__).resolve().parent.parent.parent / "examples" / "pilots"
+PILOTS = paths.pilots()
 
 
 class App:

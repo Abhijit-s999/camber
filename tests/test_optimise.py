@@ -303,3 +303,18 @@ class TestObjectiveColumns:
         for header, width, fmt in _OBJECTIVE_COLUMNS.values():
             assert isinstance(fmt(-123.4), str)
             assert len(header) <= width
+
+
+@pytest.mark.parametrize("objective", ["max_endurance", "max_speed"])
+def test_every_mission_scores_something_that_moves(objective):
+    """REL-01: two declared missions once fell through to a constant first
+    objective, so the search quietly optimised mass alone. Each mission a spec
+    can name has to give a first objective that responds to the design."""
+    from camber.spec.vehicle import Objective
+    assert {o.value for o in Objective} == {"max_endurance", "max_speed"}
+    v = io.from_dict({**MINIMAL, "mission": {"objective": objective}})
+    p = DesignProblem(v, [battery_capacity_variable(v, "battery", 0.5, 4.0)])
+    lo, hi = p.bounds
+    small, large = p.evaluate(lo), p.evaluate(hi)
+    assert len(p.objective_names) == 2
+    assert small.objectives[0] != large.objectives[0]

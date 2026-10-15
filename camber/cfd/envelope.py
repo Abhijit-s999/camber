@@ -34,7 +34,6 @@ RHO = 1.225
 #: How far each kind of multirotor mission tilts, degrees nose down.
 TILT = {
     Objective.MAX_SPEED: (10.0, 65.0),
-    Objective.MIN_TIME_TO_TARGET: (8.0, 45.0),
     Objective.MAX_ENDURANCE: (3.0, 22.0),
 }
 DEFAULT_TILT = (5.0, 35.0)

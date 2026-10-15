@@ -202,7 +202,7 @@ def from_dict(data: dict[str, Any]) -> Vehicle:
 
     m = data.get("mission", {})
     _reject_unknown(m, {
-        "objective", "target_range", "min_endurance", "payload_mass",
+        "objective", "min_endurance", "payload_mass",
     }, "mission")
     obj_raw = m.get("objective", "max_endurance")
     try:
@@ -222,7 +222,6 @@ def from_dict(data: dict[str, Any]) -> Vehicle:
                      for i, c in enumerate(data.get("constraints", []))],
         mission=Mission(
             objective=objective,
-            target_range=m.get("target_range"),
             min_endurance=m.get("min_endurance"),
             payload_mass=float(m.get("payload_mass", 0.0)),
         ),
@@ -340,8 +339,6 @@ def to_dict(v: Vehicle) -> dict[str, Any]:
         "bodies": [body_of(b) for b in v.bodies],
         "thrusters": [],
     }
-    if v.mission.target_range is not None:
-        out["mission"]["target_range"] = v.mission.target_range
     if v.mission.min_endurance is not None:
         out["mission"]["min_endurance"] = v.mission.min_endurance
     for t in v.thrusters:

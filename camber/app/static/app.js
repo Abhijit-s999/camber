@@ -534,11 +534,12 @@ function scatter(pts, xl, yl, onPick) {
 async function drawFront(j) {
   const box = $("#front");
   const f = await api("GET", `${P()}/front?job=${j.id}`);
-  const lab = { "-endurance_s": ["Endurance min", (v) => -v / 60], "mass_kg": ["Mass g", (v) => v * 1000],
+  const lab = { "-endurance_s": ["Endurance min (rough)", (v) => -v / 60], "mass_kg": ["Mass g", (v) => v * 1000],
                 "-thrust_margin": ["Thrust : weight", (v) => -v] };
   const [a, b] = f.objective_names;
   const pts = f.points.map((p) => [lab[a]?.[1](p.objectives[0]) ?? p.objectives[0], lab[b]?.[1](p.objectives[1]) ?? p.objectives[1]]);
   box.innerHTML = scatter(pts, lab[a]?.[0] ?? a, lab[b]?.[0] ?? b)
+    + (a === "-endurance_s" ? `<div class="hint">Endurance on this chart is a momentum-theory estimate with no motor or ESC losses. Checked against the blade-element model it read 16.5× too long (OPT-03), so treat it as a comparison, not a flight time. <code>camber optimise --prop</code> gives the real number from the terminal.</div>` : "")
     + `<div id="front-pick" class="hint">${f.points.length} designs, none better than another on both at once.</div>`;
   box.querySelectorAll("circle").forEach((c) => {
     c.onclick = () => {

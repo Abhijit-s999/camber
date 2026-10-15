@@ -9,6 +9,10 @@ Two kinds, kept apart because one is read-only once installed:
   redistributed (LIC-01), so it has to land somewhere writable: the checkout's
   `data/` in development, `$XDG_DATA_HOME/camber` once installed.
 
+The app's starting templates, the example pilots and the OpenFOAM wrapper
+follow the same rule as shipped data: the checkout's copy in development, the
+copy the wheel puts inside the package once installed (PKG-02).
+
 Every default used to be `Path("data/...")`, relative to wherever Camber was
 run from. The app runs jobs from a project folder, where that path does not
 exist -- the interference estimate would have been skipped without a word.
@@ -20,7 +24,14 @@ import os
 from pathlib import Path
 
 _PKG = Path(__file__).resolve().parent
-_REPO_DATA = _PKG.parent / "data"
+_REPO = _PKG.parent
+_REPO_DATA = _REPO / "data"
+
+
+def _bundled(relative: str) -> Path:
+    """The checkout's copy of a shipped file if there is one, else the wheel's."""
+    checkout = _REPO / relative
+    return checkout if checkout.exists() else _PKG / relative
 
 
 def shipped() -> Path:
@@ -53,3 +64,17 @@ def raw() -> Path:
 
 def propdb() -> Path:
     return raw() / "UIUC-propDB"
+
+
+def examples() -> Path:
+    """The example vehicles the app starts new projects from."""
+    return _bundled("examples")
+
+
+def pilots() -> Path:
+    return examples() / "pilots"
+
+
+def foam_env() -> Path:
+    """The one entry point to OpenFOAM (see scripts/foam-env.sh)."""
+    return _bundled("scripts/foam-env.sh")

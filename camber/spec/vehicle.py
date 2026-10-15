@@ -176,15 +176,11 @@ class Objective(Enum):
 
     MAX_ENDURANCE = "max_endurance"
     MAX_SPEED = "max_speed"
-    MIN_TIME_TO_TARGET = "min_time_to_target"
-    MIN_STABLE_SPEED = "min_stable_speed"
 
 
 @dataclass
 class Mission:
     objective: Objective = Objective.MAX_ENDURANCE
-    #: Metres, for MIN_TIME_TO_TARGET.
-    target_range: float | None = None
     #: Seconds, a floor the design must meet regardless of objective.
     min_endurance: float | None = None
     payload_mass: float = 0.0

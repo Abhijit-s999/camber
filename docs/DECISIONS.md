@@ -259,7 +259,11 @@ from one of the setups — which is a far harder geometric constraint than FDM's
 overhang angle. Satisfy it first and the additive processes are relaxations;
 do it in the other order and half the CNC designs are unmakeable.
 
-### LIC-02 · The repository stays private — `FIXED`
+### LIC-02 · The repository stays private — `SUPERSEDED by REL-01`
+
+**Superseded 2026-10-15:** Abhijit asked for Camber to be pushed to GitHub and
+released as an app. The reasoning below was why it waited; LIC-01 had already
+cleared the data question it raised.
 
 **Value:** local git only. **No remote, no push, no GitHub repository**, and no
 publishing of any kind until Abhijit says otherwise. Stated 2026-09-07 as
@@ -2269,3 +2273,63 @@ This is the plant foundation for civilian tilt-rotor and VTOL transition
 controllers.  It intentionally does not prescribe a transition schedule:
 that depends on the aircraft's measured wing and prop-wash aerodynamics, and
 is a controller/design problem rather than an invented universal curve.
+
+---
+
+## 13. Release
+
+### REL-01 · v0.1.0 ships what a user can finish — `FIXED`
+
+**Value:** public on GitHub, GPL-3.0-or-later, tagged `v0.1.0` with a wheel.
+Before the tag, everything a user could reach but not complete was taken out,
+and everything a user could not reach was parked:
+
+| what | why it went | where it is |
+|---|---|---|
+| wings and the fixed-wing autopilot (SIM-06) | not in the saved format or the app | `391d988`, reverted |
+| tilting rotors (SIM-07) | no controller commands a tilt; the app cannot place one | `78a3a84`, reverted |
+| the tricopter preset | three fixed rotors cannot hold heading without SIM-07 | removed; the app now stops at four rotors |
+| the `min_time_to_target` and `min_stable_speed` missions | both scored a constant, so the search optimised mass alone without saying so | removed; a test now checks every mission's first objective responds |
+| APC, Tyto and ThrustCurve as sources | listed but never fetched or read; `catalogue fetch` always exited 1 | removed; they return with component selection |
+| the PETSc hook in `foam-env.sh` | the GPU route it served is blocked (GPU-02) | removed |
+
+**Fixed on the way, because a clean install found them:**
+
+- `aerosandbox` and `neuralfoil` were imported by the blade-element tier and
+  declared nowhere. The dev environment happened to have them; a fresh install
+  failed `camber validate`. They are the `physics` extra, which `app` includes.
+- `camber catalogue fetch` downloaded the UIUC zip and left it zipped, while
+  every reader takes the extracted tree. It now extracts, refusing any entry
+  that would land outside the data directory.
+- The app's Optimise chart printed momentum-theory endurance as "Endurance min"
+  with no caveat. OPT-03 measured it 16.5x too long. The chart now says so.
+
+**Reasoning:** a first release is read as a claim about everything in it. Code
+that is tested but unreachable, or reachable but silently wrong, costs more
+trust than it adds features, and git keeps it either way.
+
+**Also before the first push:** commit author addresses were rewritten to the
+GitHub no-reply address, so no personal email is published with the history.
+Commit hashes before `58c7d72` therefore differ from any noted elsewhere before
+2026-10-15.
+
+### PKG-02 · The wheel carries what the app reads from disk — `FIXED`
+
+**Value:** `pyproject.toml` force-includes the interference model, the
+validation summary, the two template vehicles, the example pilots and
+`foam-env.sh` into the package. `camber/paths.py` prefers a checkout's copy and
+falls back to the package's, so a development tree and an installed wheel run
+the same code. `tests/test_packaging.py` fails if a template or pilot is added
+without being shipped.
+
+**Reasoning:** PKG-01's editable install read all of these from the repository,
+which is honest for one machine and broken for anyone else: an installed wheel
+would have had no templates to start a project from and no OpenFOAM wrapper.
+Verified by installing the built wheel with `[app]` into an empty environment
+and running `validate`, `optimise --prop`, `sim`, `generate`, `cad` and the app
+server from outside any checkout.
+
+**Not shipped:** the `bench` console script. It pointed into a module the wheel
+leaves out (AI-04), so every wheel install had a `bench` command that could only
+crash. In a checkout it is `python -m bench.cli`.
+

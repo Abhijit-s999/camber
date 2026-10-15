@@ -21,10 +21,11 @@ import shutil
 import time
 from pathlib import Path
 
+from .. import paths
 from ..spec import io
 
 HOME = Path(os.environ.get("CAMBER_HOME", Path.home() / "Camber"))
-EXAMPLES = Path(__file__).resolve().parent.parent.parent / "examples"
+EXAMPLES = paths.examples()
 TEMPLATES = {"racer5": "racer5.toml", "quad5": "quad5.toml"}
 HISTORY = 200
 

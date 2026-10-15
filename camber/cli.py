@@ -1,4 +1,4 @@
-"""`camber` -- inspect a vehicle specification.
+"""`camber` -- give it a mission, and it designs the drone.
 
 Deliberately dependency-free at runtime beyond numpy: this must work with no
 network, no key and no model loaded (AI-07).
@@ -208,8 +208,6 @@ _OBJECTIVE_COLUMNS = {
     "-endurance_s":   ("endurance", 10, lambda v: f"{-v / 60:.2f}m"),
     "mass_kg":        ("mass", 9, lambda v: f"{v * 1000:.1f}g"),
     "-thrust_margin": ("T:W", 8, lambda v: f"{-v:.2f}"),
-    "time_to_target_s": ("time", 9, lambda v: f"{v:.1f}s"),
-    "min_stable_speed": ("min speed", 10, lambda v: f"{v:.2f}m/s"),
 }
 
 
@@ -708,7 +706,9 @@ def cmd_app(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     # `argv` is for tests: a CLI that can only be driven through sys.argv
     # can only be tested by poking at its internals.
+    from . import __version__
     p = argparse.ArgumentParser(prog="camber", description=__doc__)
+    p.add_argument("--version", action="version", version=f"camber {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     ins = sub.add_parser("inspect", help="mass properties, control, hover")

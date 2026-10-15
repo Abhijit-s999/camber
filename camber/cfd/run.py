@@ -19,8 +19,9 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent
-FOAM_ENV = ROOT / "scripts" / "foam-env.sh"
+from ..paths import foam_env
+
+FOAM_ENV = foam_env()
 
 
 class FoamError(RuntimeError):

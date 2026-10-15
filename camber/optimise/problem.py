@@ -163,9 +163,7 @@ class DesignProblem:
             return ["-endurance_s", "mass_kg"]
         if obj is Objective.MAX_SPEED:
             return ["-thrust_margin", "-endurance_s"]
-        if obj is Objective.MIN_TIME_TO_TARGET:
-            return ["time_to_target_s", "mass_kg"]
-        return ["min_stable_speed", "mass_kg"]
+        raise ValueError(f"no objective function for {obj.value!r}")
 
     def build(self, x: Sequence[float]) -> Vehicle:
         """A concrete vehicle for one point in the search space."""
@@ -274,7 +272,7 @@ class DesignProblem:
                 endurance = self._momentum_endurance(vehicle, mp)
             return np.array([-margin, -endurance])
 
-        return np.array([0.0, mp.mass])
+        raise ValueError(f"no objective function for {obj.value!r}")
 
     @staticmethod
     def _momentum_endurance(vehicle: Vehicle, mp) -> float:
