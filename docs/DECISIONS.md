@@ -2206,7 +2206,7 @@ catalogue or the blade-element tier, never from a guess.
 
 ### SIM-06 · Wings, so an aeroplane can be a first-class vehicle — `PARKED`
 
-**Parked for v0.1.0 (REL-01).** Built in `391d988` and reverted for the
+**Parked for v0.1.0 (REL-01).** Built in `861674b` and reverted for the
 release: wings are in neither the saved format nor the app, so no user could
 reach them. It comes back with that work.
 
@@ -2250,7 +2250,7 @@ tested, with the plane built in code.
 
 ### SIM-07 · Thrust vectoring is a moving configuration, not a magic force — `PARKED`
 
-**Parked for v0.1.0 (REL-01).** Built in `78a3a84` and reverted for the
+**Parked for v0.1.0 (REL-01).** Built in `8074057` and reverted for the
 release: no controller uses a tilt yet and the app cannot place one. It comes
 back with the wing work.
 
@@ -2286,8 +2286,8 @@ and everything a user could not reach was parked:
 
 | what | why it went | where it is |
 |---|---|---|
-| wings and the fixed-wing autopilot (SIM-06) | not in the saved format or the app | `391d988`, reverted |
-| tilting rotors (SIM-07) | no controller commands a tilt; the app cannot place one | `78a3a84`, reverted |
+| wings and the fixed-wing autopilot (SIM-06) | not in the saved format or the app | `861674b`, reverted |
+| tilting rotors (SIM-07) | no controller commands a tilt; the app cannot place one | `8074057`, reverted |
 | the tricopter preset | three fixed rotors cannot hold heading without SIM-07 | removed; the app now stops at four rotors |
 | the `min_time_to_target` and `min_stable_speed` missions | both scored a constant, so the search optimised mass alone without saying so | removed; a test now checks every mission's first objective responds |
 | APC, Tyto and ThrustCurve as sources | listed but never fetched or read; `catalogue fetch` always exited 1 | removed; they return with component selection |
@@ -2308,10 +2308,8 @@ and everything a user could not reach was parked:
 that is tested but unreachable, or reachable but silently wrong, costs more
 trust than it adds features, and git keeps it either way.
 
-**Also before the first push:** commit author addresses were rewritten to the
-GitHub no-reply address, so no personal email is published with the history.
-Commit hashes before `58c7d72` therefore differ from any noted elsewhere before
-2026-10-15.
+**Also before publishing:** the history was rewritten, author addresses
+included, so commit hashes differ from any noted elsewhere before 2026-10-15.
 
 ### PKG-02 · The wheel carries what the app reads from disk — `FIXED`
 
