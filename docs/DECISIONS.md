@@ -8,6 +8,8 @@ The format is lifted from an earlier CFD study, where it earned its keep.
 `FIXED` — decided and implemented.
 `OPEN` — needs a decision, or a study before it can be settled.
 `PROVISIONAL` — implemented with a defensible default, worth revisiting.
+`PARKED` — built and tested, then taken out of the release because the rest of
+the app could not use it yet. The code lives on a branch; the record stays here.
 
 ---
 
@@ -2198,7 +2200,11 @@ blade's coefficient it read 37,000, which no 5-inch propeller survives. It is
 used only for the momentum terms — thrust itself still comes from the
 catalogue or the blade-element tier, never from a guess.
 
-### SIM-06 · Wings, so an aeroplane can be a first-class vehicle — `SETTLED`
+### SIM-06 · Wings, so an aeroplane can be a first-class vehicle — `PARKED`
+
+**Parked for v0.1.0 (REL-01).** Built in `391d988` and reverted for the
+release: wings are in neither the saved format nor the app, so no user could
+reach them. It comes back with that work.
 
 A multirotor's body aerodynamics are drag: a force that only opposes motion.
 A wing turns forward speed into a force *across* the flight path, and that is
@@ -2238,7 +2244,11 @@ loop that flies the plane a thousand times a second. Wings are not yet in the
 saved vehicle format or the app; this is the physics and the controller,
 tested, with the plane built in code.
 
-### SIM-07 · Thrust vectoring is a moving configuration, not a magic force — `SETTLED`
+### SIM-07 · Thrust vectoring is a moving configuration, not a magic force — `PARKED`
+
+**Parked for v0.1.0 (REL-01).** Built in `78a3a84` and reverted for the
+release: no controller uses a tilt yet and the app cannot place one. It comes
+back with the wing work.
 
 `tilt_rotor` is a saved vehicle component: it records a neutral thrust axis,
 hinge axis, physical stops and a servo time constant.  It deliberately does

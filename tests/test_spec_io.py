@@ -8,7 +8,7 @@ import pytest
 
 from camber.spec import io
 from camber.spec.units import DEG, Vec3
-from camber.spec.vehicle import Battery, Camera, Objective, Spin, TiltRotor
+from camber.spec.vehicle import Battery, Camera, Objective, Spin
 
 EXAMPLE = Path(__file__).resolve().parent.parent / "examples" / "quad5.toml"
 
@@ -50,19 +50,6 @@ class TestExample:
         v = io.load(EXAMPLE)
         parts = sum(b.mass for b in v.all_bodies()) + sum(t.mass for t in v.thrusters)
         assert v.mass_properties().mass == pytest.approx(parts)
-
-    def test_tilt_rotor_round_trips_with_its_hard_stops(self):
-        raw = {**MINIMAL, "thrusters": [{
-            **MINIMAL["thrusters"][0], "type": "tilt_rotor",
-            "tilt_axis": [0, 1, 0], "tilt_min_deg": -5,
-            "tilt_max_deg": 90, "tilt_tau": 0.08,
-        }]}
-        t = io.from_dict(raw).thrusters[0]
-        assert isinstance(t, TiltRotor)
-        assert t.direction_at(math.pi / 2).as_list() == pytest.approx([-1, 0, 0])
-        again = io.from_dict(io.to_dict(io.from_dict(raw))).thrusters[0]
-        assert (again.tilt_min, again.tilt_max, again.tilt_tau) == pytest.approx(
-            (t.tilt_min, t.tilt_max, t.tilt_tau))
 
 
 class TestRejection:

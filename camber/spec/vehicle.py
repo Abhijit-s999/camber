@@ -171,41 +171,6 @@ class Rotor(Thruster):
         return self.static_thrust_n
 
 
-@dataclass
-class TiltRotor(Rotor):
-    """A rotor on a one-axis tilt mechanism.
-
-    ``thrust_axis`` is its neutral (usually vertical) axis.  ``tilt_axis`` is
-    the hinge axis in *body* coordinates and positive tilt follows the usual
-    right-hand rule about it.  The servo is modelled by the simulator, rather
-    than by changing this design object while a flight is running.
-    """
-
-    tilt_axis: Vec3 = field(default_factory=lambda: Vec3(0.0, 1.0, 0.0))
-    tilt_min: float = 0.0
-    tilt_max: float = 0.0
-    tilt_tau: float = 0.06
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        if self.tilt_axis.norm == 0.0:
-            raise ValueError(f"tilt rotor {self.name!r} needs a hinge axis")
-        if self.tilt_min > self.tilt_max:
-            raise ValueError(f"tilt rotor {self.name!r} has inverted tilt limits")
-        if self.tilt_tau <= 0.0:
-            raise ValueError(f"tilt rotor {self.name!r} needs a positive servo time constant")
-
-    def direction_at(self, tilt: float) -> Vec3:
-        """Thrust direction at ``tilt`` radians, clamped to the hard stops."""
-        a = float(np.clip(tilt, self.tilt_min, self.tilt_max))
-        axis = np.asarray(self.tilt_axis.unit().as_list(), dtype=float)
-        v = np.asarray(self.direction().as_list(), dtype=float)
-        # Rodrigues' rotation formula.  The neutral thrust axis can itself be
-        # angled; it does not have to be the conventional straight-up rotor.
-        out = v * np.cos(a) + np.cross(axis, v) * np.sin(a) + axis * (axis @ v) * (1 - np.cos(a))
-        return Vec3(*out)
-
-
 class Objective(Enum):
     """What the aircraft is for. Drives the optimiser's cost function."""
 
