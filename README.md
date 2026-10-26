@@ -42,7 +42,7 @@ alone.
 **Any Linux**, from the release wheel:
 
 ```sh
-uv tool install "camber[app,qt] @ https://github.com/Abhijit-s999/camber/releases/download/v0.1.1/camber-0.1.1-py3-none-any.whl"
+uv tool install "camber[app,qt] @ https://github.com/Abhijit-s999/camber/releases/download/v0.1.2/camber-0.1.2-py3-none-any.whl"
 camber app
 ```
 
