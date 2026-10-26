@@ -272,7 +272,11 @@ function partSection(p) {
       <label class="lab"><span>${l} mm</span><input type="number" data-size="${i}" value="${fmt(p.shape.size[i], 1)}" step="1"></label>`).join("")}</div>` : ""}
     ${rotor ? `<div class="lab"><span>Spin, seen from above</span>
       <div class="seg full"><button data-spin="ccw" class="${p.spin === "ccw" ? "on" : ""}">Anticlockwise</button><button data-spin="cw" class="${p.spin === "cw" ? "on" : ""}">Clockwise</button></div></div>
-      <label class="lab"><span>Max thrust N</span><input type="number" data-field="thrust_n" value="${p.thrust_n ?? ""}" step="0.1"></label>` : ""}
+      <label class="lab"><span>Max thrust N</span><input type="number" data-field="thrust_n" value="${p.thrust_n != null ? fmt(p.thrust_n, 2) : ""}" step="0.1"></label>
+      ${p.motor || p.prop ? `<dl class="kv">
+        ${p.motor ? `<dt>Motor</dt><dd>${p.motor.url ? `<a href="${esc(p.motor.url)}" target="_blank" rel="noopener">${esc(p.motor.label)}</a>` : esc(p.motor.label)}</dd>` : ""}
+        ${p.prop ? `<dt>Propeller</dt><dd>${esc(p.prop.label)}</dd>` : ""}</dl>
+        <p class="hint">Chosen by the optimiser; typing a size or thrust replaces them.</p>` : ""}` : ""}
     ${p.editable ? `<div class="actions"><button data-act="remove" class="ghost">Remove</button></div>` : ""}
   </section>`;
 }
@@ -280,9 +284,13 @@ function partSection(p) {
 function optimise() {
   const j = latest("optimise");
   const running = j?.status === "running";
-  const est = Math.max(1, Math.round(S.opt.population * S.opt.generations * 0.004 / 60));
+  // The part screen (CAT-05) costs about as much again as a 40 x 30 search.
+  const est = Math.max(1, Math.round((S.opt.population * S.opt.generations * 0.004 + (S.v.catalogue?.props ? 8 : 0)) / 60));
   let html = `<section class="sec"><h3>Optimise the layout</h3>
-    <p class="lead">Searches payload positions, arm length, prop size and battery for the ${esc(nice(S.v.mission))} mission, and returns the whole trade-off rather than one answer.</p>
+    <p class="lead">${S.v.catalogue?.props
+      ? `Chooses the motor, propeller and cell count from ${S.v.catalogue.motors} datasheet motors and the wind-tunnel-measured propellers, and places payloads, arm length and battery size around them`
+      : "Searches payload positions, arm length, prop size and battery"} for the ${esc(nice(S.v.mission))} mission, and returns the whole trade-off rather than one answer.</p>
+    ${S.v.catalogue && !S.v.catalogue.props ? `<p class="hint">To choose motors and propellers, fetch the propeller data once: <code>camber catalogue fetch</code>.</p>` : ""}
     <div class="row2"><label class="lab"><span>Designs per generation</span><input type="number" id="o-pop" value="${S.opt.population}" min="8" step="4"></label>
     <label class="lab"><span>Generations</span><input type="number" id="o-gen" value="${S.opt.generations}" min="2"></label></div>
     <p class="hint">About ${est} min.</p>
@@ -541,14 +549,16 @@ async function drawFront(j) {
   const box = $("#front");
   const f = await api("GET", `${P()}/front?job=${j.id}`);
   // Fronts from before UI-08 carry no model name: they were all momentum theory.
-  const rough = f.endurance_model !== "blade-element";
+  const rough = !["blade-element", "catalogue"].includes(f.endurance_model);
   const lab = { "-endurance_s": [rough ? "Endurance min (rough)" : "Endurance min", (v) => -v / 60], "mass_kg": ["Mass g", (v) => v * 1000],
                 "-thrust_margin": ["Thrust : weight", (v) => -v] };
   const [a, b] = f.objective_names;
   const pts = f.points.map((p) => [lab[a]?.[1](p.objectives[0]) ?? p.objectives[0], lab[b]?.[1](p.objectives[1]) ?? p.objectives[1]]);
   box.innerHTML = scatter(pts, lab[a]?.[0] ?? a, lab[b]?.[0] ?? b)
     + (f.objective_names.includes("-endurance_s") ? (rough
-      ? `<div class="hint">Endurance on this chart is a momentum-theory estimate with no motor or ESC losses. Checked against the blade-element model it read 16.5× too long (OPT-03), so treat it as a comparison, not a flight time. Fetch the propeller data with <code>camber catalogue fetch</code> and run again for the validated model.</div>`
+      ? `<div class="hint">Endurance on this chart is a momentum-theory estimate with no motor or ESC losses. Checked against the blade-element model it read about 5× too long (OPT-03), so treat it as a comparison, not a flight time. Fetch the propeller data with <code>camber catalogue fetch</code> and run again: the optimiser then chooses real motors and propellers and ranks them on the validated model.</div>`
+      : f.endurance_model === "catalogue"
+      ? `<div class="hint">Hover endurance for each design's own parts: the motor from its datasheet, the propeller from its wind-tunnel measurements, matched to the pack (${esc(f.endurance_detail)}). It leaves out ESC losses and forward flight, so read it as a fair comparison and a hover time, not a mission time.</div>`
       : `<div class="hint">Hover endurance from the blade-element model (${esc(f.endurance_detail)}), validated against 115 UIUC wind-tunnel propellers. One propeller is scaled across sizes and the motor is a default until components are chosen, so read it as a fair comparison and a rough flight time.</div>`) : "")
     + `<div id="front-pick" class="hint">${f.points.length} designs, none better than another on both at once.</div>`;
   box.querySelectorAll("circle").forEach((c) => {
@@ -557,7 +567,13 @@ async function drawFront(j) {
       box.querySelectorAll("circle").forEach((x) => x.setAttribute("fill", "#8c9298"));
       c.setAttribute("fill", "#ff5a1f");
       const vars = Object.entries(p.variables).filter(([k]) => /length|radius|capacity/.test(k));
-      $("#front-pick").innerHTML = `<dl class="kv">${vars.map(([k, v]) => `<dt>${esc(nice(k))}</dt><dd>${fmt(v, 3)}</dd>`).join("")}</dl>
+      const bom = p.components;
+      $("#front-pick").innerHTML = (bom ? `<dl class="kv">
+          <dt>Motor</dt><dd>${bom.motor.url ? `<a href="${esc(bom.motor.url)}" target="_blank" rel="noopener">${esc(bom.motor.label)}</a>` : esc(bom.motor.label)}</dd>
+          <dt>Propeller</dt><dd>${esc(bom.prop.label)}${/blade/.test(bom.prop.label) ? "" : `, ${bom.prop.blades} blades`}</dd>
+          <dt>Battery</dt><dd>${bom.cells}S</dd>
+          <dt>Full throttle</dt><dd>${fmt(bom.static_thrust_n, 2)} N a rotor, ${fmt(bom.full_throttle_current_a, 1)} of ${fmt(bom.motor.max_current_a, 0)} A</dd></dl>` : "")
+        + `<dl class="kv">${vars.map(([k, v]) => `<dt>${esc(nice(k))}</dt><dd>${fmt(v, 3)}</dd>`).join("")}</dl>
         <div class="actions" style="margin-top:8px"><button class="primary" id="use-pt">Use this design</button></div>`;
       $("#use-pt").onclick = edit("apply", { job: j.id, index: i }, "Design applied — undo to go back");
     };

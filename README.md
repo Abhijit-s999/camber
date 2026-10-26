@@ -7,16 +7,18 @@ it.**
 
 You place the payloads and rotors, say what the aircraft is *for* (stay up as
 long as possible, or go as fast as possible) and set the constraints. Camber
-searches the layout and sizing for the best trade-offs, grows a load-bearing
-frame by topology optimisation, checks the aerodynamics with CFD, and flies the
-result in a physics simulator. It exports the frame for CNC or 3D printing.
+chooses the motor, propeller and battery cell count from a catalogue of real
+parts, searches the layout and sizing around them for the best trade-offs,
+grows a load-bearing frame by topology optimisation, checks the aerodynamics
+with CFD, and flies the result in a physics simulator. It exports the frame for
+CNC or 3D printing, with the parts list beside it.
 
 It is a desktop app and a command line, and it works offline.
 
 | step in the app | what happens | under the hood |
 |---|---|---|
 | 1 · Design | place parts; symmetry, balance and clearance are measured, not eyeballed | analytic mass properties, control allocation, hover trim |
-| 2 · Optimise | a Pareto front of designs for the mission; pick one | NSGA-II with constrained domination |
+| 2 · Optimise | a Pareto front of designs for the mission, each naming its motor, propeller and cells; pick one | NSGA-II over datasheet motors and wind-tunnel-measured propellers |
 | 3 · Structure | the frame is *grown*: material goes only where the loads run | SIMP topology optimisation with hex8 FEA in the loop |
 | 4 · Aerodynamics | CFD across the flight envelope the vehicle will actually fly | OpenFOAM, actuator-disc rotors (optional) |
 | 5 · Fly | autopilots, your own Python pilot, or the sticks yourself | MuJoCo, with the vehicle's own aerodynamics |
@@ -42,15 +44,16 @@ alone.
 **Any Linux**, from the release wheel:
 
 ```sh
-uv tool install "camber[app,qt] @ https://github.com/Abhijit-s999/camber/releases/download/v0.1.2/camber-0.1.2-py3-none-any.whl"
+uv tool install "camber[app,qt] @ https://github.com/Abhijit-s999/camber/releases/download/v0.2.0/camber-0.2.0-py3-none-any.whl"
 camber app
 ```
 
 (`pipx install` takes the same argument.) Leave out `qt` and the app opens in
 your browser instead of its own window.
 
-**Propeller data.** The physics tier needs the UIUC propeller database, which
-Camber is not allowed to redistribute (see below). Fetch it once, about 87 MB:
+**Propeller data.** Choosing propellers needs the UIUC propeller database,
+which Camber is not allowed to redistribute (see below). Fetch it once, about
+87 MB:
 
 ```sh
 camber catalogue fetch
@@ -67,7 +70,8 @@ Every app step is also a command:
 
 ```console
 $ camber inspect examples/quad5.toml              # mass, control, hover, constraints
-$ camber optimise examples/quad5.toml --prop gwsdd_5x4.3
+$ camber optimise examples/quad5.toml             # chooses motor, prop and cells
+$ camber catalogue motors                         # the motors it chooses from
 $ camber endurance examples/quad5.toml            # predicted flight time
 $ camber generate examples/racer5.toml --mass 40 --out frame.stl   # ~30 min
 $ camber cad examples/quad5.toml out.step         # STEP for CNC, or .stl / .3mf
@@ -97,7 +101,7 @@ STL, and load the result back in.
 |---|---|---|
 | geometry | exact analytic mass properties, CAD | closed forms, the triangle inequality |
 | control | allocation matrix, hover trim | hand arithmetic; a flat quad is correctly rank 4/6 |
-| physics | blade-element propellers, motors, packs | **115 UIUC propellers, CT median +7.1%** |
+| physics | blade-element propellers, motors, packs | **115 UIUC propellers, CT median +7.1%**; motors against makers' thrust stands, 106/114 thrust and 108/114 current within 15% |
 | optimiser | NSGA-II with constrained domination | Pareto fronts, not a weighted score |
 | CFD | actuator discs, RANS | momentum theory to 1.6% |
 | calibration | interference model fitted to CFD | **25 CFD cases, leave-one-out 1.34%, R² 0.952** |
@@ -106,21 +110,29 @@ STL, and load the result back in.
 
 **Known limits, stated rather than buried:**
 
-- **Components are not chosen yet.** The optimiser searches part positions,
-  arm length, one rotor size shared by every rotor, and battery capacity. The
-  motor is set by flags (`--kv --rm --i0`), and the propeller is one UIUC map
-  scaled across sizes. Picking motors, props and cell counts from a catalogue
-  is the next major piece of work.
-- **Endurance uses one motor and one scaled propeller.** Once the propeller
-  data is fetched, the app and `camber optimise --prop` rank designs on the
-  validated blade-element model. Without it they fall back to a momentum-theory
-  estimate that reads 10-20 times too long, and say so beside the chart.
+- **The catalogue is what has data.** 51 motors from 8 makers, 1204 to 4010
+  stators, each with the maker's page cited; a motor whose page omits its
+  resistance or idle current is not in it. Propellers are
+  the ones the UIUC tunnel measured, which below 7 inches means slow-flyer and
+  park propellers rather than today's racing props: read a choice there as "a
+  two-blade 5x4.3", the aerodynamics it stands for.
+- **Hover endurance, ESC not included.** Endurance is computed in hover from
+  each design's own motor, propeller and pack. ESC losses and forward flight
+  are not in it. Without the propeller data, Camber cannot choose parts and
+  falls back to a momentum-theory estimate that reads about five times too
+  long, and says so beside the chart.
+- **Motors are checked at 2212 to 3510 size only.** Against makers' own
+  thrust-stand charts on UIUC-measured propellers, thrust and current land
+  within 15% in 106 and 108 of 114 rows. The small FPV motors have no such
+  check: their makers test them on their own propellers, which the tunnel
+  never measured (DECISIONS PHYS-09).
 - **Multirotors only, four rotors or more.** Wings and tilting rotors are built
   in the simulator but not yet in the app, so this release leaves them out
   (DECISIONS SIM-06, SIM-07).
 - The interference model has seen 25 cases of one airframe family, in hover.
   Generated frames can leave that envelope, and the CLI says when they do.
-- Static thrust (J = 0) is not claimed.
+- The blade-element model's static thrust (J = 0) is not claimed. Chosen
+  propellers do not need it: their static thrust is the tunnel's measurement.
 - The grown frame is a stiffness design with drilled bolt circles. It carries
   no crash or landing load case yet.
 
@@ -137,8 +149,10 @@ citation. `tests/test_licensing.py` fails the build if any source data ever
 enters the tree. See DECISIONS LIC-01.
 
 What does ship is Camber's own: `data/interference.json` (fitted from Camber's
-own OpenFOAM runs) and `data/validation_summary.json` (aggregate error
-statistics).
+own OpenFOAM runs), `data/validation_summary.json` (aggregate error
+statistics), and two small tables Camber compiled: the motor catalogue, each
+motor's specification as its maker publishes it, and propeller weights. Every
+row of those names the page it came from and quotes it (DECISIONS LIC-03).
 
 ## How it was built
 
@@ -165,8 +179,8 @@ published wind-tunnel data. DECISIONS section 0 has the bench's own record.
 ```sh
 uv venv .venv
 uv pip install --python .venv/bin/python -e '.[dev]'
-.venv/bin/camber catalogue fetch                  # without it, 8 data tests skip
-.venv/bin/python -m pytest -q                     # about 2.5 minutes
+.venv/bin/camber catalogue fetch                  # without it, the data tests skip
+.venv/bin/python -m pytest -q                     # about 3 minutes
 ```
 
 Contributions are welcome; [`CONTRIBUTING.md`](https://github.com/Abhijit-s999/camber/blob/main/CONTRIBUTING.md) has the few

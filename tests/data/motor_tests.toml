@@ -1,0 +1,2876 @@
+# PHYS-09's held-out set: makers' own thrust-stand rows for their motors,
+# on propellers the UIUC tunnel also measured. Each row cites its page and
+# quotes the table row (LIC-03). Nothing in Camber is fitted to these.
+#
+# Voltages are the round pack values the makers print, not measured terminal
+# volts, and no source prints throttle per row, so the rows are compared at
+# their measured rpm (see tests/test_motor_validation.py).
+#
+# `full_throttle = true` marks the Cobra and Scorpion prop charts: one point
+# per propeller, at full throttle from a LiPo, as Cobra's chart note puts it:
+# "The test voltages used are based on a properly sized Li-Po battery for the
+# current draw of the motor being tested. If you are using a larger than normal
+# capacity battery ... your actual voltages will be higher than those shown in
+# this chart, and this will result in higer current draw for each prop used."
+# SunnySky's tables are thrust steps at part throttle, up to a last row.
+#
+# Left out before any comparison: SunnySky X2212 980Kv on the 9x4.7 at 11.1 V,
+# whose top row (13.2 A, 840 g, 8730 rpm) has a lower rpm than the row before
+# it, flagged by the collector as a probable typo on the page.
+#
+# The Cobra motors publish no LiPo cell range, so they cannot be choices in
+# the catalogue; their datasheet numbers are here, for validation only.
+
+[[motor]]
+id = "cobra-c2213-26-950"
+maker = "Cobra"
+model = "C-2213/26"
+kv = 950
+stator = "2213"
+resistance_mohm = 134
+no_load_current_a = 0.45
+no_load_voltage_v = 8
+mass_g = 61
+max_current_a = 14
+max_power_w = 150
+url = "https://www.cobramotorsusa.com/motors-2213-26.html"
+extra_urls = ["https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"]
+retrieved = "2026-10-27"
+notes = "Cobra (Innov8tive Designs) is an airplane-motor line ('airplanemotors.html'); included because the stator is in scope and its prop chart is a large APC E/SF + GWS test set. Resistance = 'Motor Resistance (Rm) Phase to Phase' (the prop chart quotes the same value as plain 'Rm'); the page also gives a per-phase value. Weight: cable inclusion not stated. max_current_a = 'Maximum Continuous Current' (duration not stated -> continuous). No LiPo cell range is stated (only per-cell power ratings), so cells_min/max are omitted; no recommended prop list on the page, props_in omitted. Per-phase Rm 0.201 Ohms. Only a 3-cell power rating (150 W) is published; the prop chart says 'P Max (3S) 150 W'. Io is quoted at 8 V, not 10 V."
+quote = '''
+[product page https://www.cobramotorsusa.com/motors-2213-26.html]
+Cobra C-2213/26 Motor Specifications | Cobra C-2213/26 Motor Specifications
+Stator Diameter | 22.0 mm (0.866 in)
+Stator Thickness | 13 mm (0.512 in)
+Number of Stator Slots | 12
+Number of Magnet Poles | 14
+Motor Wind | 26 Turn Delta
+Motor Kv Value | 950 RPM per Volt
+No Load Current (Io) | 0.45 Amps @ 8 Volts
+Motor Resistance (Rm) per Phase | 0.201 Ohms
+Motor Resistance (Rm) Phase to Phase | 0.134 Ohms
+Maximum Continuous Current | 14 Amps
+Max Continuous Power (3-cell Li-Po) | 150 Watts
+Motor Weight | 61.0 grams (2.15 oz.)
+Outside Diameter | 27.7 mm (1.091 in.)
+Shaft Diameter | 3.17 mm (0.125 in.)
+Motor Body Length | 28.0 mm (1.102 in.)
+Overall Shaft Length | 42.0 mm (1.654 in.)
+Motor Timing | 5-10 degrees
+PWM Frequency | 8kHz
+[prop chart https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm]
+Cobra C2213/26 Motor Propeller Data
+Motor Wind | Motor Kv | No-Load Current | Motor Resistance | I Max | P Max (3S)
+26-Turn Delta | 950 RPM/Volt | Io = 0.45 Amps @ 8v | Rm = 0.134 Ohms | 14 Amps | 150 W
+Outside Diameter | Body Length | Total Shaft Length | Shaft Diameter | Motor Weight
+27.7 mm, 1.09 in. | 28.0 mm, 1.10 in. | 42.0 mm, 1.50 in. | 3.17 mm, 0.125 in. | 61.0 gm, 2.15 oz
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+'''
+
+[[motor]]
+id = "cobra-c2814-20-850"
+maker = "Cobra"
+model = "C-2814/20"
+kv = 850
+stator = "2814"
+resistance_mohm = 66
+no_load_current_a = 0.7
+no_load_voltage_v = 10
+mass_g = 109
+max_current_a = 25
+max_power_w = 370
+url = "https://www.cobramotorsusa.com/motors-2814-20.html"
+extra_urls = ["https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"]
+retrieved = "2026-10-27"
+notes = "Cobra (Innov8tive Designs) is an airplane-motor line ('airplanemotors.html'); included because the stator is in scope and its prop chart is a large APC E/SF + GWS test set. Resistance = 'Motor Resistance (Rm) Phase to Phase' (the prop chart quotes the same value as plain 'Rm'); the page also gives a per-phase value. Weight: cable inclusion not stated. max_current_a = 'Maximum Continuous Current' (duration not stated -> continuous). No LiPo cell range is stated (only per-cell power ratings), so cells_min/max are omitted; no recommended prop list on the page, props_in omitted. Per-phase Rm 0.099 Ohms. max_power_w is the highest published rating (4-cell 370 W; 3-cell 280 W)."
+quote = '''
+[product page https://www.cobramotorsusa.com/motors-2814-20.html]
+Cobra 2814/20 Motor Specifications | Cobra 2814/20 Motor Specifications
+Stator Diameter | 28.0 mm (1.102 in)
+Stator Thickness | 14.0 mm (0.551 in)
+Number of Stator Slots | 12
+Number of Magnet Poles | 14
+Motor Wind | 20 Turn Delta
+Motor Kv Value | 850 RPM per Volt
+No Load Current (Io) | 0.70 Amps @ 10 Volts
+Motor Resistance (Rm) per Phase | 0.099 Ohms
+Motor Resistance (Rm) Phase to Phase | 0.066 Ohms
+Maximum Continuous Current | 25 Amps
+Max Continuous Power (3-cell Li-Po) | 280 Watts
+Max Continuous Power (4-cell Li-Po) | 370 Watts
+Motor Weight | 109 grams (3.84 oz.)
+Outside Diameter | 35.0 mm (1.378 in.)
+Shaft Diameter | 5.00 mm (0.197 in.)
+Motor Body Length | 34.1 mm (1.343 in.)
+Overall Shaft Length | 54.0 mm (2.126 in.)
+Motor Timing | 5-10 degrees
+PWM Frequency | 8 KHz
+[prop chart https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm]
+Cobra C2814/20 Motor Propeller Data
+Motor Wind | Motor Kv | No-Load Current | Motor Resistance | I Max | P Max (3S)
+20-Turn Delta | 850 RPM/Volt | Io = 0.70 Amps @ 10v | Rm = 0.066 Ohms | 25 Amps | 280 W
+Outside Diameter | Body Length | Total Shaft Length | Shaft Diameter | Motor Weight
+35.0 mm, 1.38 in. | 34.1 mm, 1.34 in. | 54.0 mm, 2.13 in. | 5.00 mm, 0.197 in. | 109 gm, 3.84 oz
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+'''
+
+[[motor]]
+id = "cobra-c3510-24-820"
+maker = "Cobra"
+model = "C-3510/24"
+kv = 820
+stator = "3510"
+resistance_mohm = 53
+no_load_current_a = 0.81
+no_load_voltage_v = 14
+mass_g = 141
+max_current_a = 26
+max_power_w = 480
+url = "https://www.cobramotorsusa.com/motors-3510-24.html"
+extra_urls = ["https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"]
+retrieved = "2026-10-27"
+notes = "Cobra (Innov8tive Designs) is an airplane-motor line ('airplanemotors.html'); included because the stator is in scope and its prop chart is a large APC E/SF + GWS test set. Resistance = 'Motor Resistance (Rm) Phase to Phase' (the prop chart quotes the same value as plain 'Rm'); the page also gives a per-phase value. Weight: cable inclusion not stated. max_current_a = 'Maximum Continuous Current' (duration not stated -> continuous). No LiPo cell range is stated (only per-cell power ratings), so cells_min/max are omitted; no recommended prop list on the page, props_in omitted. Per-phase Rm 0.080 Ohms. max_power_w is the highest published rating (5-cell 480 W; 4-cell 385 W; 3-cell 290 W). DOUBT: the prop chart header says 'P Max (4S) 380 W' while the product page says 4-cell 385 W. Io is quoted at 14 V."
+quote = '''
+[product page https://www.cobramotorsusa.com/motors-3510-24.html]
+Cobra 3510/24 Motor Specifications | Cobra 3510/24 Motor Specifications
+Stator Diameter | 35.0 mm (1.378 in)
+Stator Thickness | 10.0 mm (0.394 in)
+Number of Stator Slots | 12
+Number of Magnet Poles | 14
+Motor Wind | 24 Turn Delta
+Motor Kv Value | 820 RPM per Volt
+No Load Current (Io) | 0.81 Amps @ 14 Volts
+Motor Resistance (Rm) per Phase | 0.080 Ohms
+Motor Resistance (Rm) Phase to Phase | 0.053 Ohms
+Maximum Continuous Current | 26 Amps
+Max Continuous Power (3-cell Li-Po) | 290 Watts
+Max Continuous Power (4-cell Li-Po) | 385 Watts
+Max Continuous Power (5-cell Li-Po) | 480 Watts
+Motor Weight | 141 grams (4.97 oz.)
+Outside Diameter | 43.0 mm (1.693 in.)
+Shaft Diameter | 5.00 mm (0.197 in.)
+Motor Body Length | 36.0 mm (1.417 in.)
+Overall Shaft Length | 58.0 mm (2.283 in.)
+Motor Timing | 5-10 degrees
+PWM Frequency | 8 KHz
+[prop chart https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm]
+Cobra C3510/24 Motor Propeller Data
+Motor Wind | Motor Kv | No-Load Current | Motor Resistance | I Max | P Max (4S)
+24-Turn Delta | 820 RPM/Volt | Io = 0.81 Amps @ 14v | Rm = 0.053 Ohms | 26 Amps | 380 W
+Outside Diameter | Body Length | Total Shaft Length | Shaft Diameter | Motor Weight
+43.0 mm, 1.69 in. | 36.0 mm, 1.42 in. | 58.0 mm, 2.28 in. | 5.00 mm, 0.197 in. | 141 gm, 4.97 oz
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-980"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 14.8
+current_a = 0.6
+thrust_g = 100
+rpm = 3231
+power_w = 8.88
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+notes = "Part-throttle row (fixed thrust step); throttle not published. power_w is SunnySky's 'Watts(W)' column (input power). SunnySky table has no throttle column: rows are listed at fixed thrust steps (100 gf, 200 gf, ...) up to a final maximum row; prop, voltage and temperature cells are row-spanning cells in the HTML (repeated here per row). Voltage is the round nominal pack value. DOUBT on prop identity: the page writes the prop with no type suffix (e.g. 'APC1047'), and APC's nomenclature PDF says a size with no letters denotes a Sport prop; but APC's catalogue search (apcprop.com/?s=<size>, checked for 8x3.8, 9x4.7, 10x4.7, 11x4.7) lists only SF/SFP versions of these sizes and no Sport or E version, so it is mapped to the apcsf key."
+quote = '''
+KV980
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 14.8 | 0.6 | 100 | 8.88 | 11.26 | 3231 | 70℃ 10min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-980"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 14.8
+current_a = 1.5
+thrust_g = 200
+rpm = 4643
+power_w = 22.2
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV980
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 14.8 | 1.5 | 200 | 22.2 | 9.01 | 4643 | 70℃ 10min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-980"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 14.8
+current_a = 2.5
+thrust_g = 300
+rpm = 5605
+power_w = 37
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV980
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 14.8 | 2.5 | 300 | 37 | 8.11 | 5605 | 70℃ 10min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-980"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 14.8
+current_a = 3.8
+thrust_g = 400
+rpm = 6432
+power_w = 56.24
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV980
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 14.8 | 3.8 | 400 | 56.24 | 7.11 | 6432 | 70℃ 10min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-980"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 14.8
+current_a = 5
+thrust_g = 500
+rpm = 7378
+power_w = 74
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV980
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 14.8 | 5 | 500 | 74 | 6.76 | 7378 | 70℃ 10min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-980"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 14.8
+current_a = 6.5
+thrust_g = 600
+rpm = 8090
+power_w = 96.2
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV980
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 14.8 | 6.5 | 600 | 96.2 | 6.24 | 8090 | 70℃ 10min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-980"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 14.8
+current_a = 8.2
+thrust_g = 700
+rpm = 8730
+power_w = 121.36
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV980
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 14.8 | 8.2 | 700 | 121.36 | 5.77 | 8730 | 70℃ 10min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-980"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 14.8
+current_a = 10
+thrust_g = 800
+rpm = 9366
+power_w = 148
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV980
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 14.8 | 10 | 800 | 148 | 5.41 | 9366 | 70℃ 10min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-980"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 14.8
+current_a = 11.7
+thrust_g = 900
+rpm = 10131
+power_w = 173.16
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV980
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 14.8 | 11.7 | 900 | 173.16 | 5.20 | 10131 | 70℃ 10min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-980"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 14.8
+current_a = 13.8
+thrust_g = 1000
+rpm = 10716
+power_w = 204.24
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV980
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 14.8 | 13.8 | 1000 | 204.24 | 4.90 | 10716 | 70℃ 10min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-980"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 14.8
+current_a = 18.4
+thrust_g = 1250
+rpm = 11755
+power_w = 272.32
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV980
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 14.8 | 18.4 | 1250 | 272.32 | 4.59 | 11755 | 70℃ 10min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-980"
+prop_uiuc = "apcsf_10x4.7"
+prop_as_published = "APC1047"
+voltage_v = 11.1
+current_a = 19.9
+thrust_g = 1100
+rpm = 7748
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV980
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC1047 | 11.1 | 19.9 | 1100 | 169.83 | 4.98 | 7748 | 85℃ 15S
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-980"
+prop_uiuc = "apcsf_10x4.7"
+prop_as_published = "APC1047"
+voltage_v = 14.8
+current_a = 29
+thrust_g = 1650
+rpm = 9409
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV980
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC1047 | 14.8 | 29 | 1650 | 405.52 | 3.84 | 9409 | 85℃ 15S
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-980"
+prop_uiuc = "apcsf_8x3.8"
+prop_as_published = "APC8038"
+voltage_v = 14.8
+current_a = 16.4
+thrust_g = 1075
+rpm = 11910
+power_w = 242.72
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV980
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC8038 | 14.8 | 16.4 | 1075 | 242.72 | 4.43 | 11910 | 55℃ 10min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-1400"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 11.1
+current_a = 1
+thrust_g = 100
+rpm = 3244
+power_w = 11.1
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+notes = "Part-throttle row (fixed thrust step); throttle not published. power_w is SunnySky's 'Watts(W)' column (input power). SunnySky table has no throttle column: rows are listed at fixed thrust steps (100 gf, 200 gf, ...) up to a final maximum row; prop, voltage and temperature cells are row-spanning cells in the HTML (repeated here per row). Voltage is the round nominal pack value. DOUBT on prop identity: the page writes the prop with no type suffix (e.g. 'APC1047'), and APC's nomenclature PDF says a size with no letters denotes a Sport prop; but APC's catalogue search (apcprop.com/?s=<size>, checked for 8x3.8, 9x4.7, 10x4.7, 11x4.7) lists only SF/SFP versions of these sizes and no Sport or E version, so it is mapped to the apcsf key."
+quote = '''
+KV1400
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 11.1 | 1 | 100 | 11.1 | 9.01 | 3244 | 77℃3min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-1400"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 11.1
+current_a = 2.1
+thrust_g = 200
+rpm = 4590
+power_w = 23.31
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV1400
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 11.1 | 2.1 | 200 | 23.31 | 8.58 | 4590 | 77℃3min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-1400"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 11.1
+current_a = 3.6
+thrust_g = 300
+rpm = 5651
+power_w = 39.96
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV1400
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 11.1 | 3.6 | 300 | 39.96 | 7.51 | 5651 | 77℃3min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-1400"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 11.1
+current_a = 5.4
+thrust_g = 400
+rpm = 6509
+power_w = 59.94
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV1400
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 11.1 | 5.4 | 400 | 59.94 | 6.67 | 6509 | 77℃3min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-1400"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 11.1
+current_a = 7.3
+thrust_g = 500
+rpm = 7383
+power_w = 81.03
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV1400
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 11.1 | 7.3 | 500 | 81.03 | 6.17 | 7383 | 77℃3min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-1400"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 11.1
+current_a = 9.3
+thrust_g = 600
+rpm = 8061
+power_w = 103.23
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV1400
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 11.1 | 9.3 | 600 | 103.23 | 5.81 | 8061 | 77℃3min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-1400"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 11.1
+current_a = 11.3
+thrust_g = 700
+rpm = 8839
+power_w = 125.43
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV1400
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 11.1 | 11.3 | 700 | 125.43 | 5.58 | 8839 | 77℃3min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-1400"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 11.1
+current_a = 13.4
+thrust_g = 800
+rpm = 9476
+power_w = 148.74
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV1400
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 11.1 | 13.4 | 800 | 148.74 | 5.38 | 9476 | 77℃3min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-1400"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 11.1
+current_a = 16.1
+thrust_g = 900
+rpm = 10002
+power_w = 178.71
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV1400
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 11.1 | 16.1 | 900 | 178.71 | 5.04 | 10002 | 77℃3min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-1400"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 11.1
+current_a = 18.8
+thrust_g = 1000
+rpm = 10550
+power_w = 208.68
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV1400
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 11.1 | 18.8 | 1000 | 208.68 | 4.79 | 10550 | 77℃3min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-1400"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 11.1
+current_a = 21.4
+thrust_g = 1100
+rpm = 11250
+power_w = 237.54
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV1400
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 11.1 | 21.4 | 1100 | 237.54 | 4.63 | 11250 | 77℃3min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-1400"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 11.1
+current_a = 24.8
+thrust_g = 1200
+rpm = 11700
+power_w = 275.28
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV1400
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 11.1 | 24.8 | 1200 | 275.28 | 4.36 | 11700 | 77℃3min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-1400"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC9047"
+voltage_v = 11.1
+current_a = 30.5
+thrust_g = 1380
+rpm = 12423
+power_w = 338.55
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV1400
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC9047 | 11.1 | 30.5 | 1380 | 338.55 | 4.08 | 12423 | 77℃3min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2212-v3-1400"
+prop_uiuc = "apcsf_8x3.8"
+prop_as_published = "APC8038"
+voltage_v = 11.1
+current_a = 28
+thrust_g = 1230
+rpm = 12455
+power_w = 310.8
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+quote = '''
+KV1400
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC8038 | 11.1 | 28 | 1230 | 310.8 | 3.96 | 12455 | 66℃10min
+'''
+
+[[test]]
+motor_id = "sunnysky-x2216-v3-880"
+prop_uiuc = "apcsf_11x4.7"
+prop_as_published = "APC11*4.7"
+voltage_v = 11.1
+current_a = 0.6
+thrust_g = 100
+rpm = 2230
+power_w = 6.66
+url = "https://sunnyskyusa.com/products/sunnysky-x2216"
+notes = "Part-throttle row (fixed thrust step); throttle not published. power_w is SunnySky's 'Watts(W)' column (input power). SunnySky table has no throttle column: rows are listed at fixed thrust steps (100 gf, 200 gf, ...) up to a final maximum row; prop, voltage and temperature cells are row-spanning cells in the HTML (repeated here per row). Voltage is the round nominal pack value. DOUBT on prop identity: the page writes the prop with no type suffix (e.g. 'APC1047'), and APC's nomenclature PDF says a size with no letters denotes a Sport prop; but APC's catalogue search (apcprop.com/?s=<size>, checked for 8x3.8, 9x4.7, 10x4.7, 11x4.7) lists only SF/SFP versions of these sizes and no Sport or E version, so it is mapped to the apcsf key."
+quote = '''
+KV880
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC11*4.7 | 11.1 | 0.6 | 100 | 6.66 | 15.02 | 2230 | 75℃ 2min10s
+'''
+
+[[test]]
+motor_id = "sunnysky-x2216-v3-880"
+prop_uiuc = "apcsf_11x4.7"
+prop_as_published = "APC11*4.7"
+voltage_v = 11.1
+current_a = 1.6
+thrust_g = 200
+rpm = 3054
+power_w = 17.76
+url = "https://sunnyskyusa.com/products/sunnysky-x2216"
+quote = '''
+KV880
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC11*4.7 | 11.1 | 1.6 | 200 | 17.76 | 11.26 | 3054 | 75℃ 2min10s
+'''
+
+[[test]]
+motor_id = "sunnysky-x2216-v3-880"
+prop_uiuc = "apcsf_11x4.7"
+prop_as_published = "APC11*4.7"
+voltage_v = 11.1
+current_a = 2.8
+thrust_g = 300
+rpm = 3618
+power_w = 31.08
+url = "https://sunnyskyusa.com/products/sunnysky-x2216"
+quote = '''
+KV880
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC11*4.7 | 11.1 | 2.8 | 300 | 31.08 | 9.65 | 3618 | 75℃ 2min10s
+'''
+
+[[test]]
+motor_id = "sunnysky-x2216-v3-880"
+prop_uiuc = "apcsf_11x4.7"
+prop_as_published = "APC11*4.7"
+voltage_v = 11.1
+current_a = 4.1
+thrust_g = 400
+rpm = 4119
+power_w = 45.51
+url = "https://sunnyskyusa.com/products/sunnysky-x2216"
+quote = '''
+KV880
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC11*4.7 | 11.1 | 4.1 | 400 | 45.51 | 8.79 | 4119 | 75℃ 2min10s
+'''
+
+[[test]]
+motor_id = "sunnysky-x2216-v3-880"
+prop_uiuc = "apcsf_11x4.7"
+prop_as_published = "APC11*4.7"
+voltage_v = 11.1
+current_a = 5.65
+thrust_g = 500
+rpm = 4558
+power_w = 62.715
+url = "https://sunnyskyusa.com/products/sunnysky-x2216"
+quote = '''
+KV880
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC11*4.7 | 11.1 | 5.65 | 500 | 62.715 | 7.97 | 4558 | 75℃ 2min10s
+'''
+
+[[test]]
+motor_id = "sunnysky-x2216-v3-880"
+prop_uiuc = "apcsf_11x4.7"
+prop_as_published = "APC11*4.7"
+voltage_v = 11.1
+current_a = 7.4
+thrust_g = 600
+rpm = 4945
+power_w = 82.14
+url = "https://sunnyskyusa.com/products/sunnysky-x2216"
+quote = '''
+KV880
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC11*4.7 | 11.1 | 7.4 | 600 | 82.14 | 7.30 | 4945 | 75℃ 2min10s
+'''
+
+[[test]]
+motor_id = "sunnysky-x2216-v3-880"
+prop_uiuc = "apcsf_11x4.7"
+prop_as_published = "APC11*4.7"
+voltage_v = 11.1
+current_a = 9.2
+thrust_g = 700
+rpm = 5287
+power_w = 102.12
+url = "https://sunnyskyusa.com/products/sunnysky-x2216"
+quote = '''
+KV880
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC11*4.7 | 11.1 | 9.2 | 700 | 102.12 | 6.85 | 5287 | 75℃ 2min10s
+'''
+
+[[test]]
+motor_id = "sunnysky-x2216-v3-880"
+prop_uiuc = "apcsf_11x4.7"
+prop_as_published = "APC11*4.7"
+voltage_v = 11.1
+current_a = 11.2
+thrust_g = 800
+rpm = 5640
+power_w = 124.32
+url = "https://sunnyskyusa.com/products/sunnysky-x2216"
+quote = '''
+KV880
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC11*4.7 | 11.1 | 11.2 | 800 | 124.32 | 6.44 | 5640 | 75℃ 2min10s
+'''
+
+[[test]]
+motor_id = "sunnysky-x2216-v3-880"
+prop_uiuc = "apcsf_11x4.7"
+prop_as_published = "APC11*4.7"
+voltage_v = 11.1
+current_a = 13.7
+thrust_g = 900
+rpm = 5967
+power_w = 152.07
+url = "https://sunnyskyusa.com/products/sunnysky-x2216"
+quote = '''
+KV880
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC11*4.7 | 11.1 | 13.7 | 900 | 152.07 | 5.92 | 5967 | 75℃ 2min10s
+'''
+
+[[test]]
+motor_id = "sunnysky-x2216-v3-880"
+prop_uiuc = "apcsf_11x4.7"
+prop_as_published = "APC11*4.7"
+voltage_v = 11.1
+current_a = 16.1
+thrust_g = 1000
+rpm = 6193
+power_w = 178.71
+url = "https://sunnyskyusa.com/products/sunnysky-x2216"
+quote = '''
+KV880
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC11*4.7 | 11.1 | 16.1 | 1000 | 178.71 | 5.60 | 6193 | 75℃ 2min10s
+'''
+
+[[test]]
+motor_id = "sunnysky-x2216-v3-880"
+prop_uiuc = "apcsf_11x4.7"
+prop_as_published = "APC11*4.7"
+voltage_v = 11.1
+current_a = 23.4
+thrust_g = 1320
+rpm = 6975
+power_w = 259.74
+url = "https://sunnyskyusa.com/products/sunnysky-x2216"
+quote = '''
+KV880
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC11*4.7 | 11.1 | 23.4 | 1320 | 259.74 | 5.08 | 6975 | 75℃ 2min10s
+'''
+
+[[test]]
+motor_id = "sunnysky-x2216-v3-880"
+prop_uiuc = "apcsf_10x4.7"
+prop_as_published = "APC1047"
+voltage_v = 11.1
+current_a = 18.2
+thrust_g = 1105
+rpm = 7718
+power_w = 202.02
+url = "https://sunnyskyusa.com/products/sunnysky-x2216"
+quote = '''
+KV880
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC1047 | 11.1 | 18.2 | 1105 | 202.02 | 5.47 | 7718 | 100℃ 1min25s
+'''
+
+[[test]]
+motor_id = "sunnysky-x2216-v3-880"
+prop_uiuc = "apcsf_10x4.7"
+prop_as_published = "APC1047"
+voltage_v = 14.8
+current_a = 27.2
+thrust_g = 1650
+rpm = 9247
+power_w = 402.56
+url = "https://sunnyskyusa.com/products/sunnysky-x2216"
+quote = '''
+KV880
+Prop(inch) | Voltage(V) | Amps(A) | Thrust(gf) | Watts(W) | Efficiency(g/W) | RPM | Load temperature in 100% throttle
+APC1047 | 14.8 | 27.2 | 1650 | 402.56 | 4.10 | 9247 | 100℃ 1min25s
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apcsf_8x3.8"
+prop_as_published = "APC 8x3.8-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 6.8
+thrust_g = 518
+rpm = 8470
+power_w = 75.5
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+notes = "Prop chart rows have no throttle column (one operating point per prop and voltage; the chart's colour key speaks of 'full throttle' but the rows are not labelled), so throttle_pct is omitted. 'Input Voltage' is a round nominal pack value (7.4/11.1/14.8/18.5); the chart note says test voltages are 'based on a properly sized Li-Po battery' and real voltages differ with other packs. power_w is the chart's 'Watts Input' column."
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x3.8-SF | 11.1 | 6.80 | 75.5 | 8,470 | 30.5 | 518 | 18.27 | 6.86
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_8x4"
+prop_as_published = "APC 8x4-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 6.04
+thrust_g = 473
+rpm = 8660
+power_w = 67
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x4-E | 11.1 | 6.04 | 67.0 | 8,660 | 32.8 | 473 | 16.68 | 7.06
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_8x6"
+prop_as_published = "APC 8x6-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 8.93
+thrust_g = 514
+rpm = 8000
+power_w = 99.1
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x6-E | 11.1 | 8.93 | 99.1 | 8,000 | 45.5 | 514 | 18.13 | 5.19
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apcsf_8x6"
+prop_as_published = "APC 8x6-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 10.87
+thrust_g = 590
+rpm = 7540
+power_w = 120.7
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x6-SF | 11.1 | 10.87 | 120.7 | 7,540 | 42.8 | 590 | 20.81 | 4.89
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_8x8"
+prop_as_published = "APC 8x8-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 11.3
+thrust_g = 489
+rpm = 7460
+power_w = 125.4
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x8-E | 11.1 | 11.30 | 125.4 | 7,460 | 56.5 | 489 | 17.25 | 3.90
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apcsf_9x3.8"
+prop_as_published = "APC 9x3.8-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 9.11
+thrust_g = 673
+rpm = 7940
+power_w = 101.1
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x3.8-SF | 11.1 | 9.11 | 101.1 | 7,940 | 28.6 | 673 | 23.74 | 6.66
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_9x4.5"
+prop_as_published = "APC 9x4.5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 8.32
+thrust_g = 647
+rpm = 8130
+power_w = 92.4
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x4.5-E | 11.1 | 8.32 | 92.4 | 8,130 | 34.6 | 647 | 22.82 | 7.01
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC 9x4.7-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 9.15
+thrust_g = 683
+rpm = 7930
+power_w = 101.6
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x4.7-SF | 11.1 | 9.15 | 101.6 | 7,930 | 35.3 | 683 | 24.09 | 6.72
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_9x6"
+prop_as_published = "APC 9x6-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 9.52
+thrust_g = 645
+rpm = 7860
+power_w = 105.7
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x6-E | 11.1 | 9.52 | 105.7 | 7,860 | 44.7 | 645 | 22.75 | 6.10
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apcsf_9x6"
+prop_as_published = "APC 9x6-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 14.2
+thrust_g = 755
+rpm = 6750
+power_w = 157.6
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x6-SF | 11.1 | 14.20 | 157.6 | 6,750 | 38.4 | 755 | 26.63 | 4.79
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_9x7.5"
+prop_as_published = "APC 9x7.5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 12.92
+thrust_g = 655
+rpm = 7070
+power_w = 143.4
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x7.5-E | 11.1 | 12.92 | 143.4 | 7,070 | 50.2 | 655 | 23.10 | 4.57
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apcsf_9x7.5"
+prop_as_published = "APC 9x7.5-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 15.91
+thrust_g = 686
+rpm = 6310
+power_w = 176.6
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x7.5-SF | 11.1 | 15.91 | 176.6 | 6,310 | 44.8 | 686 | 24.20 | 3.88
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apcsf_10x4.7"
+prop_as_published = "APC 10x4.7-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 13.89
+thrust_g = 887
+rpm = 6780
+power_w = 154.2
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 10x4.7-SF | 11.1 | 13.89 | 154.2 | 6,780 | 30.2 | 887 | 31.29 | 5.75
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_10x5"
+prop_as_published = "APC 10x5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 11.11
+thrust_g = 776
+rpm = 7470
+power_w = 123.3
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 10x5-E | 11.1 | 11.11 | 123.3 | 7,470 | 35.4 | 776 | 27.37 | 6.29
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_10x7"
+prop_as_published = "APC 10x7-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 13.4
+thrust_g = 834
+rpm = 6950
+power_w = 148.7
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 10x7-E | 11.1 | 13.40 | 148.7 | 6,950 | 46.1 | 834 | 29.42 | 5.61
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apcsf_11x3.8"
+prop_as_published = "APC 11x3.8-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 14.23
+thrust_g = 953
+rpm = 6700
+power_w = 158
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x3.8-SF | 11.1 | 14.23 | 158.0 | 6,700 | 24.1 | 953 | 33.62 | 6.03
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apcsf_11x4.7"
+prop_as_published = "APC 11x4.7-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 16.14
+thrust_g = 1000
+rpm = 6210
+power_w = 179.2
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x4.7-SF | 11.1 | 16.14 | 179.2 | 6,210 | 27.6 | 1000 | 35.27 | 5.58
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_11x5.5"
+prop_as_published = "APC 11x5.5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 14
+thrust_g = 956
+rpm = 6790
+power_w = 155.4
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x5.5-E | 11.1 | 14.00 | 155.4 | 6,790 | 35.4 | 956 | 33.72 | 6.15
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_11x7"
+prop_as_published = "APC 11x7-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 15.58
+thrust_g = 941
+rpm = 6390
+power_w = 172.9
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x7-E | 11.1 | 15.58 | 172.9 | 6,390 | 42.4 | 941 | 33.19 | 5.44
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_11x8"
+prop_as_published = "APC 11x8-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 16.41
+thrust_g = 902
+rpm = 6140
+power_w = 182.2
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x8-E | 11.1 | 16.41 | 182.2 | 6,140 | 46.5 | 902 | 31.82 | 4.95
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "gwsdd_9x5"
+prop_as_published = "GWS 9x5-DD"
+full_throttle = true
+voltage_v = 11.1
+current_a = 8.15
+thrust_g = 651
+rpm = 8160
+power_w = 90.5
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+GWS | 9x5-DD | 11.1 | 8.15 | 90.5 | 8,160 | 38.6 | 651 | 22.96 | 7.20
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "gwsdd_10x6"
+prop_as_published = "GWS 10x6-DD"
+full_throttle = true
+voltage_v = 11.1
+current_a = 10.66
+thrust_g = 773
+rpm = 7590
+power_w = 118.3
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+GWS | 10x6-DD | 11.1 | 10.66 | 118.3 | 7,590 | 43.1 | 773 | 27.27 | 6.53
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_8x4"
+prop_as_published = "APC 8x4-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 9.46
+thrust_g = 764
+rpm = 10900
+power_w = 140
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x4-E | 14.8 | 9.46 | 140.0 | 10,900 | 41.3 | 764 | 26.95 | 5.46
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_8x6"
+prop_as_published = "APC 8x6-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 13.29
+thrust_g = 849
+rpm = 9880
+power_w = 196.7
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x6-E | 14.8 | 13.29 | 196.7 | 9,880 | 56.1 | 849 | 29.95 | 4.32
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_8x8"
+prop_as_published = "APC 8x8-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 16.53
+thrust_g = 728
+rpm = 9020
+power_w = 244.6
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x8-E | 14.8 | 16.53 | 244.6 | 9,020 | 68.3 | 728 | 25.68 | 2.98
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_9x4.5"
+prop_as_published = "APC 9x4.5-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 12.74
+thrust_g = 1018
+rpm = 10010
+power_w = 188.6
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x4.5-E | 14.8 | 12.74 | 188.6 | 10,010 | 42.7 | 1018 | 35.91 | 5.40
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_9x6"
+prop_as_published = "APC 9x6-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 14.27
+thrust_g = 978
+rpm = 9600
+power_w = 211.2
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x6-E | 14.8 | 14.27 | 211.2 | 9,600 | 54.5 | 978 | 34.50 | 4.63
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "apce_10x5"
+prop_as_published = "APC 10x5-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 16.43
+thrust_g = 1155
+rpm = 8980
+power_w = 243.2
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 10x5-E | 14.8 | 16.43 | 243.2 | 8,980 | 42.5 | 1155 | 40.74 | 4.75
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "gwsdd_9x5"
+prop_as_published = "GWS 9x5-DD"
+full_throttle = true
+voltage_v = 14.8
+current_a = 12.47
+thrust_g = 1030
+rpm = 10080
+power_w = 184.6
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+GWS | 9x5-DD | 14.8 | 12.47 | 184.6 | 10,080 | 47.7 | 1030 | 36.33 | 5.58
+'''
+
+[[test]]
+motor_id = "cobra-c2213-26-950"
+prop_uiuc = "gwsdd_10x6"
+prop_as_published = "GWS 10x6-DD"
+full_throttle = true
+voltage_v = 14.8
+current_a = 15.62
+thrust_g = 1161
+rpm = 9200
+power_w = 231.2
+url = "https://innov8tivedesigns.com/downloads/Cobra_2213-26_Specs.htm"
+quote = '''
+Cobra C2213/26 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+GWS | 10x6-DD | 14.8 | 15.62 | 231.2 | 9,200 | 52.3 | 1161 | 40.95 | 5.02
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_9x7.5"
+prop_as_published = "APC 9x7.5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 13.23
+thrust_g = 713
+rpm = 7459
+power_w = 146.9
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+notes = "Prop chart rows have no throttle column (one operating point per prop and voltage; the chart's colour key speaks of 'full throttle' but the rows are not labelled), so throttle_pct is omitted. 'Input Voltage' is a round nominal pack value (7.4/11.1/14.8/18.5); the chart note says test voltages are 'based on a properly sized Li-Po battery' and real voltages differ with other packs. power_w is the chart's 'Watts Input' column."
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x7.5-E | 11.1 | 13.23 | 146.9 | 7,459 | 53.0 | 713 | 25.15 | 4.85
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_9x9"
+prop_as_published = "APC 9x9-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 16.44
+thrust_g = 685
+rpm = 7131
+power_w = 182.4
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x9-E | 11.1 | 16.44 | 182.4 | 7,131 | 60.8 | 685 | 24.16 | 3.75
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_10x5"
+prop_as_published = "APC 10x5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 11
+thrust_g = 826
+rpm = 7685
+power_w = 122.1
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 10x5-E | 11.1 | 11.00 | 122.1 | 7,685 | 36.4 | 826 | 29.14 | 6.76
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_10x7"
+prop_as_published = "APC 10x7-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 13.92
+thrust_g = 936
+rpm = 7382
+power_w = 154.5
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 10x7-E | 11.1 | 13.92 | 154.5 | 7,382 | 48.9 | 936 | 33.02 | 6.06
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_11x5.5"
+prop_as_published = "APC 11x5.5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 14.94
+thrust_g = 1100
+rpm = 7285
+power_w = 165.9
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x5.5-E | 11.1 | 14.94 | 165.9 | 7,285 | 37.9 | 1100 | 38.80 | 6.63
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_11x7"
+prop_as_published = "APC 11x7-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 17.57
+thrust_g = 1170
+rpm = 7021
+power_w = 195
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x7-E | 11.1 | 17.57 | 195.0 | 7,021 | 46.5 | 1170 | 41.27 | 6.00
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_11x8"
+prop_as_published = "APC 11x8-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 18.72
+thrust_g = 1139
+rpm = 6903
+power_w = 207.8
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x8-E | 11.1 | 18.72 | 207.8 | 6,903 | 52.3 | 1139 | 40.18 | 5.48
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_11x8.5"
+prop_as_published = "APC 11x8.5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 20.15
+thrust_g = 1146
+rpm = 6752
+power_w = 223.6
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x8.5-E | 11.1 | 20.15 | 223.6 | 6,752 | 54.3 | 1146 | 40.42 | 5.13
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_11x10"
+prop_as_published = "APC 11x10-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 23.7
+thrust_g = 996
+rpm = 6374
+power_w = 263
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x10-E | 11.1 | 23.70 | 263.0 | 6,374 | 60.4 | 996 | 35.13 | 3.79
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_12x6"
+prop_as_published = "APC 12x6-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 18.88
+thrust_g = 1323
+rpm = 6889
+power_w = 209.5
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 12x6-E | 11.1 | 18.88 | 209.5 | 6,889 | 39.1 | 1323 | 46.67 | 6.31
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_12x8"
+prop_as_published = "APC 12x8-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 23.19
+thrust_g = 1204
+rpm = 6439
+power_w = 257.4
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 12x8-E | 11.1 | 23.19 | 257.4 | 6,439 | 48.8 | 1204 | 42.47 | 4.68
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_13x65"
+prop_as_published = "APC 13x6.5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 24.41
+thrust_g = 1554
+rpm = 6304
+power_w = 270.9
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 13x6.5-E | 11.1 | 24.41 | 270.9 | 6,304 | 38.8 | 1554 | 54.82 | 5.74
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_13x8"
+prop_as_published = "APC 13x8-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 26.06
+thrust_g = 1542
+rpm = 6109
+power_w = 289.2
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 13x8-E | 11.1 | 26.06 | 289.2 | 6,109 | 46.3 | 1542 | 54.39 | 5.33
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "gwsdd_10x6"
+prop_as_published = "GWS 10x6-DD"
+full_throttle = true
+voltage_v = 11.1
+current_a = 10.35
+thrust_g = 810
+rpm = 7757
+power_w = 114.9
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+GWS | 10x6-DD | 11.1 | 10.35 | 114.9 | 7,757 | 44.1 | 810 | 28.57 | 7.05
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "gwsdd_11x7"
+prop_as_published = "GWS 11x7-DD"
+full_throttle = true
+voltage_v = 11.1
+current_a = 15.8
+thrust_g = 1143
+rpm = 7201
+power_w = 175.4
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+GWS | 11x7-DD | 11.1 | 15.80 | 175.4 | 7,201 | 47.7 | 1143 | 40.32 | 6.52
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_8x4"
+prop_as_published = "APC 8x4-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 8.77
+thrust_g = 743
+rpm = 10730
+power_w = 129.8
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x4-E | 14.8 | 8.77 | 129.8 | 10,730 | 40.6 | 743 | 26.21 | 5.73
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_8x6"
+prop_as_published = "APC 8x6-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 13.42
+thrust_g = 905
+rpm = 10195
+power_w = 198.6
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x6-E | 14.8 | 13.42 | 198.6 | 10,195 | 57.9 | 905 | 31.92 | 4.56
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_8x8"
+prop_as_published = "APC 8x8-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 17.87
+thrust_g = 836
+rpm = 9696
+power_w = 264.4
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x8-E | 14.8 | 17.87 | 264.4 | 9,696 | 73.5 | 836 | 29.49 | 3.16
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_9x4.5"
+prop_as_published = "APC 9x4.5-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 12.7
+thrust_g = 1079
+rpm = 10278
+power_w = 187.9
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x4.5-E | 14.8 | 12.70 | 187.9 | 10,278 | 43.8 | 1079 | 38.06 | 5.74
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_9x6"
+prop_as_published = "APC 9x6-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 14.79
+thrust_g = 1096
+rpm = 10043
+power_w = 218.9
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x6-E | 14.8 | 14.79 | 218.9 | 10,043 | 57.1 | 1096 | 38.66 | 5.01
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_9x7.5"
+prop_as_published = "APC 9x7.5-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 21.4
+thrust_g = 1131
+rpm = 9309
+power_w = 316.7
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x7.5-E | 14.8 | 21.40 | 316.7 | 9,309 | 66.1 | 1131 | 39.89 | 3.57
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_9x9"
+prop_as_published = "APC 9x9-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 24.63
+thrust_g = 1097
+rpm = 8928
+power_w = 364.5
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x9-E | 14.8 | 24.63 | 364.5 | 8,928 | 76.1 | 1097 | 38.70 | 3.01
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_10x5"
+prop_as_published = "APC 10x5-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 17.75
+thrust_g = 1353
+rpm = 9708
+power_w = 262.7
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 10x5-E | 14.8 | 17.75 | 262.7 | 9,708 | 46.0 | 1353 | 47.73 | 5.15
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_10x7"
+prop_as_published = "APC 10x7-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 21.84
+thrust_g = 1496
+rpm = 9250
+power_w = 323.2
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 10x7-E | 14.8 | 21.84 | 323.2 | 9,250 | 61.3 | 1496 | 52.77 | 4.63
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_11x5.5"
+prop_as_published = "APC 11x5.5-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 23.77
+thrust_g = 1760
+rpm = 9024
+power_w = 351.7
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x5.5-E | 14.8 | 23.77 | 351.7 | 9,024 | 47.0 | 1760 | 62.08 | 5.00
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_11x7"
+prop_as_published = "APC 11x7-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 27.28
+thrust_g = 1808
+rpm = 8604
+power_w = 403.7
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x7-E | 14.8 | 27.28 | 403.7 | 8,604 | 57.0 | 1808 | 63.77 | 4.48
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_8x4"
+prop_as_published = "APC 8x4-E"
+full_throttle = true
+voltage_v = 18.5
+current_a = 13.03
+thrust_g = 1119
+rpm = 12994
+power_w = 241.1
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x4-E | 18.5 | 13.03 | 241.1 | 12,994 | 49.2 | 1119 | 39.47 | 4.64
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_8x6"
+prop_as_published = "APC 8x6-E"
+full_throttle = true
+voltage_v = 18.5
+current_a = 20.29
+thrust_g = 1300
+rpm = 12113
+power_w = 375.4
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x6-E | 18.5 | 20.29 | 375.4 | 12,113 | 68.8 | 1300 | 45.86 | 3.46
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_8x8"
+prop_as_published = "APC 8x8-E"
+full_throttle = true
+voltage_v = 18.5
+current_a = 25.97
+thrust_g = 1173
+rpm = 11426
+power_w = 480.5
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x8-E | 18.5 | 25.97 | 480.5 | 11,426 | 86.6 | 1173 | 41.38 | 2.44
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_9x4.5"
+prop_as_published = "APC 9x4.5-E"
+full_throttle = true
+voltage_v = 18.5
+current_a = 18.46
+thrust_g = 1580
+rpm = 12325
+power_w = 341.6
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x4.5-E | 18.5 | 18.46 | 341.6 | 12,325 | 52.5 | 1580 | 55.73 | 4.63
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_9x6"
+prop_as_published = "APC 9x6-E"
+full_throttle = true
+voltage_v = 18.5
+current_a = 21.34
+thrust_g = 1556
+rpm = 11953
+power_w = 394.8
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x6-E | 18.5 | 21.34 | 394.8 | 11,953 | 67.9 | 1556 | 54.89 | 3.94
+'''
+
+[[test]]
+motor_id = "cobra-c2814-20-850"
+prop_uiuc = "apce_10x5"
+prop_as_published = "APC 10x5-E"
+full_throttle = true
+voltage_v = 18.5
+current_a = 25.88
+thrust_g = 1901
+rpm = 11428
+power_w = 478.7
+url = "https://innov8tivedesigns.com/downloads/Cobra_2814-20_Specs.htm"
+quote = '''
+Cobra C2814/20 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 10x5-E | 18.5 | 25.88 | 478.7 | 11,428 | 54.1 | 1901 | 67.06 | 3.97
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC 9x4.7-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 8.59
+thrust_g = 686
+rpm = 8011
+power_w = 95.4
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+notes = "Prop chart rows have no throttle column (one operating point per prop and voltage; the chart's colour key speaks of 'full throttle' but the rows are not labelled), so throttle_pct is omitted. 'Input Voltage' is a round nominal pack value (7.4/11.1/14.8/18.5); the chart note says test voltages are 'based on a properly sized Li-Po battery' and real voltages differ with other packs. power_w is the chart's 'Watts Input' column."
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x4.7-SF | 11.1 | 8.59 | 95.4 | 8,011 | 35.7 | 686 | 24.20 | 7.19
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apcsf_9x6"
+prop_as_published = "APC 9x6-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 15.5
+thrust_g = 875
+rpm = 7274
+power_w = 172.1
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x6-SF | 11.1 | 15.50 | 172.1 | 7,274 | 41.3 | 875 | 30.86 | 5.09
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_9x7.5"
+prop_as_published = "APC 9x7.5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 13.41
+thrust_g = 713
+rpm = 7492
+power_w = 148.8
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x7.5-E | 11.1 | 13.41 | 148.8 | 7,492 | 53.2 | 713 | 25.15 | 4.79
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apcsf_9x7.5"
+prop_as_published = "APC 9x7.5-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 17.8
+thrust_g = 813
+rpm = 7022
+power_w = 197.5
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x7.5-SF | 11.1 | 17.80 | 197.5 | 7,022 | 49.9 | 813 | 28.68 | 4.12
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_9x9"
+prop_as_published = "APC 9x9-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 16.36
+thrust_g = 666
+rpm = 7201
+power_w = 181.6
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x9-E | 11.1 | 16.36 | 181.6 | 7,201 | 61.4 | 666 | 23.49 | 3.67
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apcsf_10x4.7"
+prop_as_published = "APC 10x4.7-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 14.81
+thrust_g = 1034
+rpm = 7354
+power_w = 164.4
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 10x4.7-SF | 11.1 | 14.81 | 164.4 | 7,354 | 32.7 | 1034 | 36.47 | 6.29
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_10x7"
+prop_as_published = "APC 10x7-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 13.75
+thrust_g = 927
+rpm = 7411
+power_w = 152.6
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 10x7-E | 11.1 | 13.75 | 152.6 | 7,411 | 49.1 | 927 | 32.70 | 6.07
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apcsf_10x7"
+prop_as_published = "APC 10x7-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 20.52
+thrust_g = 1124
+rpm = 6807
+power_w = 227.8
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 10x7-SF | 11.1 | 20.52 | 227.8 | 6,807 | 45.1 | 1124 | 39.65 | 4.93
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apcsf_11x3.8"
+prop_as_published = "APC 11x3.8-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 15.47
+thrust_g = 1140
+rpm = 7277
+power_w = 171.7
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x3.8-SF | 11.1 | 15.47 | 171.7 | 7,277 | 26.2 | 1140 | 40.21 | 6.64
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apcsf_11x4.7"
+prop_as_published = "APC 11x4.7-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 18.55
+thrust_g = 1276
+rpm = 6978
+power_w = 205.9
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x4.7-SF | 11.1 | 18.55 | 205.9 | 6,978 | 31.1 | 1276 | 45.01 | 6.20
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_11x5.5"
+prop_as_published = "APC 11x5.5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 14.57
+thrust_g = 1087
+rpm = 7357
+power_w = 161.8
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x5.5-E | 11.1 | 14.57 | 161.8 | 7,357 | 38.3 | 1087 | 38.34 | 6.72
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_11x7"
+prop_as_published = "APC 11x7-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 17.59
+thrust_g = 1161
+rpm = 7079
+power_w = 195.2
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x7-E | 11.1 | 17.59 | 195.2 | 7,079 | 46.9 | 1161 | 40.95 | 5.95
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apcsf_11x7"
+prop_as_published = "APC 11x7-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 25.19
+thrust_g = 1408
+rpm = 6367
+power_w = 279.7
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x7-SF | 11.1 | 25.19 | 279.7 | 6,367 | 42.2 | 1408 | 49.67 | 5.03
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_11x8"
+prop_as_published = "APC 11x8-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 19.37
+thrust_g = 1085
+rpm = 6902
+power_w = 215
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x8-E | 11.1 | 19.37 | 215.0 | 6,902 | 52.3 | 1085 | 38.27 | 5.05
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_11x8.5"
+prop_as_published = "APC 11x8.5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 19.95
+thrust_g = 1139
+rpm = 6797
+power_w = 221.4
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x8.5-E | 11.1 | 19.95 | 221.4 | 6,797 | 54.7 | 1139 | 40.18 | 5.14
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_11x10"
+prop_as_published = "APC 11x10-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 23.87
+thrust_g = 1013
+rpm = 6485
+power_w = 264.9
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x10-E | 11.1 | 23.87 | 264.9 | 6,485 | 61.4 | 1013 | 35.73 | 3.82
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_12x6"
+prop_as_published = "APC 12x6-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 18.67
+thrust_g = 1319
+rpm = 6935
+power_w = 207.2
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 12x6-E | 11.1 | 18.67 | 207.2 | 6,935 | 39.4 | 1319 | 46.53 | 6.36
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_12x8"
+prop_as_published = "APC 12x8-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 23.45
+thrust_g = 1198
+rpm = 6522
+power_w = 260.3
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 12x8-E | 11.1 | 23.45 | 260.3 | 6,522 | 49.4 | 1198 | 42.26 | 4.60
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_13x65"
+prop_as_published = "APC 13x6.5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 25.04
+thrust_g = 1596
+rpm = 6384
+power_w = 277.9
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 13x6.5-E | 11.1 | 25.04 | 277.9 | 6,384 | 39.3 | 1596 | 56.30 | 5.74
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_13x8"
+prop_as_published = "APC 13x8-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 26.78
+thrust_g = 1569
+rpm = 6224
+power_w = 297.2
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 13x8-E | 11.1 | 26.78 | 297.2 | 6,224 | 47.2 | 1569 | 55.34 | 5.28
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_8x6"
+prop_as_published = "APC 8x6-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 13.27
+thrust_g = 888
+rpm = 10189
+power_w = 196.5
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x6-E | 14.8 | 13.27 | 196.5 | 10,189 | 57.9 | 888 | 31.32 | 4.52
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_8x8"
+prop_as_published = "APC 8x8-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 17.46
+thrust_g = 810
+rpm = 9704
+power_w = 258.4
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x8-E | 14.8 | 17.46 | 258.4 | 9,704 | 73.5 | 810 | 28.57 | 3.13
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_9x4.5"
+prop_as_published = "APC 9x4.5-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 12.29
+thrust_g = 1047
+rpm = 10257
+power_w = 181.9
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x4.5-E | 14.8 | 12.29 | 181.9 | 10,257 | 43.7 | 1047 | 36.93 | 5.76
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_9x6"
+prop_as_published = "APC 9x6-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 14.52
+thrust_g = 1054
+rpm = 10033
+power_w = 214.9
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x6-E | 14.8 | 14.52 | 214.9 | 10,033 | 57.0 | 1054 | 37.18 | 4.90
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_9x7.5"
+prop_as_published = "APC 9x7.5-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 21.49
+thrust_g = 1116
+rpm = 9281
+power_w = 318
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x7.5-E | 14.8 | 21.49 | 318.0 | 9,281 | 65.9 | 1116 | 39.37 | 3.51
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_9x9"
+prop_as_published = "APC 9x9-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 24.4
+thrust_g = 1077
+rpm = 8975
+power_w = 361.1
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x9-E | 14.8 | 24.40 | 361.1 | 8,975 | 76.5 | 1077 | 37.99 | 2.98
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_10x5"
+prop_as_published = "APC 10x5-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 17.42
+thrust_g = 1332
+rpm = 9665
+power_w = 257.8
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 10x5-E | 14.8 | 17.42 | 257.8 | 9,665 | 45.8 | 1332 | 46.98 | 5.17
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_10x7"
+prop_as_published = "APC 10x7-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 21.6
+thrust_g = 1488
+rpm = 9265
+power_w = 319.6
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 10x7-E | 14.8 | 21.60 | 319.6 | 9,265 | 61.4 | 1488 | 52.49 | 4.66
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_11x5.5"
+prop_as_published = "APC 11x5.5-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 23.32
+thrust_g = 1729
+rpm = 9074
+power_w = 345.2
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x5.5-E | 14.8 | 23.32 | 345.2 | 9,074 | 47.3 | 1729 | 60.99 | 5.01
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_11x7"
+prop_as_published = "APC 11x7-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 27.45
+thrust_g = 1798
+rpm = 8661
+power_w = 406.3
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 11x7-E | 14.8 | 27.45 | 406.3 | 8,661 | 57.4 | 1798 | 63.42 | 4.43
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_12x6"
+prop_as_published = "APC 12x6-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 29.85
+thrust_g = 2065
+rpm = 8426
+power_w = 441.7
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 12x6-E | 14.8 | 29.85 | 441.7 | 8,426 | 47.9 | 2065 | 72.84 | 4.67
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_8x4"
+prop_as_published = "APC 8x4-E"
+full_throttle = true
+voltage_v = 18.5
+current_a = 12.63
+thrust_g = 1091
+rpm = 12913
+power_w = 233.7
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x4-E | 18.5 | 12.63 | 233.7 | 12,913 | 48.9 | 1091 | 38.48 | 4.67
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_8x6"
+prop_as_published = "APC 8x6-E"
+full_throttle = true
+voltage_v = 18.5
+current_a = 19.56
+thrust_g = 1244
+rpm = 12024
+power_w = 361.9
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x6-E | 18.5 | 19.56 | 361.9 | 12,024 | 68.3 | 1244 | 43.88 | 3.44
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_8x8"
+prop_as_published = "APC 8x8-E"
+full_throttle = true
+voltage_v = 18.5
+current_a = 25.36
+thrust_g = 1130
+rpm = 11373
+power_w = 469.2
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 8x8-E | 18.5 | 25.36 | 469.2 | 11,373 | 86.2 | 1130 | 39.86 | 2.41
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_9x4.5"
+prop_as_published = "APC 9x4.5-E"
+full_throttle = true
+voltage_v = 18.5
+current_a = 18
+thrust_g = 1555
+rpm = 12226
+power_w = 332.9
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x4.5-E | 18.5 | 18.00 | 332.9 | 12,226 | 52.1 | 1555 | 54.85 | 4.67
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_9x6"
+prop_as_published = "APC 9x6-E"
+full_throttle = true
+voltage_v = 18.5
+current_a = 20.62
+thrust_g = 1488
+rpm = 11913
+power_w = 381.5
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 9x6-E | 18.5 | 20.62 | 381.5 | 11,913 | 67.7 | 1488 | 52.49 | 3.90
+'''
+
+[[test]]
+motor_id = "cobra-c3510-24-820"
+prop_uiuc = "apce_10x5"
+prop_as_published = "APC 10x5-E"
+full_throttle = true
+voltage_v = 18.5
+current_a = 25.07
+thrust_g = 1841
+rpm = 11395
+power_w = 463.9
+url = "https://innov8tivedesigns.com/downloads/Cobra_3510-24_Specs.htm"
+quote = '''
+Cobra C3510/24 Motor Propeller Data
+Prop | Prop | Input | Motor | Watts | Prop | Pitch | Thrust | Thrust | Thrust Eff.
+Manf. | Size | Voltage | Amps | Input | RPM | Speed | Grams | Ounces | Grams/W
+APC | 10x5-E | 18.5 | 25.07 | 463.9 | 11,395 | 54.0 | 1841 | 64.94 | 3.97
+'''
+
+[[test]]
+motor_id = "scorpion-sii-2212-960"
+prop_uiuc = "apcsf_8x3.8"
+prop_as_published = "APC 8x3.8-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 8.18
+thrust_g = 580.3
+rpm = 8924
+power_w = 90.8
+url = "https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"
+notes = "Prop chart rows have no throttle column (one operating point per prop and voltage; the chart's colour key speaks of 'full throttle' but the rows are not labelled), so throttle_pct is omitted. 'Input Voltage' is a round nominal pack value (7.4/11.1/14.8/18.5); the chart note says test voltages are 'based on a properly sized Li-Po battery' and real voltages differ with other packs. power_w is the chart's 'Watts Input' column. Text extracted from the PDF with pdftotext -layout; runs of spaces collapsed to one."
+quote = '''
+Scorpion SII-2212-960 Motor Propeller Data
+Prop Prop Input Motor Watts Prop Pitch Thrust Thrust Thrust Eff.
+Manf. Size Voltage Amps Input RPM Speed Grams Ounces Grams/W
+APC 8x3.8-SF 11.1 8.18 90.8 8,924 32.1 580.3 20.47 6.39
+'''
+
+[[test]]
+motor_id = "scorpion-sii-2212-960"
+prop_uiuc = "apce_8x4"
+prop_as_published = "APC 8x4-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 7.26
+thrust_g = 529.1
+rpm = 9181
+power_w = 80.6
+url = "https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"
+quote = '''
+Scorpion SII-2212-960 Motor Propeller Data
+Prop Prop Input Motor Watts Prop Pitch Thrust Thrust Thrust Eff.
+Manf. Size Voltage Amps Input RPM Speed Grams Ounces Grams/W
+APC 8x4-E 11.1 7.26 80.6 9,181 34.8 529.1 18.66 6.56
+'''
+
+[[test]]
+motor_id = "scorpion-sii-2212-960"
+prop_uiuc = "apce_8x6"
+prop_as_published = "APC 8x6-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 10.05
+thrust_g = 581.5
+rpm = 8412
+power_w = 111.6
+url = "https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"
+quote = '''
+Scorpion SII-2212-960 Motor Propeller Data
+Prop Prop Input Motor Watts Prop Pitch Thrust Thrust Thrust Eff.
+Manf. Size Voltage Amps Input RPM Speed Grams Ounces Grams/W
+APC 8x6-E 11.1 10.05 111.6 8,412 47.8 581.5 20.51 5.21
+'''
+
+[[test]]
+motor_id = "scorpion-sii-2212-960"
+prop_uiuc = "apcsf_8x6"
+prop_as_published = "APC 8x6-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 12.42
+thrust_g = 624.1
+rpm = 7736
+power_w = 137.8
+url = "https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"
+quote = '''
+Scorpion SII-2212-960 Motor Propeller Data
+Prop Prop Input Motor Watts Prop Pitch Thrust Thrust Thrust Eff.
+Manf. Size Voltage Amps Input RPM Speed Grams Ounces Grams/W
+APC 8x6-SF 11.1 12.42 137.8 7,736 44.0 624.1 22.01 4.53
+'''
+
+[[test]]
+motor_id = "scorpion-sii-2212-960"
+prop_uiuc = "apce_8x8"
+prop_as_published = "APC 8x8-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 12.76
+thrust_g = 520.7
+rpm = 7653
+power_w = 141.6
+url = "https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"
+quote = '''
+Scorpion SII-2212-960 Motor Propeller Data
+Prop Prop Input Motor Watts Prop Pitch Thrust Thrust Thrust Eff.
+Manf. Size Voltage Amps Input RPM Speed Grams Ounces Grams/W
+APC 8x8-E 11.1 12.76 141.6 7,653 58.0 520.7 18.37 3.68
+'''
+
+[[test]]
+motor_id = "scorpion-sii-2212-960"
+prop_uiuc = "apcsf_9x3.8"
+prop_as_published = "APC 9x3.8-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 10.65
+thrust_g = 733.1
+rpm = 8250
+power_w = 118.3
+url = "https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"
+quote = '''
+Scorpion SII-2212-960 Motor Propeller Data
+Prop Prop Input Motor Watts Prop Pitch Thrust Thrust Thrust Eff.
+Manf. Size Voltage Amps Input RPM Speed Grams Ounces Grams/W
+APC 9x3.8-SF 11.1 10.65 118.3 8,250 29.7 733.1 25.86 6.20
+'''
+
+[[test]]
+motor_id = "scorpion-sii-2212-960"
+prop_uiuc = "apce_9x4.5"
+prop_as_published = "APC 9x4.5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 9.81
+thrust_g = 704.4
+rpm = 8480
+power_w = 108.9
+url = "https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"
+quote = '''
+Scorpion SII-2212-960 Motor Propeller Data
+Prop Prop Input Motor Watts Prop Pitch Thrust Thrust Thrust Eff.
+Manf. Size Voltage Amps Input RPM Speed Grams Ounces Grams/W
+APC 9x4.5-E 11.1 9.81 108.9 8,480 36.1 704.4 24.85 6.47
+'''
+
+[[test]]
+motor_id = "scorpion-sii-2212-960"
+prop_uiuc = "apcsf_9x4.7"
+prop_as_published = "APC 9x4.7-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 10.7
+thrust_g = 749.8
+rpm = 8232
+power_w = 118.8
+url = "https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"
+quote = '''
+Scorpion SII-2212-960 Motor Propeller Data
+Prop Prop Input Motor Watts Prop Pitch Thrust Thrust Thrust Eff.
+Manf. Size Voltage Amps Input RPM Speed Grams Ounces Grams/W
+APC 9x4.7-SF 11.1 10.70 118.8 8,232 36.6 749.8 26.45 6.31
+'''
+
+[[test]]
+motor_id = "scorpion-sii-2212-960"
+prop_uiuc = "apce_9x6"
+prop_as_published = "APC 9x6-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 11.22
+thrust_g = 698.8
+rpm = 8082
+power_w = 124.6
+url = "https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"
+quote = '''
+Scorpion SII-2212-960 Motor Propeller Data
+Prop Prop Input Motor Watts Prop Pitch Thrust Thrust Thrust Eff.
+Manf. Size Voltage Amps Input RPM Speed Grams Ounces Grams/W
+APC 9x6-E 11.1 11.22 124.6 8,082 45.9 698.8 24.65 5.61
+'''
+
+[[test]]
+motor_id = "scorpion-sii-2212-960"
+prop_uiuc = "apcsf_9x6"
+prop_as_published = "APC 9x6-SF"
+full_throttle = true
+voltage_v = 11.1
+current_a = 15.52
+thrust_g = 768.4
+rpm = 6788
+power_w = 172.2
+url = "https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"
+quote = '''
+Scorpion SII-2212-960 Motor Propeller Data
+Prop Prop Input Motor Watts Prop Pitch Thrust Thrust Thrust Eff.
+Manf. Size Voltage Amps Input RPM Speed Grams Ounces Grams/W
+APC 9x6-SF 11.1 15.52 172.2 6,788 38.6 768.4 27.10 4.46
+'''
+
+[[test]]
+motor_id = "scorpion-sii-2212-960"
+prop_uiuc = "apce_9x7.5"
+prop_as_published = "APC 9x7.5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 14.37
+thrust_g = 662.7
+rpm = 7164
+power_w = 159.5
+url = "https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"
+quote = '''
+Scorpion SII-2212-960 Motor Propeller Data
+Prop Prop Input Motor Watts Prop Pitch Thrust Thrust Thrust Eff.
+Manf. Size Voltage Amps Input RPM Speed Grams Ounces Grams/W
+APC 9x7.5-E 11.1 14.37 159.5 7,164 50.9 662.7 23.38 4.15
+'''
+
+[[test]]
+motor_id = "scorpion-sii-2212-960"
+prop_uiuc = "apce_10x5"
+prop_as_published = "APC 10x5-E"
+full_throttle = true
+voltage_v = 11.1
+current_a = 12.44
+thrust_g = 829
+rpm = 7696
+power_w = 138.1
+url = "https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"
+quote = '''
+Scorpion SII-2212-960 Motor Propeller Data
+Prop Prop Input Motor Watts Prop Pitch Thrust Thrust Thrust Eff.
+Manf. Size Voltage Amps Input RPM Speed Grams Ounces Grams/W
+APC 10x5-E 11.1 12.44 138.1 7,696 36.4 829 29.24 6.00
+'''
+
+[[test]]
+motor_id = "scorpion-sii-2212-960"
+prop_uiuc = "gwsdd_9x5"
+prop_as_published = "GWS 9x5-DD"
+full_throttle = true
+voltage_v = 11.1
+current_a = 9.57
+thrust_g = 707.4
+rpm = 8544
+power_w = 106.2
+url = "https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"
+quote = '''
+Scorpion SII-2212-960 Motor Propeller Data
+Prop Prop Input Motor Watts Prop Pitch Thrust Thrust Thrust Eff.
+Manf. Size Voltage Amps Input RPM Speed Grams Ounces Grams/W
+GWS 9x5-DD 11.1 9.57 106.2 8,544 40.5 707.4 24.95 6.66
+'''
+
+[[test]]
+motor_id = "scorpion-sii-2212-960"
+prop_uiuc = "apce_8x4"
+prop_as_published = "APC 8x4-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 11.18
+thrust_g = 831.1
+rpm = 11389
+power_w = 165.5
+url = "https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"
+quote = '''
+Scorpion SII-2212-960 Motor Propeller Data
+Prop Prop Input Motor Watts Prop Pitch Thrust Thrust Thrust Eff.
+Manf. Size Voltage Amps Input RPM Speed Grams Ounces Grams/W
+APC 8x4-E 14.8 11.18 165.5 11,389 43.1 831.1 29.32 5.02
+'''
+
+[[test]]
+motor_id = "scorpion-sii-2212-960"
+prop_uiuc = "apce_8x6"
+prop_as_published = "APC 8x6-E"
+full_throttle = true
+voltage_v = 14.8
+current_a = 14.75
+thrust_g = 884.3
+rpm = 10236
+power_w = 218.3
+url = "https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"
+quote = '''
+Scorpion SII-2212-960 Motor Propeller Data
+Prop Prop Input Motor Watts Prop Pitch Thrust Thrust Thrust Eff.
+Manf. Size Voltage Amps Input RPM Speed Grams Ounces Grams/W
+APC 8x6-E 14.8 14.75 218.3 10,236 58.2 884.3 31.19 4.05
+'''

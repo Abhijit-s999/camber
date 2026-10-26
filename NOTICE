@@ -6,3 +6,9 @@ UIUC Propeller Data Site, Volumes 1-4
   https://m-selig.ae.illinois.edu/props/download/UIUC-propDB.zip
   terms: (c) 1994-2026 UIUC Applied Aerodynamics Group. A citation is requested; no licence is granted and no redistribution right is given.
   cite:  J.B. Brandt, R.W. Deters, G.K. Ananda, O.D. Dantsker and M.S. Selig, UIUC Propeller Database, Vols 1-4, University of Illinois at Urbana-Champaign, Department of Aerospace Engineering, https://m-selig.ae.illinois.edu/props/propDB.html
+
+Two small tables do ship, and they are Camber's own compilation, not
+a copy of anyone's dataset (DECISIONS LIC-03): camber/catalogue/motors.toml,
+each motor's specification as its maker publishes it, and
+camber/catalogue/prop_masses.toml, propeller weights as their makers or
+sellers publish them. Every row names the page it came from.

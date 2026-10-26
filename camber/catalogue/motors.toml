@@ -1,0 +1,1980 @@
+# The motors Camber chooses from (CAT-01). Compiled by Camber from each maker's
+# own published specification of its own product, one row per motor and Kv,
+# with the page it came from and the spec text quoted (LIC-03, AI-06).
+#
+# A row needs everything the physics and the limits use: Kv, winding resistance,
+# no-load current, mass, the maker's current rating and cell range. A motor
+# whose page lacks one of those is left out, not completed by estimate.
+#
+# resistance_mohm      winding (internal) resistance as published, milliohm
+# no_load_current_a    idle current, at no_load_voltage_v where the page says
+# max_current_a        the maker's peak or max current; max_current_duration_s
+#                      says for how long when the page does
+# cells_min/max        the rated LiPo cell range; cells_min is left out where
+#                      the maker states only a maximum
+# props_in             recommended propeller diameters, inches, where published
+#
+# `tests/test_components.py` fails if a number here is not in its row's quote.
+
+[[motor]]
+id = "tmotor-f1204-5000"
+maker = "T-Motor"
+model = "F1204"
+kv = 5000
+stator = "1204"
+resistance_mohm = 240
+no_load_current_a = 0.7
+mass_g = 6.1
+mass_includes_cable = false
+max_current_a = 6
+max_current_duration_s = 60
+max_power_w = 72
+cells_min = 2
+cells_max = 3
+props_in = [2, 3]
+url = "https://www.t-hobby.com/products/brushless-micro-motor-f1204"
+retrieved = "2026-10-27"
+notes = "Requested https://store.tmotor.com/product/f1204-fpv-motor.html, which redirects to T-Motor's official T-Hobby shop page used as url. Stator taken from the model name F1204 (page gives only 'Motor DimensionS: Φ15.5*15.6mm'). 'Idle Current' has no test voltage on this page, so no_load_voltage_v is omitted. Weight is labelled 'Excl. Cable'. Peak current and max power both labelled 60 s. props_in = endpoints of the product-level 'Compatible Propellers: 2-3 inch' line. The page's description paragraph is copy-pasted from the F1404 ('Get micro long-range motor with the TMOTOR F1404...'), but the spec block is F1204-specific."
+quote = '''
+F1204 For Toothpicks and Whoops Brushless Micro Motor
+Compatible Propellers: 2-3 inch FPV propellers
+KV: 5000KV
+Motor DimensionS: Φ15.5*15.6mm
+Lead: 24#AWG 100mm
+Shaft Diameter: 1.5mm
+Idle Current: 0.7A
+Max.Power (the 60s): 72W
+Weight (Excl. Cable): 6.1g
+Internal Resistance: 240mΩ
+Configuration: 9N12P
+Rated Voltage (Lipo): 2-3S
+Peak Current (60s): 6A
+'''
+
+[[motor]]
+id = "tmotor-f1204-6500"
+maker = "T-Motor"
+model = "F1204"
+kv = 6500
+stator = "1204"
+resistance_mohm = 140
+no_load_current_a = 0.9
+mass_g = 6.1
+mass_includes_cable = false
+max_current_a = 7
+max_current_duration_s = 60
+max_power_w = 60
+cells_min = 3
+cells_max = 3
+props_in = [2, 3]
+url = "https://www.t-hobby.com/products/brushless-micro-motor-f1204"
+retrieved = "2026-10-27"
+notes = "Requested https://store.tmotor.com/product/f1204-fpv-motor.html, which redirects to T-Motor's official T-Hobby shop page used as url. Stator taken from the model name F1204 (page gives only 'Motor DimensionS: Φ15.5*15.6mm'). 'Idle Current' has no test voltage on this page, so no_load_voltage_v is omitted. Weight is labelled 'Excl. Cable'. Peak current and max power both labelled 60 s. props_in = endpoints of the product-level 'Compatible Propellers: 2-3 inch' line. The page's description paragraph is copy-pasted from the F1404 ('Get micro long-range motor with the TMOTOR F1404...'), but the spec block is F1204-specific. 6500KV: cells recorded exactly as printed, 'Rated Voltage (Lipo): 3-3S' (looks like a typo). Its Max.Power 60W is lower than the 5000KV's 72W even though its peak current (7A) is higher; both as published."
+quote = '''
+F1204 For Toothpicks and Whoops Brushless Micro Motor
+Compatible Propellers: 2-3 inch FPV propellers
+KV: 6500KV
+Motor DimensionS: Φ15.5*15.6mm
+Lead: 24#AWG 100mm
+Shaft Diameter: 1.5mm
+Idle Current: 0.9A
+Max.Power (the 60s): 60W
+Weight (Excl. Cable): 6.1g
+Internal Resistance: 140mΩ
+Configuration: 9N12P
+Rated Voltage (Lipo): 3-3S
+Peak Current (60s): 7A
+'''
+
+[[motor]]
+id = "emax-e3-1303-5000"
+maker = "EMAX"
+model = "E3 1303"
+kv = 5000
+stator = "1303"
+resistance_mohm = 310
+no_load_current_a = 0.6
+no_load_voltage_v = 8
+mass_g = 6.6
+mass_includes_cable = true
+max_current_a = 10.7
+max_power_w = 172
+cells_min = 2
+cells_max = 4
+props_in = [2, 3.5]
+url = "https://www.emax-usa.com/motor-detail-dark.html?motor=e3-1303"
+retrieved = "2026-10-27"
+notes = "Source is EMAX's official US site motor catalog (emax-usa.com); the same values are in the page's data file https://www.emax-usa.com/data/motor-e3-1303.js, also fetched. Quote cells are HTML table/definition-list cells joined with ' | '. 'Peak current' is given with the pack it was measured on (10.7 A @ 4S) but no duration, so max_current_duration_s is omitted; max power is likewise '@ 4S'. Idle current measured at 8 V for this KV (EMAX uses a different idle voltage per KV, so idle currents across KVs are not directly comparable). Weight is one figure for all KVs, 'with wire' (lead length per 'Lead' row). props_in = endpoints of this KV's 'Propeller' column."
+quote = '''
+E3 1303 Brushless Motor – Specifications | EMAX
+SPECIFICATIONS
+Product snapshot
+Stator Size | 1303
+Series | E3 Series
+KV Options | 5000KV, 8000KV, 11000KV
+Motor Dimensions | 17.3 x 15.3 mm
+Framework | 9N12P
+Battery | 1-4S, KV dependent
+Propeller | 2-3.5 inch, KV dependent
+Weight | 6.6 g with wire
+Bearing Shaft | 2 mm
+Prop Adapter Shaft | 1.5 mm
+Mounting Pattern | 9 x 9 mm, M2
+Lead | 80 mm 24 AWG silicone wire
+VARIANT SPECIFICATIONS
+KV configuration matrix
+KV | Battery cells | Propeller | Idle current | Internal resistance | Peak current | Maximum power
+5000KV | 2-4S | 2-3.5 inch | 0.6 A @ 8 V | 310 mOhm | 10.7 A @ 4S | 172 W @ 4S
+'''
+
+[[motor]]
+id = "emax-e3-1303-8000"
+maker = "EMAX"
+model = "E3 1303"
+kv = 8000
+stator = "1303"
+resistance_mohm = 125
+no_load_current_a = 1.2
+no_load_voltage_v = 6
+mass_g = 6.6
+mass_includes_cable = true
+max_current_a = 18.8
+max_power_w = 226
+cells_min = 2
+cells_max = 3
+props_in = [2, 3]
+url = "https://www.emax-usa.com/motor-detail-dark.html?motor=e3-1303"
+retrieved = "2026-10-27"
+notes = "Source is EMAX's official US site motor catalog (emax-usa.com); the same values are in the page's data file https://www.emax-usa.com/data/motor-e3-1303.js, also fetched. Quote cells are HTML table/definition-list cells joined with ' | '. 'Peak current' is given with the pack it was measured on (18.8 A @ 3S) but no duration, so max_current_duration_s is omitted; max power is likewise '@ 3S'. Idle current measured at 6 V for this KV (EMAX uses a different idle voltage per KV, so idle currents across KVs are not directly comparable). Weight is one figure for all KVs, 'with wire' (lead length per 'Lead' row). props_in = endpoints of this KV's 'Propeller' column."
+quote = '''
+E3 1303 Brushless Motor – Specifications | EMAX
+SPECIFICATIONS
+Product snapshot
+Stator Size | 1303
+Series | E3 Series
+KV Options | 5000KV, 8000KV, 11000KV
+Motor Dimensions | 17.3 x 15.3 mm
+Framework | 9N12P
+Battery | 1-4S, KV dependent
+Propeller | 2-3.5 inch, KV dependent
+Weight | 6.6 g with wire
+Bearing Shaft | 2 mm
+Prop Adapter Shaft | 1.5 mm
+Mounting Pattern | 9 x 9 mm, M2
+Lead | 80 mm 24 AWG silicone wire
+VARIANT SPECIFICATIONS
+KV configuration matrix
+KV | Battery cells | Propeller | Idle current | Internal resistance | Peak current | Maximum power
+8000KV | 2-3S | 2-3 inch | 1.2 A @ 6 V | 125 mOhm | 18.8 A @ 3S | 226 W @ 3S
+'''
+
+[[motor]]
+id = "emax-e3-1303-11000"
+maker = "EMAX"
+model = "E3 1303"
+kv = 11000
+stator = "1303"
+resistance_mohm = 77
+no_load_current_a = 1.1
+no_load_voltage_v = 5
+mass_g = 6.6
+mass_includes_cable = true
+max_current_a = 21.6
+max_power_w = 160
+cells_min = 1
+cells_max = 2
+props_in = [2, 3]
+url = "https://www.emax-usa.com/motor-detail-dark.html?motor=e3-1303"
+retrieved = "2026-10-27"
+notes = "Source is EMAX's official US site motor catalog (emax-usa.com); the same values are in the page's data file https://www.emax-usa.com/data/motor-e3-1303.js, also fetched. Quote cells are HTML table/definition-list cells joined with ' | '. 'Peak current' is given with the pack it was measured on (21.6 A @ 2S) but no duration, so max_current_duration_s is omitted; max power is likewise '@ 2S'. Idle current measured at 5 V for this KV (EMAX uses a different idle voltage per KV, so idle currents across KVs are not directly comparable). Weight is one figure for all KVs, 'with wire' (lead length per 'Lead' row). props_in = endpoints of this KV's 'Propeller' column."
+quote = '''
+E3 1303 Brushless Motor – Specifications | EMAX
+SPECIFICATIONS
+Product snapshot
+Stator Size | 1303
+Series | E3 Series
+KV Options | 5000KV, 8000KV, 11000KV
+Motor Dimensions | 17.3 x 15.3 mm
+Framework | 9N12P
+Battery | 1-4S, KV dependent
+Propeller | 2-3.5 inch, KV dependent
+Weight | 6.6 g with wire
+Bearing Shaft | 2 mm
+Prop Adapter Shaft | 1.5 mm
+Mounting Pattern | 9 x 9 mm, M2
+Lead | 80 mm 24 AWG silicone wire
+VARIANT SPECIFICATIONS
+KV configuration matrix
+KV | Battery cells | Propeller | Idle current | Internal resistance | Peak current | Maximum power
+11000KV | 1-2S | 2-3 inch | 1.1 A @ 5 V | 77 mOhm | 21.6 A @ 2S | 160 W @ 2S
+'''
+
+[[motor]]
+id = "rcinpower-gts-v3-1404plus-2850"
+maker = "RCinPower"
+model = "GTS V3 1404Plus"
+kv = 2850
+stator = "1404"
+resistance_mohm = 280
+no_load_current_a = 0.42
+no_load_voltage_v = 10
+mass_g = 9
+mass_includes_cable = true
+max_current_a = 19.2
+max_power_w = 461
+cells_min = 4
+cells_max = 6
+props_in = [3]
+url = "https://www.rcinpower.com/G-SERIES/64.html"
+extra_urls = ["https://www.rcinpower.com/upload/2024-12/24/GTSV31203chanpinyemian301.jpg", "https://www.rcinpower.com/upload/2024-12/24/GTSV31203chanpinyemian101.jpg"]
+retrieved = "2026-10-27"
+notes = "RCinPower's product page carries the specs only as images; every value here was read from the maker's image (listed in extra_urls) and the quote is a transcription of it, table cells joined with ' | '. Labels say 'Max Current(3S)' and 'Max Continuous Power(W)3S'; no duration is given for the current, so max_current_duration_s is omitted (the power is labelled 'continuous'). Idle current label is 'Idle current(10)@10V(A)'. props_in = [3.0] from the Chinese caption ('3英寸' = 3 inch). mass_includes_cable = true but the published weight includes only a 3 cm wire stub. Page https://www.rcinpower.com/G-SERIES/64.html is titled 'GTS V3 1404' while the image tables say 'GTS V3 1404Plus'; the embedded image filenames say 1203 but their content is the 1404Plus. Stator '1404' from the model name; the table gives 14mm diameter, 4.6mm length. Another image on the page (a scale photo) says '含线重量仅8.71g' (weight incl. wire only 8.71 g), which conflicts with the table's 9 g; the table value is used. 2850KV is rated 4S-6S yet its current/power labels say 3S; 461 W / 19.2 A ≈ 24 V (6S-level), so the '3S' label is probably wrong."
+quote = '''
+[transcribed from image https://www.rcinpower.com/upload/2024-12/24/GTSV31203chanpinyemian301.jpg]
+MOTORS：GTS V3 1404Plus -2850KV
+Technical Datas
+KV | 2850
+Configu-ration | 9N12P
+Stator Diamter | 14mm
+Stator Length | 4.6mm
+Shaft Diameter | 1.5mm（2mm inside）
+Motor Dimension(Dia.*Len) | Φ18.2*13.1mm
+Weight(g) | 9（3cm wire）
+Idle current(10)@10V(A) | 0.42
+No.of Cells(Lipo) | 4S-6S
+Max Continuous Power(W)3S | 461
+Internal Resistance | 280mΩ
+Max Current(3S) | 19.2A
+Max.Effciency Current | (2-4A)>83%
+[transcribed from image https://www.rcinpower.com/upload/2024-12/24/GTSV31203chanpinyemian101.jpg]
+致盈动力2024年全新款GTSV31404PLUS，专为3英寸竞速FPV穿越机调校，采用轻量化转子和全新造型，
+'''
+
+[[motor]]
+id = "emax-e3-1404-3700"
+maker = "EMAX"
+model = "E3 1404"
+kv = 3700
+stator = "1404"
+resistance_mohm = 238
+no_load_current_a = 0.6
+no_load_voltage_v = 10
+mass_g = 9.9
+mass_includes_cable = true
+max_current_a = 14.2
+max_power_w = 228
+cells_min = 3
+cells_max = 4
+props_in = [3, 4]
+url = "https://www.emax-usa.com/motor-detail-dark.html?motor=e3-1404"
+retrieved = "2026-10-27"
+notes = "Source is EMAX's official US site motor catalog (emax-usa.com); the same values are in the page's data file https://www.emax-usa.com/data/motor-e3-1404.js, also fetched. Quote cells are HTML table/definition-list cells joined with ' | '. 'Peak current' is given with the pack it was measured on (14.2 A @ 4S) but no duration, so max_current_duration_s is omitted; max power is likewise '@ 4S'. Idle current measured at 10 V for this KV (EMAX uses a different idle voltage per KV, so idle currents across KVs are not directly comparable). Weight is one figure for all KVs, 'with wire' (lead length per 'Lead' row). props_in = endpoints of this KV's 'Propeller' column."
+quote = '''
+E3 1404 Brushless Motor – Specifications | EMAX
+SPECIFICATIONS
+Product snapshot
+Stator Size | 1404
+Series | E3 Series
+KV Options | 3700KV, 4800KV, 6000KV
+Motor Dimensions | 19.1 x 17.4 mm
+Framework | 9N12P
+Battery | 2-4S, KV dependent
+Propeller | 2-4 inch, KV dependent
+Weight | 9.9 g with wire
+Bearing Shaft | 2 mm
+Prop Adapter Shaft | 1.5 mm
+Mounting Pattern | 9 x 9 mm, 4 x M2
+Lead | 120 mm 24 AWG silicone wire
+VARIANT SPECIFICATIONS
+KV configuration matrix
+KV | Battery cells | Propeller | Idle current | Internal resistance | Peak current | Maximum power
+3700KV | 3-4S | 3-4 inch | 0.6 A @ 10 V | 238 mOhm | 14.2 A @ 4S | 228 W @ 4S
+'''
+
+[[motor]]
+id = "tmotor-f1404-3800"
+maker = "T-Motor"
+model = "F1404"
+kv = 3800
+stator = "1404"
+resistance_mohm = 195
+no_load_current_a = 0.5
+no_load_voltage_v = 10
+mass_g = 9.34
+mass_includes_cable = true
+max_current_a = 19
+max_current_duration_s = 60
+max_power_w = 304
+cells_min = 3
+cells_max = 4
+props_in = [3, 4]
+url = "https://www.t-hobby.com/products/micro-fpv-drones-brushless-motor"
+retrieved = "2026-10-27"
+notes = "Requested https://store.tmotor.com/product/f1404-fpv-motor.html, which redirects to T-Motor's official T-Hobby shop page used as url. Stator taken from the model name F1404; the page gives no stator dimensions (only 'Motor DimensionS: Φ17.9*16.6mm'). Idle current is labelled 'Idle Current (10v)'. Peak current and max power are both labelled 60 s. props_in = endpoints of the product-level 'Compatible Propellers: 3-4 inch' line, not a per-KV recommendation. Weight is one figure for all KVs."
+quote = '''
+F1404 Brushless Motor for Micro FPV Drones
+Compatible Propellers: 3-4 inch FPV propellers
+KV: 3800KV
+Motor DimensionS: Φ17.9*16.6mm
+Lead: 24#AWG 150mm
+Shaft Diameter: 1.5mm
+Idle Current (10v): 0.5A
+Max.Power (the 60s): 304W
+Weight (Inc. Cable): 9.34g
+Internal Resistance: 195mΩ
+Configuration: 9N12P
+Rated Voltage (Lipo): 3-4S
+Peak Current (60s): 19A
+'''
+
+[[motor]]
+id = "rcinpower-gts-v3-1404plus-3850"
+maker = "RCinPower"
+model = "GTS V3 1404Plus"
+kv = 3850
+stator = "1404"
+resistance_mohm = 170
+no_load_current_a = 0.7
+no_load_voltage_v = 10
+mass_g = 9
+mass_includes_cable = true
+max_current_a = 20.6
+max_power_w = 330
+cells_min = 3
+cells_max = 4
+props_in = [3]
+url = "https://www.rcinpower.com/G-SERIES/64.html"
+extra_urls = ["https://www.rcinpower.com/upload/2024-12/24/GTSV31203chanpinyemian301.jpg", "https://www.rcinpower.com/upload/2024-12/24/GTSV31203chanpinyemian101.jpg"]
+retrieved = "2026-10-27"
+notes = "RCinPower's product page carries the specs only as images; every value here was read from the maker's image (listed in extra_urls) and the quote is a transcription of it, table cells joined with ' | '. Labels say 'Max Current(3S)' and 'Max Continuous Power(W)3S'; no duration is given for the current, so max_current_duration_s is omitted (the power is labelled 'continuous'). Idle current label is 'Idle current(10)@10V(A)'. props_in = [3.0] from the Chinese caption ('3英寸' = 3 inch). mass_includes_cable = true but the published weight includes only a 3 cm wire stub. Page https://www.rcinpower.com/G-SERIES/64.html is titled 'GTS V3 1404' while the image tables say 'GTS V3 1404Plus'; the embedded image filenames say 1203 but their content is the 1404Plus. Stator '1404' from the model name; the table gives 14mm diameter, 4.6mm length. Another image on the page (a scale photo) says '含线重量仅8.71g' (weight incl. wire only 8.71 g), which conflicts with the table's 9 g; the table value is used."
+quote = '''
+[transcribed from image https://www.rcinpower.com/upload/2024-12/24/GTSV31203chanpinyemian301.jpg]
+MOTORS：GTS V3 1404Plus -3850KV
+Technical Datas
+KV | 3850
+Configu-ration | 9N12P
+Stator Diamter | 14mm
+Stator Length | 4.6mm
+Shaft Diameter | 1.5mm（2mm inside）
+Motor Dimension(Dia.*Len) | Φ18.2*13.1mm
+Weight(g) | 9（3cm wire）
+Idle current(10)@10V(A) | 0.7
+No.of Cells(Lipo) | 3S-4S
+Max Continuous Power(W)3S | 330
+Internal Resistance | 170mΩ
+Max Current(3S) | 20.6A
+Max.Effciency Current | (3-5A)>83%
+[transcribed from image https://www.rcinpower.com/upload/2024-12/24/GTSV31203chanpinyemian101.jpg]
+致盈动力2024年全新款GTSV31404PLUS，专为3英寸竞速FPV穿越机调校，采用轻量化转子和全新造型，
+'''
+
+[[motor]]
+id = "tmotor-f1404-4600"
+maker = "T-Motor"
+model = "F1404"
+kv = 4600
+stator = "1404"
+resistance_mohm = 138
+no_load_current_a = 0.6
+no_load_voltage_v = 10
+mass_g = 9.34
+mass_includes_cable = true
+max_current_a = 20
+max_current_duration_s = 60
+max_power_w = 316
+cells_min = 3
+cells_max = 4
+props_in = [3, 4]
+url = "https://www.t-hobby.com/products/micro-fpv-drones-brushless-motor"
+retrieved = "2026-10-27"
+notes = "Requested https://store.tmotor.com/product/f1404-fpv-motor.html, which redirects to T-Motor's official T-Hobby shop page used as url. Stator taken from the model name F1404; the page gives no stator dimensions (only 'Motor DimensionS: Φ17.9*16.6mm'). Idle current is labelled 'Idle Current (10v)'. Peak current and max power are both labelled 60 s. props_in = endpoints of the product-level 'Compatible Propellers: 3-4 inch' line, not a per-KV recommendation. Weight is one figure for all KVs."
+quote = '''
+F1404 Brushless Motor for Micro FPV Drones
+Compatible Propellers: 3-4 inch FPV propellers
+KV: 4600KV
+Motor DimensionS: Φ17.9*16.6mm
+Lead: 24#AWG 150mm
+Shaft Diameter: 1.5mm
+Idle Current (10v): 0.6A
+Max.Power (the 60s): 316W
+Weight (Inc. Cable): 9.34g
+Internal Resistance: 138mΩ
+Configuration: 9N12P
+Rated Voltage (Lipo): 3-4S
+Peak Current (60s): 20A
+'''
+
+[[motor]]
+id = "rcinpower-gts-v3-1404plus-4680"
+maker = "RCinPower"
+model = "GTS V3 1404Plus"
+kv = 4680
+stator = "1404"
+resistance_mohm = 133
+no_load_current_a = 0.85
+no_load_voltage_v = 10
+mass_g = 9
+mass_includes_cable = true
+max_current_a = 26.8
+max_power_w = 429
+cells_min = 3
+cells_max = 4
+props_in = [3]
+url = "https://www.rcinpower.com/G-SERIES/64.html"
+extra_urls = ["https://www.rcinpower.com/upload/2024-12/24/GTSV31203chanpinyemian301.jpg", "https://www.rcinpower.com/upload/2024-12/24/GTSV31203chanpinyemian101.jpg"]
+retrieved = "2026-10-27"
+notes = "RCinPower's product page carries the specs only as images; every value here was read from the maker's image (listed in extra_urls) and the quote is a transcription of it, table cells joined with ' | '. Labels say 'Max Current(3S)' and 'Max Continuous Power(W)3S'; no duration is given for the current, so max_current_duration_s is omitted (the power is labelled 'continuous'). Idle current label is 'Idle current(10)@10V(A)'. props_in = [3.0] from the Chinese caption ('3英寸' = 3 inch). mass_includes_cable = true but the published weight includes only a 3 cm wire stub. Page https://www.rcinpower.com/G-SERIES/64.html is titled 'GTS V3 1404' while the image tables say 'GTS V3 1404Plus'; the embedded image filenames say 1203 but their content is the 1404Plus. Stator '1404' from the model name; the table gives 14mm diameter, 4.6mm length. Another image on the page (a scale photo) says '含线重量仅8.71g' (weight incl. wire only 8.71 g), which conflicts with the table's 9 g; the table value is used."
+quote = '''
+[transcribed from image https://www.rcinpower.com/upload/2024-12/24/GTSV31203chanpinyemian301.jpg]
+MOTORS：GTS V3 1404Plus -4680KV
+Technical Datas
+KV | 4680
+Configu-ration | 9N12P
+Stator Diamter | 14mm
+Stator Length | 4.6mm
+Shaft Diameter | 1.5mm（2mm inside）
+Motor Dimension(Dia.*Len) | Φ18.2*13.1mm
+Weight(g) | 9（3cm wire）
+Idle current(10)@10V(A) | 0.85
+No.of Cells(Lipo) | 3S-4S
+Max Continuous Power(W)3S | 429
+Internal Resistance | 133mΩ
+Max Current(3S) | 26.8A
+Max.Effciency Current | (4-6A)>83%
+[transcribed from image https://www.rcinpower.com/upload/2024-12/24/GTSV31203chanpinyemian101.jpg]
+致盈动力2024年全新款GTSV31404PLUS，专为3英寸竞速FPV穿越机调校，采用轻量化转子和全新造型，
+'''
+
+[[motor]]
+id = "emax-e3-1404-4800"
+maker = "EMAX"
+model = "E3 1404"
+kv = 4800
+stator = "1404"
+resistance_mohm = 157
+no_load_current_a = 0.8
+no_load_voltage_v = 8
+mass_g = 9.9
+mass_includes_cable = true
+max_current_a = 16.9
+max_power_w = 270
+cells_min = 3
+cells_max = 4
+props_in = [3, 4]
+url = "https://www.emax-usa.com/motor-detail-dark.html?motor=e3-1404"
+retrieved = "2026-10-27"
+notes = "Source is EMAX's official US site motor catalog (emax-usa.com); the same values are in the page's data file https://www.emax-usa.com/data/motor-e3-1404.js, also fetched. Quote cells are HTML table/definition-list cells joined with ' | '. 'Peak current' is given with the pack it was measured on (16.9 A @ 4S) but no duration, so max_current_duration_s is omitted; max power is likewise '@ 4S'. Idle current measured at 8 V for this KV (EMAX uses a different idle voltage per KV, so idle currents across KVs are not directly comparable). Weight is one figure for all KVs, 'with wire' (lead length per 'Lead' row). props_in = endpoints of this KV's 'Propeller' column."
+quote = '''
+E3 1404 Brushless Motor – Specifications | EMAX
+SPECIFICATIONS
+Product snapshot
+Stator Size | 1404
+Series | E3 Series
+KV Options | 3700KV, 4800KV, 6000KV
+Motor Dimensions | 19.1 x 17.4 mm
+Framework | 9N12P
+Battery | 2-4S, KV dependent
+Propeller | 2-4 inch, KV dependent
+Weight | 9.9 g with wire
+Bearing Shaft | 2 mm
+Prop Adapter Shaft | 1.5 mm
+Mounting Pattern | 9 x 9 mm, 4 x M2
+Lead | 120 mm 24 AWG silicone wire
+VARIANT SPECIFICATIONS
+KV configuration matrix
+KV | Battery cells | Propeller | Idle current | Internal resistance | Peak current | Maximum power
+4800KV | 3-4S | 3-4 inch | 0.8 A @ 8 V | 157 mOhm | 16.9 A @ 4S | 270 W @ 4S
+'''
+
+[[motor]]
+id = "emax-e3-1404-6000"
+maker = "EMAX"
+model = "E3 1404"
+kv = 6000
+stator = "1404"
+resistance_mohm = 103
+no_load_current_a = 1
+no_load_voltage_v = 7
+mass_g = 9.9
+mass_includes_cable = true
+max_current_a = 19.8
+max_power_w = 316
+cells_min = 2
+cells_max = 4
+props_in = [2, 3.5]
+url = "https://www.emax-usa.com/motor-detail-dark.html?motor=e3-1404"
+retrieved = "2026-10-27"
+notes = "Source is EMAX's official US site motor catalog (emax-usa.com); the same values are in the page's data file https://www.emax-usa.com/data/motor-e3-1404.js, also fetched. Quote cells are HTML table/definition-list cells joined with ' | '. 'Peak current' is given with the pack it was measured on (19.8 A @ 4S) but no duration, so max_current_duration_s is omitted; max power is likewise '@ 4S'. Idle current measured at 7 V for this KV (EMAX uses a different idle voltage per KV, so idle currents across KVs are not directly comparable). Weight is one figure for all KVs, 'with wire' (lead length per 'Lead' row). props_in = endpoints of this KV's 'Propeller' column."
+quote = '''
+E3 1404 Brushless Motor – Specifications | EMAX
+SPECIFICATIONS
+Product snapshot
+Stator Size | 1404
+Series | E3 Series
+KV Options | 3700KV, 4800KV, 6000KV
+Motor Dimensions | 19.1 x 17.4 mm
+Framework | 9N12P
+Battery | 2-4S, KV dependent
+Propeller | 2-4 inch, KV dependent
+Weight | 9.9 g with wire
+Bearing Shaft | 2 mm
+Prop Adapter Shaft | 1.5 mm
+Mounting Pattern | 9 x 9 mm, 4 x M2
+Lead | 120 mm 24 AWG silicone wire
+VARIANT SPECIFICATIONS
+KV configuration matrix
+KV | Battery cells | Propeller | Idle current | Internal resistance | Peak current | Maximum power
+6000KV | 2-4S | 2-3.5 inch | 1 A @ 7 V | 103 mOhm | 19.8 A @ 4S | 316 W @ 4S
+'''
+
+[[motor]]
+id = "emax-e3-1407-2800"
+maker = "EMAX"
+model = "E3 1407"
+kv = 2800
+stator = "1407"
+resistance_mohm = 190
+no_load_current_a = 0.8
+no_load_voltage_v = 10
+mass_g = 15.4
+mass_includes_cable = true
+max_current_a = 16.5
+max_power_w = 264
+cells_min = 4
+cells_max = 4
+props_in = [3, 4]
+url = "https://www.emax-usa.com/motor-detail-dark.html?motor=e3-1407"
+retrieved = "2026-10-27"
+notes = "Source is EMAX's official US site motor catalog (emax-usa.com); the same values are in the page's data file https://www.emax-usa.com/data/motor-e3-1407.js, also fetched. Quote cells are HTML table/definition-list cells joined with ' | '. 'Peak current' is given with the pack it was measured on (16.5 A @ 4S) but no duration, so max_current_duration_s is omitted; max power is likewise '@ 4S'. Idle current measured at 10 V for this KV (EMAX uses a different idle voltage per KV, so idle currents across KVs are not directly comparable). Weight is one figure for all KVs, 'with wire' (lead length per 'Lead' row). props_in = endpoints of this KV's 'Propeller' column. Cells published as '4S' only, so cells_min = cells_max = 4."
+quote = '''
+E3 1407 Brushless Motor – Specifications | EMAX
+SPECIFICATIONS
+Product snapshot
+Stator Size | 1407
+Series | E3 Series
+KV Options | 2800KV, 3300KV, 4100KV
+Motor Dimensions | 19.1 x 29.8 mm
+Framework | 9N12P
+Battery | 3-4S, KV dependent
+Propeller | 3-4 inch
+Weight | 15.4 g with wire
+Bearing Shaft | 2 mm
+Prop Adapter Shaft | M5 CW thread
+Mounting Pattern | 12 x 12 mm, M2
+Lead | 150 mm 24 AWG silicone wire
+VARIANT SPECIFICATIONS
+KV configuration matrix
+KV | Battery cells | Propeller | Idle current | Internal resistance | Peak current | Maximum power
+2800KV | 4S | 3-4 inch | 0.8 A @ 10 V | 190 mOhm | 16.5 A @ 4S | 264 W @ 4S
+'''
+
+[[motor]]
+id = "emax-e3-1407-3300"
+maker = "EMAX"
+model = "E3 1407"
+kv = 3300
+stator = "1407"
+resistance_mohm = 143
+no_load_current_a = 0.9
+no_load_voltage_v = 10
+mass_g = 15.4
+mass_includes_cable = true
+max_current_a = 22.5
+max_power_w = 360
+cells_min = 3
+cells_max = 4
+props_in = [3, 4]
+url = "https://www.emax-usa.com/motor-detail-dark.html?motor=e3-1407"
+retrieved = "2026-10-27"
+notes = "Source is EMAX's official US site motor catalog (emax-usa.com); the same values are in the page's data file https://www.emax-usa.com/data/motor-e3-1407.js, also fetched. Quote cells are HTML table/definition-list cells joined with ' | '. 'Peak current' is given with the pack it was measured on (22.5 A @ 4S) but no duration, so max_current_duration_s is omitted; max power is likewise '@ 4S'. Idle current measured at 10 V for this KV (EMAX uses a different idle voltage per KV, so idle currents across KVs are not directly comparable). Weight is one figure for all KVs, 'with wire' (lead length per 'Lead' row). props_in = endpoints of this KV's 'Propeller' column."
+quote = '''
+E3 1407 Brushless Motor – Specifications | EMAX
+SPECIFICATIONS
+Product snapshot
+Stator Size | 1407
+Series | E3 Series
+KV Options | 2800KV, 3300KV, 4100KV
+Motor Dimensions | 19.1 x 29.8 mm
+Framework | 9N12P
+Battery | 3-4S, KV dependent
+Propeller | 3-4 inch
+Weight | 15.4 g with wire
+Bearing Shaft | 2 mm
+Prop Adapter Shaft | M5 CW thread
+Mounting Pattern | 12 x 12 mm, M2
+Lead | 150 mm 24 AWG silicone wire
+VARIANT SPECIFICATIONS
+KV configuration matrix
+KV | Battery cells | Propeller | Idle current | Internal resistance | Peak current | Maximum power
+3300KV | 3-4S | 3-4 inch | 0.9 A @ 10 V | 143 mOhm | 22.5 A @ 4S | 360 W @ 4S
+'''
+
+[[motor]]
+id = "emax-e3-1407-4100"
+maker = "EMAX"
+model = "E3 1407"
+kv = 4100
+stator = "1407"
+resistance_mohm = 98
+no_load_current_a = 1.3
+no_load_voltage_v = 10
+mass_g = 15.4
+mass_includes_cable = true
+max_current_a = 25.8
+max_power_w = 413
+cells_min = 3
+cells_max = 4
+props_in = [3, 4]
+url = "https://www.emax-usa.com/motor-detail-dark.html?motor=e3-1407"
+retrieved = "2026-10-27"
+notes = "Source is EMAX's official US site motor catalog (emax-usa.com); the same values are in the page's data file https://www.emax-usa.com/data/motor-e3-1407.js, also fetched. Quote cells are HTML table/definition-list cells joined with ' | '. 'Peak current' is given with the pack it was measured on (25.8 A @ 4S) but no duration, so max_current_duration_s is omitted; max power is likewise '@ 4S'. Idle current measured at 10 V for this KV (EMAX uses a different idle voltage per KV, so idle currents across KVs are not directly comparable). Weight is one figure for all KVs, 'with wire' (lead length per 'Lead' row). props_in = endpoints of this KV's 'Propeller' column."
+quote = '''
+E3 1407 Brushless Motor – Specifications | EMAX
+SPECIFICATIONS
+Product snapshot
+Stator Size | 1407
+Series | E3 Series
+KV Options | 2800KV, 3300KV, 4100KV
+Motor Dimensions | 19.1 x 29.8 mm
+Framework | 9N12P
+Battery | 3-4S, KV dependent
+Propeller | 3-4 inch
+Weight | 15.4 g with wire
+Bearing Shaft | 2 mm
+Prop Adapter Shaft | M5 CW thread
+Mounting Pattern | 12 x 12 mm, M2
+Lead | 150 mm 24 AWG silicone wire
+VARIANT SPECIFICATIONS
+KV configuration matrix
+KV | Battery cells | Propeller | Idle current | Internal resistance | Peak current | Maximum power
+4100KV | 3-4S | 3-4 inch | 1.3 A @ 10 V | 98 mOhm | 25.8 A @ 4S | 413 W @ 4S
+'''
+
+[[motor]]
+id = "axisflying-c155-4800"
+maker = "Axisflying"
+model = "C155"
+kv = 4800
+stator = "1505"
+resistance_mohm = 113.59
+no_load_current_a = 1.25
+no_load_voltage_v = 10
+mass_g = 11.2
+mass_includes_cable = true
+max_current_a = 16.07
+max_power_w = 253.6
+cells_min = 3
+cells_max = 4
+props_in = [2.5, 3.5]
+url = "https://www.axisflying.com/products/fpv-brushless-motor-c155"
+retrieved = "2026-10-27"
+notes = "Stator '1505' appears only in the page's HTML <title>; the visible spec block gives 'Size: Φ16×9mm'. 'Max Current: 16.07A' and 'Max Power: 253.6W' have no duration; the page's testing-data image (https://ueeshop.ly200-cdn.com/u_file/UPBG/UPBG828/2604/08/photo/C15505.jpg) shows both are the 100% throttle point on a 2520 prop at 15.78 V, but the same chart has 18.63 A at 11.79 V on a T3.5*2.5*3 prop, i.e. more than the listed Max Current. props_in = endpoints of 'Application: 2.5–3.5 inch'."
+quote = '''
+<title>: Axisflying C155 4800KV Brushless Motor 1505 11.2g for 2.5/3.5 Inch Cinewhoop Cinematic Drone 3-4S
+Motor C155 3-4S
+For 2.5inch/3.5inch cinewhoop /4800kv
+Recommended Configuration
+Motor: Axisflying C155 4800KV
+Voltage: 3–4S LiPo
+Props: 2520 / 3028 / D63 / T3.5×2.5×3
+Application: 2.5–3.5 inch Cinewhoop, cinematic drones
+Specifications
+Model: C155
+KV: 4800KV
+Slot poles: 12N14P
+Internal resistance: 113.59mΩ
+Size: Φ16×9mm
+Shaft Diameter: 1.5mm
+Silicone line: 20# 150mm
+Rated Voltage: 3–4S
+Weight (wire included): 11.20g
+Mount: 4-M2
+No-load Current (10V): 1.25A
+Max Power: 253.6W
+Max Current: 16.07A
+Max Thrust: 326.2g
+'''
+
+[[motor]]
+id = "rcinpower-gts-v3-1804-2450"
+maker = "RCinPower"
+model = "GTS V3 1804"
+kv = 2450
+stator = "1804"
+resistance_mohm = 166
+no_load_current_a = 1
+no_load_voltage_v = 10
+mass_g = 12
+mass_includes_cable = true
+max_current_a = 18
+max_power_w = 432
+cells_min = 4
+cells_max = 6
+props_in = [3]
+url = "https://www.rcinpower.com/G-SERIES/63.html"
+extra_urls = ["https://www.rcinpower.com/upload/2024-12/24/GTSV31804chanpinyemian301.jpg", "https://www.rcinpower.com/upload/2024-12/24/GTSV31804chanpinyemian10101.jpg"]
+retrieved = "2026-10-27"
+notes = "RCinPower's product page carries the specs only as images; every value here was read from the maker's image (listed in extra_urls) and the quote is a transcription of it, table cells joined with ' | '. Labels say 'Max Current(3S)' and 'Max Continuous Power(W)3S'; no duration is given for the current, so max_current_duration_s is omitted (the power is labelled 'continuous'). Idle current label is 'Idle current(10)@10V(A)'. props_in = [3.0] from the Chinese caption ('3英寸' = 3 inch). mass_includes_cable = true but the published weight includes only a 3 cm wire stub. Page https://www.rcinpower.com/G-SERIES/63.html. Stator '1804' from the model name; the table gives 18mm diameter, 4mm length. The Chinese caption says it is designed for 3-inch ducted (cinewhoop) craft. A scale photo on the page says '含线重量仅11.67g' (weight incl. wire only 11.67 g), which conflicts with the table's 12 g; the table value is used. 2450KV is rated 4~6S yet its current/power labels say 3S; 432 W / 18 A = 24 V (6S-level), so the '3S' label is probably wrong."
+quote = '''
+[transcribed from image https://www.rcinpower.com/upload/2024-12/24/GTSV31804chanpinyemian301.jpg]
+GTS V3 1804-2450KV
+Technical Datas
+KV | 2450
+Configu-ration | 12N14P
+Stator Diamter | 18mm
+Stator Length | 4mm
+Shaft Diameter | 2mm(in) 1.5mm(out)
+Motor Dimension(Dia.*Len) | Φ22.74*13.2mm
+Weight(g) | 12（3cm Wire）
+Idle current(10)@10V(A) | 1
+No.of Cells(Lipo) | 4~6S
+Max Continuous Power(W)3S | 432
+Internal Resistance | 166mΩ
+Max Current(3S) | 18A
+Max.Effciency Current | (2-5A)>84%
+[transcribed from image https://www.rcinpower.com/upload/2024-12/24/GTSV31804chanpinyemian10101.jpg]
+RCinpower致盈动力 GTSv3-1804，专为3英寸高效率涵道机设计，
+'''
+
+[[motor]]
+id = "rcinpower-gts-v3-1804-3450"
+maker = "RCinPower"
+model = "GTS V3 1804"
+kv = 3450
+stator = "1804"
+resistance_mohm = 116
+no_load_current_a = 1
+no_load_voltage_v = 10
+mass_g = 12
+mass_includes_cable = true
+max_current_a = 24
+max_power_w = 385
+cells_min = 3
+cells_max = 4
+props_in = [3]
+url = "https://www.rcinpower.com/G-SERIES/63.html"
+extra_urls = ["https://www.rcinpower.com/upload/2024-12/24/GTSV31804chanpinyemian301.jpg", "https://www.rcinpower.com/upload/2024-12/24/GTSV31804chanpinyemian10101.jpg"]
+retrieved = "2026-10-27"
+notes = "RCinPower's product page carries the specs only as images; every value here was read from the maker's image (listed in extra_urls) and the quote is a transcription of it, table cells joined with ' | '. Labels say 'Max Current(3S)' and 'Max Continuous Power(W)3S'; no duration is given for the current, so max_current_duration_s is omitted (the power is labelled 'continuous'). Idle current label is 'Idle current(10)@10V(A)'. props_in = [3.0] from the Chinese caption ('3英寸' = 3 inch). mass_includes_cable = true but the published weight includes only a 3 cm wire stub. Page https://www.rcinpower.com/G-SERIES/63.html. Stator '1804' from the model name; the table gives 18mm diameter, 4mm length. The Chinese caption says it is designed for 3-inch ducted (cinewhoop) craft. A scale photo on the page says '含线重量仅11.67g' (weight incl. wire only 11.67 g), which conflicts with the table's 12 g; the table value is used."
+quote = '''
+[transcribed from image https://www.rcinpower.com/upload/2024-12/24/GTSV31804chanpinyemian301.jpg]
+GTS V3 1804-3450KV
+Technical Datas
+KV | 3450
+Configu-ration | 12N14P
+Stator Diamter | 18mm
+Stator Length | 4mm
+Shaft Diameter | 2mm(in) 1.5mm(out)
+Motor Dimension(Dia.*Len) | Φ22.74*13.2mm
+Weight(g) | 12（3cm Wire）
+Idle current(10)@10V(A) | 1
+No.of Cells(Lipo) | 3~4S
+Max Continuous Power(W)3S | 385
+Internal Resistance | 116mΩ
+Max Current(3S) | 24A
+Max.Effciency Current | (3-6A)>84%
+[transcribed from image https://www.rcinpower.com/upload/2024-12/24/GTSV31804chanpinyemian10101.jpg]
+RCinpower致盈动力 GTSv3-1804，专为3英寸高效率涵道机设计，
+'''
+
+[[motor]]
+id = "emax-e32207-1700"
+maker = "EMAX"
+model = "E3 Series 2207"
+kv = 1700
+stator = "2207"
+resistance_mohm = 74
+no_load_current_a = 1.2
+no_load_voltage_v = 10
+mass_g = 31.9
+mass_includes_cable = false
+max_current_a = 42
+max_power_w = 1050
+cells_min = 3
+cells_max = 6
+props_in = [5, 5.5]
+url = "https://shop.emax-usa.com/products/e3-series-2207-brushless-motor-choose-kv"
+extra_urls = ["https://shop.emax-usa.com/products/e3-series-2207-brushless-motor-choose-kv.json"]
+retrieved = "2026-10-27"
+notes = "Source is EMAX's own US store (shop.emax-usa.com, linked as the sales site from emaxmodel.com). Numbers read from the Shopify product JSON (https://shop.emax-usa.com/products/e3-series-2207-brushless-motor-choose-kv.json), i.e. the page's own description table; the HTML page https://shop.emax-usa.com/products/e3-series-2207-brushless-motor-choose-kv served a bot-check (403) to curl and 429 to WebFetch, so it was not read directly. \"Peak Current（6S）: 42A\" has no stated duration (only the test voltage), so max_current_duration_s is omitted; max_power_w is \"Max.Power（6S）\". Weight is stated \"(W/O Silicone Wire)\", so mass_includes_cable = false. props_in holds the endpoints of the published range \"5\"-5.5\"\". Idle current voltage from the label \"Idle Current（10V）\". This is the E3 series, not ECO II: EMAX's ECO II pages publish specs only as images, the E3 pages publish a text table."
+quote = '''
+Product title: E3 Series 2207 Brushless Motor - CHOOSE KV
+Specifications
+Testltem | KV1700 | Idle Current（10V） | 1.2A
+Motor Dimensions | φ28.6*32.8mm | Internal Resistance | 74mΩ
+Framework | 12N14P | No.of cells | 3-6S
+Bearing Shaft | 4mm | Propeller | 5"-5.5"
+Lead | 20#AWG 120mm | Peak Current（6S） | 42A
+Weight | 31.9g(W/O Silicone Wire) | Max.Power（6S） | 1050W
+'''
+
+[[motor]]
+id = "emax-e32207-1900"
+maker = "EMAX"
+model = "E3 Series 2207"
+kv = 1900
+stator = "2207"
+resistance_mohm = 64
+no_load_current_a = 1.5
+no_load_voltage_v = 10
+mass_g = 31.6
+mass_includes_cable = false
+max_current_a = 50
+max_power_w = 1260
+cells_min = 3
+cells_max = 6
+props_in = [5]
+url = "https://shop.emax-usa.com/products/e3-series-2207-brushless-motor-choose-kv"
+extra_urls = ["https://shop.emax-usa.com/products/e3-series-2207-brushless-motor-choose-kv.json"]
+retrieved = "2026-10-27"
+notes = "Source is EMAX's own US store (shop.emax-usa.com, linked as the sales site from emaxmodel.com). Numbers read from the Shopify product JSON (https://shop.emax-usa.com/products/e3-series-2207-brushless-motor-choose-kv.json), i.e. the page's own description table; the HTML page https://shop.emax-usa.com/products/e3-series-2207-brushless-motor-choose-kv served a bot-check (403) to curl and 429 to WebFetch, so it was not read directly. \"Peak Current（6S）: 50A\" has no stated duration (only the test voltage), so max_current_duration_s is omitted; max_power_w is \"Max.Power（6S）\". Weight is stated \"(W/O Silicone Wire)\", so mass_includes_cable = false. props_in holds the endpoints of the published range \"5\"\". Idle current voltage from the label \"Idle Current（10V）\". This is the E3 series, not ECO II: EMAX's ECO II pages publish specs only as images, the E3 pages publish a text table."
+quote = '''
+Product title: E3 Series 2207 Brushless Motor - CHOOSE KV
+Specifications
+Testltem | KV1900 | Idle Current（10V） | 1.5A
+Motor Dimensions | φ28.6*32.8mm | Internal Resistance | 64mΩ
+Framework | 12N14P | No.of cells | 3-6S
+Bearing Shaft | 4mm | Propeller | 5"
+Lead | 20#AWG 120mm | Peak Current（6S） | 50A
+Weight | 31.6g(W/O Silicone Wire) | Max.Power（6S） | 1260W
+'''
+
+[[motor]]
+id = "axisflying-c227-1960"
+maker = "Axisflying"
+model = "C227 (C2207)"
+kv = 1960
+stator = "2207"
+resistance_mohm = 64.75
+no_load_current_a = 1.1
+mass_g = 35.8
+mass_includes_cable = true
+max_current_a = 42.74
+max_power_w = 1048.66
+cells_min = 4
+cells_max = 6
+url = "https://www.axisflying.com/products/c227-5-inch-c2207-1960kv-brushless-motor"
+retrieved = "2026-10-27"
+notes = "Page title says \"6-8S\" but the spec block says \"Rated Voltage: 4–6S LiPo\"; cells taken from the spec block. Idle-current test voltage not stated, so no_load_voltage_v omitted. \"Peak Current\" has no stated duration. Stator published as \"C2207\". No prop size is given (only \"Application: 5-inch Cinewhoop / Cinematic FPV\"), so props_in is omitted."
+quote = '''
+Page title: Axisflying C227 (C2207) 1960KV Brushless Motor for 5 Inch FPV Drone / Cinewhoop 6-8S
+Specs
+KV: 1960KV
+Configuration: 12N14P
+Internal resistance: 64.75 mΩ
+Stator: C2207
+Size: Φ28×32.5mm
+Shaft Diameter: 5mm
+Silicone Wire: 20# 150mm
+Rated Voltage: 4–6S LiPo
+Weight (with wire): 35.8g
+Max Power: 1048.66W
+Peak Current: 42.74A
+Idle Current: 1.1A
+Mount: 4-M3
+Application: 5-inch Cinewhoop / Cinematic FPV
+'''
+
+[[motor]]
+id = "emax-e32207-2400"
+maker = "EMAX"
+model = "E3 Series 2207"
+kv = 2400
+stator = "2207"
+resistance_mohm = 48
+no_load_current_a = 2.1
+no_load_voltage_v = 10
+mass_g = 31.5
+mass_includes_cable = false
+max_current_a = 45
+max_power_w = 750
+cells_min = 3
+cells_max = 4
+props_in = [5, 5.5]
+url = "https://shop.emax-usa.com/products/e3-series-2207-brushless-motor-choose-kv"
+extra_urls = ["https://shop.emax-usa.com/products/e3-series-2207-brushless-motor-choose-kv.json"]
+retrieved = "2026-10-27"
+notes = "Source is EMAX's own US store (shop.emax-usa.com, linked as the sales site from emaxmodel.com). Numbers read from the Shopify product JSON (https://shop.emax-usa.com/products/e3-series-2207-brushless-motor-choose-kv.json), i.e. the page's own description table; the HTML page https://shop.emax-usa.com/products/e3-series-2207-brushless-motor-choose-kv served a bot-check (403) to curl and 429 to WebFetch, so it was not read directly. \"Peak Current（4S）: 45A\" has no stated duration (only the test voltage), so max_current_duration_s is omitted; max_power_w is \"Max.Power（4S）\". Weight is stated \"(W/O Silicone Wire)\", so mass_includes_cable = false. props_in holds the endpoints of the published range \"5\"-5.5\"\". Idle current voltage from the label \"Idle Current（10V）\". This is the E3 series, not ECO II: EMAX's ECO II pages publish specs only as images, the E3 pages publish a text table. Rated 3-4S only (4S-class winding)."
+quote = '''
+Product title: E3 Series 2207 Brushless Motor - CHOOSE KV
+Specifications
+Testltem | KV2400 | Idle Current（10V） | 2.1A
+Motor Dimensions | φ28.6*32.8mm | Internal Resistance | 48mΩ
+Framework | 12N14P | No.of cells | 3-4S
+Bearing Shaft | 4mm | Propeller | 5"-5.5"
+Lead | 20#AWG 120mm | Peak Current（4S） | 45A
+Weight | 31.5g(W/O Silicone Wire) | Max.Power（4S） | 750W
+'''
+
+[[motor]]
+id = "geprc-gr2207-2400"
+maker = "GEPRC"
+model = "GEP-GR2207"
+kv = 2400
+stator = "2207"
+resistance_mohm = 39
+no_load_current_a = 2.4
+no_load_voltage_v = 10
+mass_g = 31
+max_current_a = 45
+max_current_duration_s = 30
+max_power_w = 950
+cells_min = 4
+cells_max = 5
+url = "https://geprc.com/product/gep-gr2207-2400kv-motors/"
+retrieved = "2026-10-27"
+notes = "Mass: the spec block says \"Weight(g):31\" but the features list on the same page says \"The weight is 32g only\"; 31 is used, cable inclusion is not stated (mass_includes_cable omitted). The \"Weight | 200 g\" in the Additional information tab is the shipping weight, ignored. Idle current from \"Idle current(10)@10V(A)\". max_power_w is \"Max Continuous (Power(W)15S)\", i.e. a 15 s rating, while max_current_a is \"Max Current(30S)\", a 30 s rating; the two durations differ. Rated \"4~5S\", a 4S-class winding. Older product (on clearance)."
+quote = '''
+Page title: GEP-GR2207 2400kv motors
+Specifications：
+Item name: GEP-GR2207
+KV:2400kv
+Configuration:12N14P
+Stator Diamter:22mm
+Stator Length:7mm
+Shaft Diameter:4mm(Hollow)
+Motor (Dimension(Dia.*Len)): Φ26.7*30.5mm
+Idle current(10)@10V(A):2.4
+No.of Cells(Lipo):4~5S
+Max Continuous (Power(W)15S):950
+Internal Resistance:39mΩ
+Max Current(30S):45A
+Max.Effciency Current:(3-7A)>82%
+Rotor: N52H arc magnets
+Bearings:NSK
+Base casing: Al 7075
+Wire AWG: 20AWG
+Weight(g):31
+[Features list on the same page]
+The weight is 32g only
+'''
+
+[[motor]]
+id = "geprc-gr2207-2700"
+maker = "GEPRC"
+model = "GEP-GR2207"
+kv = 2700
+stator = "2207"
+resistance_mohm = 29
+no_load_current_a = 2.8
+no_load_voltage_v = 10
+mass_g = 31
+max_current_a = 48
+max_current_duration_s = 30
+max_power_w = 1000
+cells_min = 4
+cells_max = 5
+url = "https://geprc.com/product/gep-gr2207-2700kv-motors/"
+retrieved = "2026-10-27"
+notes = "Mass: the spec block says \"Weight(g):31\" but the features list on the same page says \"The weight is 32g only\"; 31 is used, cable inclusion is not stated (mass_includes_cable omitted). The \"Weight | 200 g\" in the Additional information tab is the shipping weight, ignored. Idle current from \"Idle current(10)@10V(A)\". max_power_w is \"Max Continuous (Power(W)15S)\", i.e. a 15 s rating, while max_current_a is \"Max Current(30S)\", a 30 s rating; the two durations differ. Rated \"4~5S\", a 4S-class winding. Older product (on clearance)."
+quote = '''
+Page title: GEP-GR2207 2700kv motors
+Specifications：
+Item name: GEP-GR2207
+KV:2700kv
+Configuration:12N14PStator Diamter:22mm
+Stator Length:7mm
+Shaft Diameter:4mm(Hollow)
+Motor (Dimension(Dia.*Len)): Φ26.7*30.5mm
+Idle current(10)@10V(A):2.8
+No.of Cells(Lipo):4~5S
+Max Continuous (Power(W)15S):1000
+Internal Resistance:29mΩ
+Max Current(30S):48A
+Max.Effciency Current:(4-8A)>81%
+Rotor: N52H arc magnets
+Bearings:NSK
+Base casing: Al 7075
+Wire AWG: 20AWG
+Weight(g):31
+[Features list on the same page]
+The weight is 32g only
+'''
+
+[[motor]]
+id = "axisflying-bando22075-1860"
+maker = "Axisflying"
+model = "Bando 2207.5 (Collaboration Edition)"
+kv = 1860
+stator = "2207.5"
+resistance_mohm = 58.13
+no_load_current_a = 1.2
+mass_g = 35.65
+mass_includes_cable = false
+max_current_a = 35.8
+max_power_w = 833.05
+cells_min = 6
+cells_max = 6
+url = "https://www.axisflying.com/products/brushless-motor-22075"
+retrieved = "2026-10-27"
+notes = "Idle-current test voltage is not stated on the page, so no_load_voltage_v is omitted. \"Peak Current\" has no stated duration, so max_current_duration_s is omitted. Weight is stated \"(excl. cable)\", so mass_includes_cable = false. Rated voltage is \"6S\" only, so cells_min = cells_max = 6. The page recommends \"Props: BB4943.5\" (a named prop, not a diameter), so props_in is omitted. Co-branded Axisflying x SyncFPV x Supafly motor."
+quote = '''
+Page title: Axisflying Bando 2207.5 1960KV/1860KV Brushless Motor 6S 5 Inch FPV Freestyle Bando Drone Motor
+Motor: Axisflying 2207.5 Collaboration (1860KV / 1960KV)
+Voltage: 6S LiPo
+Props: BB4943.5
+Application: 5-inch freestyle, bando, hardcore acro
+Specifications
+1860KV (Collaboration Edition)
+KV: 1860KV
+Configuration: 12N14P
+Internal Resistance: 58.13mΩ
+Size: Φ27.9×32.9mm
+Shaft Diameter: 4mm
+Silicone Wire: 20# 150mm
+Rated Voltage: 6S
+Weight (excl. cable): 35.65g
+Max Power: 833.05W
+Peak Current: 35.8A
+Max Thrust: 1711g
+Idle Current: 1.20A
+Mount: 4-M3
+'''
+
+[[motor]]
+id = "axisflying-bando22075-1960"
+maker = "Axisflying"
+model = "Bando 2207.5 (Collaboration Edition)"
+kv = 1960
+stator = "2207.5"
+resistance_mohm = 58.08
+no_load_current_a = 1.15
+mass_g = 35.5
+mass_includes_cable = false
+max_current_a = 39.83
+max_power_w = 962.23
+cells_min = 6
+cells_max = 6
+url = "https://www.axisflying.com/products/brushless-motor-22075"
+retrieved = "2026-10-27"
+notes = "Idle-current test voltage is not stated on the page, so no_load_voltage_v is omitted. \"Peak Current\" has no stated duration, so max_current_duration_s is omitted. Weight is stated \"(excl. cable)\", so mass_includes_cable = false. Rated voltage is \"6S\" only, so cells_min = cells_max = 6. The page recommends \"Props: BB4943.5\" (a named prop, not a diameter), so props_in is omitted. Co-branded Axisflying x SyncFPV x Supafly motor."
+quote = '''
+Page title: Axisflying Bando 2207.5 1960KV/1860KV Brushless Motor 6S 5 Inch FPV Freestyle Bando Drone Motor
+Motor: Axisflying 2207.5 Collaboration (1860KV / 1960KV)
+Voltage: 6S LiPo
+Props: BB4943.5
+Application: 5-inch freestyle, bando, hardcore acro
+Specifications
+1960KV (Collaboration Edition)
+KV: 1960KV
+Configuration: 12N14P
+Internal Resistance: 58.08mΩ
+Size: Φ27.9×32.9mm
+Shaft Diameter: 4mm
+Silicone Wire: 20# 150mm
+Rated Voltage: 6S
+Weight (excl. cable): 35.50g
+Max Power: 962.23W
+Peak Current: 39.83A
+Max Thrust: 1819g
+Idle Current: 1.15A
+Mount: 4-M3
+'''
+
+[[motor]]
+id = "tmotor-mn2212-v2-920"
+maker = "T-Motor"
+model = "MN2212 V2.0"
+kv = 920
+stator = "2212"
+resistance_mohm = 142
+no_load_current_a = 0.5
+no_load_voltage_v = 10
+mass_g = 54
+mass_includes_cable = false
+max_current_a = 15
+max_current_duration_s = 180
+max_power_w = 220
+cells_min = 2
+cells_max = 4
+url = "https://store.tmotor.com/goods-388-MN2212-V20.html"
+extra_urls = ["https://store.tmotor.com/goods.php?id=388"]
+retrieved = "2026-10-27"
+notes = "Navigator MN2212 V2.0 KV920. 'Weight Including Cables 65g'. The spec table gives 'Stator Height 13mm' although the model name says 2212; stator kept as the model name. props_in omitted on purpose: the description and Matching Guide on this page recommend 'T-MOTOR P15*5' and name the motor 'MN4112' in places, i.e. copy-pasted from another product; T-Motor's own test table on the page uses a 'T-MOTOR 9545B' (9.5 in) prop. Resistance convention not stated."
+quote = '''
+MN2212 V2.0 UAV Motor - High Strength Construction & Super Balance
+Test Item | MN2212 V2.0 KV920 | Configuration | 9N12P
+Internal Resistance | 142mΩ | Motor Dimensions | Φ27.5×26.5mm
+Shaft Diameter | 4mm | Stator Height | 13mm
+Stator Diameter | 22mm | Cable Length | 400mm
+AWG | 20# | Weight Excluding Cables | 54g
+Weight Including Cables | 65g | Idle Current@10v | 0.5A
+No.of Cells(Lipo) | 2-4S | Max Continuous Current 180S | 15A
+Max Power (180S) | 220W |  |
+'''
+
+[[motor]]
+id = "scorpion-sii-2212-960"
+maker = "Scorpion"
+model = "SII-2212-960KV (V2)"
+kv = 960
+stator = "2212"
+resistance_mohm = 139
+no_load_current_a = 0.51
+no_load_voltage_v = 10
+mass_g = 58
+max_current_a = 13
+max_power_w = 192
+cells_max = 4
+url = "https://www.scorpionsystem.com/catalog/aeroplane/motors_1/s-22_v2/SII-2212-960KV/"
+extra_urls = ["https://www.scorpionsystem.com/files/i2,224_data_chart.pdf"]
+retrieved = "2026-10-27"
+notes = "Listed under Scorpion's aeroplane motors (SII-22 V2). 'Motor Resistance (Rm) 0.139 Ohms' converted to mOhm (convention not stated). 'Max Continuous Current 13 Amps' (continuous, no duration). 'Max Lipo Cell 4s' -> cells_max only. Weight: cable inclusion not stated. DOUBT: the page says 'Max Continuous Power 192 Watts' but the linked data-chart PDF header says 'P Max (3S) 140 W'; the page value is recorded. No recommended prop list, props_in omitted."
+quote = '''
+Scorpion SII-2212-960KV (V2) - Scorpion Power System
+Stator Diameter | 22.0 mm (0.87 in)
+Stator Thickness | 12.0 mm (0.47 in)
+No. of Stator Arms | 12
+Magnet Poles | 14
+Motor Wind | 22 Turn Delta
+Motor Wire | 4-Strand 0.21mm
+Motor Kv | 960 RPM / Volt
+No-Load Current (Io/10V) | 0.51 Amps
+Motor Resistance (Rm) | 0.139 Ohms
+Max Continuous Current | 13 Amps
+Max Continuous Power | 192 Watts
+Weight | 58.0 Grams (2.05 oz)
+Outside Diameter | 27.9 mm (1.13 in)
+Shaft Diameter | 2.98 mm (0.12 in)
+Adapter Thread size | M5*0.8
+Body Length | 30.0 mm (1.18 in)
+Overall Shaft Length | 49.0 mm (1.93 in)
+Max Lipo Cell | 4s
+Motor Timing | 5deg
+Drive Frequency | 8kHz
+'''
+
+[[motor]]
+id = "sunnysky-x2212-v3-980"
+maker = "SunnySky"
+model = "X2212 V3"
+kv = 980
+stator = "2212"
+resistance_mohm = 92
+no_load_current_a = 0.6
+no_load_voltage_v = 10
+mass_g = 57
+max_current_a = 26
+max_current_duration_s = 30
+max_power_w = 385
+cells_min = 3
+cells_max = 4
+props_in = [8, 9, 10]
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+extra_urls = ["https://sunnyskyusa.com/products/sunnsky-x2212.js"]
+retrieved = "2026-10-27"
+notes = "X Series V3 (blue/white); the SunnySky collection text says X V3 motors are 'optimized for fixed-wing aircraft', but the page also lists multirotor take-off weights. Spec block is the KV980 tab of the product description (read through Shopify's /products/<handle>.js JSON, which carries the same description HTML as the page). 'Motor Resistance 92mΩ' (winding convention not stated). 'Max Continuous Current 26A/30s' -> 26 A for 30 s; 'Max Continuous Power 385W' (duration not stated). Weight 57g, cable inclusion not stated. props_in from 'Recommended Prop(inch) APC8038 /APC1038 /APC1047 /APC9047/APC9045' (8, 10, 10, 9, 9 in). A different, older black 'X2212' (non-V3) page also exists at /products/sunnysky-x2212-brushless-motors; not used. Quote: HTML table cells joined with ' | '."
+quote = '''
+SunnySky X Series V3 X2212 V3 Brushless Motors
+KV980
+Stator Diameter | 22mm | Rotor Diameter | 27.5mm
+Stator Thickness | 12mm | Body Length | 30mm
+No.of Stator Slots | 12 | Max Lipo Cell | 3-4S
+No.of Rotor Poles | 14 | ESC | 20-30A
+Motor Kv | 980 | Recommended Prop(inch) | APC8038 /APC1038 /APC1047 /APC9047/APC9045
+No-load current | 0.6A/10V | Single weight for multirotors | 400g ( 3-4S 1038\1047 )
+Motor Resistance | 92mΩ | Single weight for multirotors | 500g ( 4S 8038\8043\8045\9047)
+Max Continuous Current | 26A/30s | Weight for training airplane | 750g (3S 1047)
+Max Continuous Power | 385W | Weight for 3D airplane | 550g (3S 1047)
+Weight | 57g |  |
+'''
+
+[[motor]]
+id = "sunnysky-x2212-v3-1400"
+maker = "SunnySky"
+model = "X2212 V3"
+kv = 1400
+stator = "2212"
+resistance_mohm = 43
+no_load_current_a = 1
+mass_g = 57
+max_current_a = 37
+max_current_duration_s = 30
+max_power_w = 560
+cells_min = 3
+cells_max = 4
+props_in = [7, 8, 9]
+url = "https://sunnyskyusa.com/products/sunnsky-x2212"
+extra_urls = ["https://sunnyskyusa.com/products/sunnsky-x2212.js"]
+retrieved = "2026-10-27"
+notes = "KV1400 tab of the X2212 V3 page. No-load current is given as '1A' with NO test voltage (the other Kv tabs say '/10V'), so no_load_voltage_v is omitted. 'Max Continuous Current 37A/30s'. Weight 57g, cable inclusion not stated. props_in from 'APC8038 /APC7060 /APC8060 /APC9047/APC9045'. Resistance convention not stated."
+quote = '''
+SunnySky X Series V3 X2212 V3 Brushless Motors
+KV1400
+Stator Diameter | 22mm | Rotor Diameter | 27.5mm
+Stator Thickness | 12mm | Body Length | 30mm
+No.of Stator Slots | 12 | Max Lipo Cell | 3-4S
+No.of Rotor Poles | 14 | ESC | 30-40A
+Motor Kv | 1400 | Recommended Prop(inch) | APC8038 /APC7060 /APC8060 /APC9047/APC9045
+No-load current | 1A | Weight for aerobatics airplane | 750g (3S 9047\9045\8060) (4S 7060)
+Motor Resistance | 43mΩ |  |
+Max Continuous Current | 37A/30s |  |
+Max Continuous Power | 560W |  |
+Weight | 57g |  |
+'''
+
+[[motor]]
+id = "sunnysky-x2216-v3-880"
+maker = "SunnySky"
+model = "X2216 V3"
+kv = 880
+stator = "2216"
+resistance_mohm = 89
+no_load_current_a = 0.5
+no_load_voltage_v = 10
+mass_g = 67.5
+max_current_a = 32
+max_current_duration_s = 30
+max_power_w = 450
+cells_min = 3
+cells_max = 4
+props_in = [9, 10, 11]
+url = "https://sunnyskyusa.com/products/sunnysky-x2216"
+extra_urls = ["https://sunnyskyusa.com/products/sunnysky-x2216.js"]
+retrieved = "2026-10-27"
+notes = "Short-shaft version page ('X2216 V3 Brushless Motors Short Shaft Version'), KV880 tab. 'Max Continuous Current 32A/30s'. Weight 67.5g, cable inclusion not stated. props_in from 'APC11*4.7 /APC1047 /APC9047/APC9045'. Resistance convention not stated. Shopify variant weight field (not used) says 143 for this Kv, presumably packaged grams."
+quote = '''
+SunnySky X Series V3 X2216 V3 Brushless Motors Short Shaft Version
+KV880
+Stator Diameter | 22mm | Rotor Diameter | 27.7mm
+Stator Thickness | 16mm | Body Length | 34mm
+No.of Stator Slots | 12 | Max Lipo Cell | 3-4S
+No.of Rotor Poles | 14 | ESC | 50A
+Motor Kv | 880 | Recommended Prop(inch) | APC11*4.7 /APC1047 /APC9047/APC9045
+No-load current | 0.5A/10V | Weight for aerobatics airplane | 850g(4S 9060\1047\1050)
+Motor Resistance | 89mΩ | Single weight for multirotors | 500g(3S 1038\1047)
+Max Continuous Current | 32A/30s | Single weight for multirotors | 550g(4S 8038\8043\8045\9047)
+Max Continuous Power | 450W | Weight for 3D airplane | 800g(3S 1147)
+Weight | 67.5g |  |
+'''
+
+[[motor]]
+id = "geprc-gr2306-1600"
+maker = "GEPRC"
+model = "GEP-GR2306"
+kv = 1600
+stator = "2306"
+resistance_mohm = 68
+no_load_current_a = 1.3
+no_load_voltage_v = 10
+mass_g = 32
+mass_includes_cable = false
+max_current_a = 35
+max_current_duration_s = 15
+max_power_w = 950
+cells_min = 3
+cells_max = 6
+props_in = [6, 7]
+url = "https://geprc.com/product/gep-gr2306-1600kv-motors/"
+retrieved = "2026-10-27"
+notes = "CONFLICT: the spec block says \"No.of Cells(Lipo):3~6S\" but the Additional information tab says \"4~6S\"; the spec block (3-6) is used. Mass from \"The weight is 32g only (not include the wire)\" and the tab's \"Weight(g) | 32g\"; no weight line in the spec block itself. max_current_a is \"Max Current(15S)\"; max_power_w is \"Max Continuous (Power(W)15S)\". props_in from \"The 1600kv is suitable for 6-7 inch propeller\". Older product."
+quote = '''
+Page title: GEP-GR2306 1600kv motors
+Specifications：
+Item name: GEP-GR2306
+KV:1600
+Configuration:12N14P
+Stator Diamter:23mm
+Stator Length:6mm
+Shaft Diameter:4mm(Hollow)
+Motor (Dimension(Dia.*Len)):Φ 28.49*30mm
+Idle current(10)@10V(A):1.3
+No.of Cells(Lipo):3~6S
+Max Continuous (Power(W)15S):950
+Internal Resistance:68mΩ
+Max Current(15S):35A
+Max.Effciency Current:(4-8A)>83%
+The 1600kv is suitable for 6-7 inch propeller, high efficiency and suitable for long range flight.
+The weight is 32g only (not include the wire)
+[Additional information tab]
+No.of Cells(Lipo) |
+4~6S
+|
+Weight(g) |
+32g
+'''
+
+[[motor]]
+id = "emax-e32306-1700"
+maker = "EMAX"
+model = "E3 Series 2306"
+kv = 1700
+stator = "2306"
+resistance_mohm = 79
+no_load_current_a = 1.1
+no_load_voltage_v = 10
+mass_g = 29.4
+mass_includes_cable = false
+max_current_a = 36
+max_power_w = 970
+cells_min = 3
+cells_max = 6
+props_in = [5, 5.5]
+url = "https://shop.emax-usa.com/products/e3-series-2306-brushless-motor-choose-kv"
+extra_urls = ["https://shop.emax-usa.com/products/e3-series-2306-brushless-motor-choose-kv.json"]
+retrieved = "2026-10-27"
+notes = "Source is EMAX's own US store (shop.emax-usa.com, linked as the sales site from emaxmodel.com). Numbers read from the Shopify product JSON (https://shop.emax-usa.com/products/e3-series-2306-brushless-motor-choose-kv.json), i.e. the page's own description table; the HTML page https://shop.emax-usa.com/products/e3-series-2306-brushless-motor-choose-kv served a bot-check (403) to curl and 429 to WebFetch, so it was not read directly. \"Peak Current（6S）: 36A\" has no stated duration (only the test voltage), so max_current_duration_s is omitted; max_power_w is \"Max.Power（6S）\". Weight is stated \"(W/O Silicone Wire)\", so mass_includes_cable = false. props_in holds the endpoints of the published range \"5\"-5.5\"\". Idle current voltage from the label \"Idle Current（10V）\". This is the E3 series, not ECO II: EMAX's ECO II pages publish specs only as images, the E3 pages publish a text table."
+quote = '''
+Product title: E3 Series 2306 Brushless Motor - CHOOSE KV
+Specifications
+Testltem | KV1700 | Idle Current（10V） | 1.1A
+Motor Dimensions | φ28.9*31.8mm | Internal Resistance | 79mΩ
+Framework | 12N14P | No.of cells | 3-6S
+Bearing Shaft | 4mm | Propeller | 5"-5.5"
+Lead | 20#AWG 120mm | Peak Current（6S） | 36A
+Weight | 29.4g(W/O Silicone Wire) | Max.Power（6S） | 970W
+'''
+
+[[motor]]
+id = "emax-e32306-1900"
+maker = "EMAX"
+model = "E3 Series 2306"
+kv = 1900
+stator = "2306"
+resistance_mohm = 66
+no_load_current_a = 1.3
+no_load_voltage_v = 10
+mass_g = 29.4
+mass_includes_cable = false
+max_current_a = 46
+max_power_w = 1160
+cells_min = 3
+cells_max = 6
+props_in = [5]
+url = "https://shop.emax-usa.com/products/e3-series-2306-brushless-motor-choose-kv"
+extra_urls = ["https://shop.emax-usa.com/products/e3-series-2306-brushless-motor-choose-kv.json"]
+retrieved = "2026-10-27"
+notes = "Source is EMAX's own US store (shop.emax-usa.com, linked as the sales site from emaxmodel.com). Numbers read from the Shopify product JSON (https://shop.emax-usa.com/products/e3-series-2306-brushless-motor-choose-kv.json), i.e. the page's own description table; the HTML page https://shop.emax-usa.com/products/e3-series-2306-brushless-motor-choose-kv served a bot-check (403) to curl and 429 to WebFetch, so it was not read directly. \"Peak Current（6S）: 46A\" has no stated duration (only the test voltage), so max_current_duration_s is omitted; max_power_w is \"Max.Power（6S）\". Weight is stated \"(W/O Silicone Wire)\", so mass_includes_cable = false. props_in holds the endpoints of the published range \"5\"\". Idle current voltage from the label \"Idle Current（10V）\". This is the E3 series, not ECO II: EMAX's ECO II pages publish specs only as images, the E3 pages publish a text table."
+quote = '''
+Product title: E3 Series 2306 Brushless Motor - CHOOSE KV
+Specifications
+Testltem | KV1900 | Idle Current（10V） | 1.3A
+Motor Dimensions | φ28.9*31.8mm | Internal Resistance | 66mΩ
+Framework | 12N14P | No.of cells | 3-6S
+Bearing Shaft | 4mm | Propeller | 5"
+Lead | 20#AWG 120mm | Peak Current（6S） | 46A
+Weight | 29.4g(W/O Silicone Wire) | Max.Power（6S） | 1160W
+'''
+
+[[motor]]
+id = "emax-e32306-2400"
+maker = "EMAX"
+model = "E3 Series 2306"
+kv = 2400
+stator = "2306"
+resistance_mohm = 47
+no_load_current_a = 1.7
+no_load_voltage_v = 10
+mass_g = 29.5
+mass_includes_cable = false
+max_current_a = 43
+max_power_w = 720
+cells_min = 3
+cells_max = 4
+props_in = [5, 5.5]
+url = "https://shop.emax-usa.com/products/e3-series-2306-brushless-motor-choose-kv"
+extra_urls = ["https://shop.emax-usa.com/products/e3-series-2306-brushless-motor-choose-kv.json"]
+retrieved = "2026-10-27"
+notes = "Source is EMAX's own US store (shop.emax-usa.com, linked as the sales site from emaxmodel.com). Numbers read from the Shopify product JSON (https://shop.emax-usa.com/products/e3-series-2306-brushless-motor-choose-kv.json), i.e. the page's own description table; the HTML page https://shop.emax-usa.com/products/e3-series-2306-brushless-motor-choose-kv served a bot-check (403) to curl and 429 to WebFetch, so it was not read directly. \"Peak Current（4S）: 43A\" has no stated duration (only the test voltage), so max_current_duration_s is omitted; max_power_w is \"Max.Power（4S）\". Weight is stated \"(W/O Silicone Wire)\", so mass_includes_cable = false. props_in holds the endpoints of the published range \"5\"-5.5\"\". Idle current voltage from the label \"Idle Current（10V）\". This is the E3 series, not ECO II: EMAX's ECO II pages publish specs only as images, the E3 pages publish a text table. Rated 3-4S only (4S-class winding)."
+quote = '''
+Product title: E3 Series 2306 Brushless Motor - CHOOSE KV
+Specifications
+Testltem | KV2400 | Idle Current（10V） | 1.7A
+Motor Dimensions | φ28.9*31.8mm | Internal Resistance | 47mΩ
+Framework | 12N14P | No.of cells | 3-4S
+Bearing Shaft | 4mm | Propeller | 5"-5.5"
+Lead | 20#AWG 120mm | Peak Current（4S） | 43A
+Weight | 29.5g(W/O Silicone Wire) | Max.Power（4S） | 720W
+'''
+
+[[motor]]
+id = "geprc-speedx2-28065-1350"
+maker = "GEPRC"
+model = "SPEEDX2 2806.5"
+kv = 1350
+stator = "2806.5"
+resistance_mohm = 58
+no_load_current_a = 1.25
+no_load_voltage_v = 10
+mass_g = 48
+max_current_a = 40
+max_current_duration_s = 5
+max_power_w = 960
+cells_min = 4
+cells_max = 6
+url = "https://geprc.com/product/geprc-speedx2-2806-5-1350kv-1760kv-motor/"
+retrieved = "2026-10-27"
+notes = "Idle current from \"Idle current (10V)\". max_current_a and max_power_w are both 5 s ratings (\"Max Current (5S)\", \"Max Continuous Power(W) (5S)\"). Weight \"48.0g\" does not say whether the 250 mm leads are included, so mass_includes_cable is omitted. The page says \"Suitable for: 6-7″ Long Range Quadcopter\" (a quad class, not an explicit prop size), so props_in is omitted. Stator from \"Stator Diameter: 28mm\" / \"Stator Length: 6.5mm\" and the model name."
+quote = '''
+Page title: GEPRC SPEEDX2 2806.5 1350KV/1760KV Motor
+Specification
+Model:SPEEDX2 2806.5-1350KV
+KV: 1350KV
+Configuration: 12N14P
+Magnet: N52H ARC
+Stator Diameter: 28mm
+Stator Length: 6.5mm
+Shaft Diameter: Φ4.0mm
+Dimension: Φ34.8mm*33.9mm
+Lead wire size: 20#AWG 250mm
+Idle current (10V) : 1.25A
+No. of Cells (LiPo) : 4-6S
+Max Continuous Power(W) (5S): 960
+Max Current (5S) : 40A
+Internal Resistance: 58mΩ
+Mounting Holes: 19x19mm
+Weight: 48.0g
+Suitable for: 6-7″ Long Range Quadcopter
+'''
+
+[[motor]]
+id = "geprc-speedx2-28065-1760"
+maker = "GEPRC"
+model = "SPEEDX2 2806.5"
+kv = 1760
+stator = "2806.5"
+resistance_mohm = 47
+no_load_current_a = 1.7
+no_load_voltage_v = 10
+mass_g = 48
+max_current_a = 50
+max_current_duration_s = 5
+max_power_w = 1200
+cells_min = 4
+cells_max = 6
+url = "https://geprc.com/product/geprc-speedx2-2806-5-1350kv-1760kv-motor/"
+retrieved = "2026-10-27"
+notes = "Idle current from \"Idle current (10V)\". max_current_a and max_power_w are both 5 s ratings (\"Max Current (5S)\", \"Max Continuous Power(W) (5S)\"). Weight \"48.0g\" does not say whether the 250 mm leads are included, so mass_includes_cable is omitted. The page says \"Suitable for: 6-7″ Long Range Quadcopter\" (a quad class, not an explicit prop size), so props_in is omitted. Stator from \"Stator Diameter: 28mm\" / \"Stator Length: 6.5mm\" and the model name."
+quote = '''
+Page title: GEPRC SPEEDX2 2806.5 1350KV/1760KV Motor
+Model:SPEEDX2 2806.5-1760KV
+KV: 1760KV
+Configuration: 12N14P
+Magnet: N52H ARC
+Stator Diameter: 28mm
+Stator Lenght: 6.5mm
+Shaft Diameter: Φ4.0mm
+Dimension: Φ34.8mm*33.9mm
+Lead wire Size: 20#AWG 250mm
+Idle Current(10V): 1.7A
+No. of Cells (LiPo): 4-6S
+Max Continuous Power(W) (5S): 1200
+Max Current (5S)：50A
+Internal Resistance: 47mΩ
+Mounting Holes: 19x19mm
+Weight: 48.0g
+Suitable Quadcopter: 6-7″ Long Range Quadcopter
+'''
+
+[[motor]]
+id = "tmotor-2807-1250"
+maker = "T-Motor"
+model = "2807 KV1250 (custom unbranded FPV motor)"
+kv = 1250
+stator = "2807"
+resistance_mohm = 66.2
+no_load_current_a = 1.15
+no_load_voltage_v = 10
+mass_g = 52.6
+mass_includes_cable = true
+max_current_a = 44.32
+max_power_w = 551
+cells_min = 4
+cells_max = 6
+props_in = [7.5]
+url = "https://uav-en.tmotor.com/2026/fpv-motor_0126/1333.html"
+retrieved = "2026-10-27"
+notes = "Not an F-series/Velox motor: T-Motor's F60PRO/Velox product pages are gone (store.tmotor.com goods.php ids 404; store-en/fpv subdomains have invalid certs), and this 2807 page under uav-en.tmotor.com/fpv-applications is the only T-Motor FPV page with Rm + idle current + mass. \"Peak Current | 44.32A\" has no stated duration; it equals the 100%-throttle row of the page's own 7.5-inch test table, so it is a full-throttle test current, not a rated burst. \"Max Power | 551W\" also equals that row's Power column; note the table's Power column is NOT V x I (21.46 V x 44.32 A is far above 551 W), so treat 551 W as whatever T-Motor's rig reports (likely shaft/output), not electrical input. The spec grid places \"KV1250\" in the cell beside the label \"Recommended Voltage\" (a layout quirk); kv is taken from the title \"2807 1250KV\" and \"Motor | 2807 KV1250\". props_in from \"Propeller | C7.5x4.6x3\" (T-Motor's recommended set, 7.5-inch frame)."
+quote = '''
+Page title: 2807 1250KV Custom Unbranded Motor for High-Speed FPV
+Type | 2807 | Motor Dimension | φ32.94*34.05 |
+Magnet | Zinc-Plated
+Arc Magnets | Coil Insulation Test | 500V Withstand
+Voltage Test |
+Dynamic Balance
+Requirements Standards | ≤5mg | Configuration | 12N14P |
+Shaft Diameter | 5mm | Lead | 18AWG*200mm |
+Screw Diameter | Φ19-M3-4 | Prop Adapter Shaft Thread | M5 |
+Technical Specifications |
+Recommended Voltage | KV1250 | Idle Current (10V) | 1.15A |
+Max Power | 551W | Internal Resistance | 66.2mΩ |
+Rated Voltage (LiPo) | 4~6S | Peak Current | 44.32A |
+Max Thrust | 2.17kg | Weight
+(Incl. Cable) | 52.6g |
+Recommended Set/Motor/Propeller/ESC |
+Motor | 2807 KV1250 | Drone Frame Type | 7.5-inch X4 Frame |
+Propeller | C7.5x4.6x3 | Recommended Battery | 22.2v |
+ESC | V50a Se | Recommended Takeoff Weight | 5kg |
+Flight Controller | F7 Se | Max. Takeoff Weight | 10kg |
+[Test Data table: header, first row, 100% row]
+Type | Propeller | Voltage
+(V) | Throttle
+(%) | Current
+(A) | RPM | Thrust
+(g) | Power
+(W) | Efficiency
+(g/W) | Torque
+(N.m) | Operating
+Temperature
+(℃) |
+2807 KV1250 | c7.5*4.6*3 | 22.27 | 10% | 0.20 | 2297 | 39 | 2 | 25.07 | 0.01 | 49℃ |
+...
+21.46 | 100% | 44.32 | 15966 | 2178 | 551 | 3.95 | 0.33 |
+'''
+
+[[motor]]
+id = "emax-e32807-1300"
+maker = "EMAX"
+model = "E3 Series 2807"
+kv = 1300
+stator = "2807"
+resistance_mohm = 60
+no_load_current_a = 1.4
+no_load_voltage_v = 10
+mass_g = 49.6
+mass_includes_cable = false
+max_current_a = 55
+max_power_w = 1390
+cells_min = 3
+cells_max = 6
+props_in = [6, 7]
+url = "https://shop.emax-usa.com/products/e3-series-2807-brushless-motor-choose-kv"
+extra_urls = ["https://shop.emax-usa.com/products/e3-series-2807-brushless-motor-choose-kv.json"]
+retrieved = "2026-10-27"
+notes = "Source is EMAX's own US store (shop.emax-usa.com, linked as the sales site from emaxmodel.com). Numbers read from the Shopify product JSON (https://shop.emax-usa.com/products/e3-series-2807-brushless-motor-choose-kv.json), i.e. the page's own description table; the HTML page https://shop.emax-usa.com/products/e3-series-2807-brushless-motor-choose-kv served a bot-check (403) to curl and 429 to WebFetch, so it was not read directly. \"Peak Current（6S）: 55A\" has no stated duration (only the test voltage), so max_current_duration_s is omitted; max_power_w is \"Max.Power（6S）\". Weight is stated \"(W/O Silicone Wire)\", so mass_includes_cable = false. props_in holds the endpoints of the published range \"6\"-7\"\". Idle current voltage from the label \"Idle Current（10V）\". This is the E3 series, not ECO II: EMAX's ECO II pages publish specs only as images, the E3 pages publish a text table."
+quote = '''
+Product title: E3 Series 2807 Brushless Motor - CHOOSE KV
+Specifications
+Testltem | KV1300 | Idle Current（10V） | 1.4A
+Motor Dimensions | φ34.8*34.9mm | Internal Resistance | 60mΩ
+Framework | 12N14P | No.of cells | 3-6S
+Bearing Shaft | 5mm | Propeller | 6"-7"
+Lead | 18#AWG 200mm | Peak Current（6S） | 55A
+Weight | 49.6g(W/O Silicone Wire) | Max.Power（6S） | 1390W
+'''
+
+[[motor]]
+id = "emax-e32807-1500"
+maker = "EMAX"
+model = "E3 Series 2807"
+kv = 1500
+stator = "2807"
+resistance_mohm = 50
+no_load_current_a = 1.8
+no_load_voltage_v = 10
+mass_g = 49.6
+mass_includes_cable = false
+max_current_a = 63
+max_power_w = 1590
+cells_min = 3
+cells_max = 6
+props_in = [6, 7]
+url = "https://shop.emax-usa.com/products/e3-series-2807-brushless-motor-choose-kv"
+extra_urls = ["https://shop.emax-usa.com/products/e3-series-2807-brushless-motor-choose-kv.json"]
+retrieved = "2026-10-27"
+notes = "Source is EMAX's own US store (shop.emax-usa.com, linked as the sales site from emaxmodel.com). Numbers read from the Shopify product JSON (https://shop.emax-usa.com/products/e3-series-2807-brushless-motor-choose-kv.json), i.e. the page's own description table; the HTML page https://shop.emax-usa.com/products/e3-series-2807-brushless-motor-choose-kv served a bot-check (403) to curl and 429 to WebFetch, so it was not read directly. \"Peak Current（6S）: 63A\" has no stated duration (only the test voltage), so max_current_duration_s is omitted; max_power_w is \"Max.Power（6S）\". Weight is stated \"(W/O Silicone Wire)\", so mass_includes_cable = false. props_in holds the endpoints of the published range \"6\"-7\"\". Idle current voltage from the label \"Idle Current（10V）\". This is the E3 series, not ECO II: EMAX's ECO II pages publish specs only as images, the E3 pages publish a text table."
+quote = '''
+Product title: E3 Series 2807 Brushless Motor - CHOOSE KV
+Specifications
+Testltem | KV1500 | Idle Current（10V） | 1.8A
+Motor Dimensions | φ34.8*34.9mm | Internal Resistance | 50mΩ
+Framework | 12N14P | No.of cells | 3-6S
+Bearing Shaft | 5mm | Propeller | 6"-7"
+Lead | 18#AWG 200mm | Peak Current（6S） | 63A
+Weight | 49.6g(W/O Silicone Wire) | Max.Power（6S） | 1590W
+'''
+
+[[motor]]
+id = "emax-e32807-1700"
+maker = "EMAX"
+model = "E3 Series 2807"
+kv = 1700
+stator = "2807"
+resistance_mohm = 40
+no_load_current_a = 2.1
+no_load_voltage_v = 10
+mass_g = 49.6
+mass_includes_cable = false
+max_current_a = 54
+max_power_w = 907
+cells_min = 3
+cells_max = 4
+props_in = [6, 7]
+url = "https://shop.emax-usa.com/products/e3-series-2807-brushless-motor-choose-kv"
+extra_urls = ["https://shop.emax-usa.com/products/e3-series-2807-brushless-motor-choose-kv.json"]
+retrieved = "2026-10-27"
+notes = "Source is EMAX's own US store (shop.emax-usa.com, linked as the sales site from emaxmodel.com). Numbers read from the Shopify product JSON (https://shop.emax-usa.com/products/e3-series-2807-brushless-motor-choose-kv.json), i.e. the page's own description table; the HTML page https://shop.emax-usa.com/products/e3-series-2807-brushless-motor-choose-kv served a bot-check (403) to curl and 429 to WebFetch, so it was not read directly. \"Peak Current（4S）: 54A\" has no stated duration (only the test voltage), so max_current_duration_s is omitted; max_power_w is \"Max.Power（4S）\". Weight is stated \"(W/O Silicone Wire)\", so mass_includes_cable = false. props_in holds the endpoints of the published range \"6\"-7\"\". Idle current voltage from the label \"Idle Current（10V）\". This is the E3 series, not ECO II: EMAX's ECO II pages publish specs only as images, the E3 pages publish a text table. Rated 3-4S only; peak current and max power are quoted at 4S."
+quote = '''
+Product title: E3 Series 2807 Brushless Motor - CHOOSE KV
+Specifications
+Testltem | KV1700 | Idle Current（10V） | 2.1A
+Motor Dimensions | φ34.8*34.9mm | Internal Resistance | 40mΩ
+Framework | 12N14P | No.of cells | 3-4S
+Bearing Shaft | 5mm | Propeller | 6"-7"
+Lead | 18#AWG 200mm | Peak Current（4S） | 54A
+Weight | 49.6g(W/O Silicone Wire) | Max.Power（4S） | 907W
+'''
+
+[[motor]]
+id = "kde-2814xf-515"
+maker = "KDE Direct"
+model = "KDE2814XF-515"
+kv = 515
+stator = "2814"
+resistance_mohm = 130
+no_load_current_a = 0.3
+no_load_voltage_v = 10
+mass_g = 95
+mass_includes_cable = false
+max_current_a = 24
+max_current_duration_s = 180
+max_power_w = 535
+cells_min = 4
+cells_max = 6
+props_in = [12.5]
+url = "https://www.kdedirect.com/products/kde2814xf-515"
+retrieved = "2026-10-27"
+notes = "'Rm (Phase to Phase Resistance Delta Wound)' given in ohms, converted to mOhm (x1000). 'Motor Weight 95 g (125 g with Wires/Bullets)' -> mass_g is the bare-motor figure, with-wires figure in the same cell. Max current/power are '(180 s)' ratings and the page footnote says they require 'consistent open airflow (5 mph or greater)'. Cells from 'Voltage Range 14.8 V (4S LiPo) - 26.1 V (6S LiHV)' (LiHV upper end). props_in from 'Recommended Propeller: KDE Direct 12.5\" x 4.3 Triple-Propeller Blades' (KDE's own prop); the spec table separately allows 'Up to 15.5\"-DP (12.5\"-TP Maximum on 6S)'. KDE's performance PDFs use KDE props only."
+quote = '''
+KDE2814XF-515 Brushless Motor for Electric Multi-Rotor (sUAS) Series
+Recommended Propeller: KDE Direct 12.5" x 4.3 Triple-Propeller Blades
+Kv (Motor Velocity Constant) | 515 RPM/V
+Kt (Motor Torque Constant) | 0.0185 Nm/A
+Km (Motor Constant) | 0.0514 Nm/√(W)
+Maximum Continuous Current* | 24 A (180 s)
+Maximum Continuous Power* | 535 W (180 s)
+Voltage Range | 14.8 V (4S LiPo) - 26.1 V (6S LiHV)
+Io (@10V) | 0.3 A
+Rm (Phase to Phase Resistance Delta Wound) | 0.130 Ω
+Stator Poles | 12 (12S14P)
+Magnetic Poles | 14 (12S14P)
+Bearings | Triple, 684ZZ, 624ZZ
+Mount Pattern | M3 x ф25 mm, M3/2.5 x ф19 mm
+Stator Class | 2814, 0.2 mm Japanese
+Shaft Diameter | ф4 mm (ф4 mm Internal)
+Shaft Length | 5.5 mm
+Motor Diameter | ф35.5 mm
+Motor Rotor Inertia | 0.093 kg*cm^2
+Motor Length | 31.7 mm
+Motor Weight | 95 g (125 g with Wires/Bullets)
+Propeller Blade Size | Up to 15.5"-DP (12.5"-TP Maximum on 6S)
+Motor Advance Timing | 22° - 30°
+Motor Drive Frequency | 16 - 32 kHz
+Wire Gauge | 17 AWG
+Enameled Magnet Wire Thermal Class | 200 °C
+'''
+
+[[motor]]
+id = "kde-2814xf-775"
+maker = "KDE Direct"
+model = "KDE2814XF-775"
+kv = 775
+stator = "2814"
+resistance_mohm = 69
+no_load_current_a = 0.5
+no_load_voltage_v = 10
+mass_g = 95
+mass_includes_cable = false
+max_current_a = 36
+max_current_duration_s = 180
+max_power_w = 535
+cells_min = 3
+cells_max = 5
+props_in = [12.5]
+url = "https://www.kdedirect.com/products/kde2814xf-775"
+retrieved = "2026-10-27"
+notes = "'Rm (Phase to Phase Resistance Delta Wound)' given in ohms, converted to mOhm (x1000). 'Motor Weight 95 g (125 g with Wires/Bullets)' -> mass_g is the bare-motor figure, with-wires figure in the same cell. Max current/power are '(180 s)' ratings and the page footnote says they require 'consistent open airflow (5 mph or greater)'. Cells from 'Voltage Range 11.1 V (3S LiPo) - 21.8 V (5S LiHV)' (LiHV upper end). props_in from 'Recommended Propeller: KDE Direct 12.5\" x 4.3 Dual-Propeller Blades' (KDE's own prop); the spec table separately allows 'Up to 15.5\"-DP (12.5\"-TP Maximum on 4S)'. KDE's performance PDFs use KDE props only."
+quote = '''
+KDE2814XF-775 Brushless Motor for Electric Multi-Rotor (sUAS) Series
+Recommended Propeller: KDE Direct 12.5" x 4.3 Dual-Propeller Blades
+Kv (Motor Velocity Constant) | 775 RPM/V
+Kt (Motor Torque Constant) | 0.0123 Nm/A
+Km (Motor Constant) | 0.0469 Nm/√(W)
+Maximum Continuous Current* | 36 A (180 s)
+Maximum Continuous Power* | 535 W (180 s)
+Voltage Range | 11.1 V (3S LiPo) - 21.8 V (5S LiHV)
+Io (@10V) | 0.5 A
+Rm (Phase to Phase Resistance Delta Wound) | 0.069 Ω
+Stator Poles | 12 (12S14P)
+Magnetic Poles | 14 (12S14P)
+Bearings | Triple, 684ZZ, 624ZZ
+Mount Pattern | M3 x ф25 mm, M3/2.5 x ф19 mm
+Stator Class | 2814, 0.2 mm Japanese
+Shaft Diameter | ф4 mm (ф4 mm Internal)
+Shaft Length | 5.5 mm
+Motor Diameter | ф35.5 mm
+Motor Rotor Inertia | 0.093 kg*cm^2
+Motor Length | 31.7 mm
+Motor Weight | 95 g (125 g with Wires/Bullets)
+Propeller Blade Size | Up to 15.5"-DP (12.5"-TP Maximum on 4S)
+Motor Advance Timing | 22° - 30°
+Motor Drive Frequency | 16 - 32 kHz
+Wire Gauge | 17 AWG
+Enameled Magnet Wire Thermal Class | 200 °C
+'''
+
+[[motor]]
+id = "tmotor-mn3508-380"
+maker = "T-Motor"
+model = "MN3508"
+kv = 380
+stator = "3508"
+resistance_mohm = 205
+no_load_current_a = 0.4
+no_load_voltage_v = 10
+mass_g = 82
+mass_includes_cable = false
+max_current_a = 14
+max_current_duration_s = 180
+max_power_w = 310
+cells_min = 3
+cells_max = 6
+props_in = [15]
+url = "https://store.tmotor.com/goods-354-MN3508.html"
+extra_urls = ["https://store.tmotor.com/goods.php?id=354"]
+retrieved = "2026-10-27"
+notes = "Navigator series. 'Weight Excluding Cables 82g', 'Weight Including Cables 103g'. 'Max Continuous Current 180S 14A' and 'Max Power (180S) 310W'. Stator Diameter 35mm, Stator Height 8mm. 'Internal Resistance' convention (phase-phase vs per phase) not stated. props_in from the description sentence 'Ideal for use with T-Motor P15*5 props' (T-Motor's own prop). T-Motor's test table on this page uses only T-Motor CF props."
+quote = '''
+Home / Multi-rotor UAV Power / Multi-rotor UAV Motors / MN Navigator Type UAV Motors / MN3508 Multirotor Fixed Wing UAV Motor KV380/KV580/KV700
+Test Item | MN3508 KV380 | Configuration | 12N14P
+Internal Resistance | 205mΩ | Motor Dimensions | Φ41.8×26.5mm
+Shaft Diameter | 4mm | Stator Height | 8mm
+Stator Diameter | 35mm | Cable Length | 600mm
+AWG | 18# | Weight Excluding Cables | 82g
+Weight Including Cables | 103g | Idle Current@10v | 0.4A
+No.of Cells(Lipo) | 3-6S | Max Continuous Current 180S | 14A
+Max Power (180S) | 310W |  |
+Ideal for use with T-Motor P15*5 props, it delivers exceptional balance and strength for demanding aerial tasks.
+'''
+
+[[motor]]
+id = "sunnysky-v3508-580"
+maker = "SunnySky"
+model = "V3508"
+kv = 580
+stator = "3508"
+resistance_mohm = 125
+no_load_current_a = 0.6
+no_load_voltage_v = 10
+mass_g = 97
+max_current_a = 25
+max_current_duration_s = 30
+max_power_w = 400
+cells_max = 4
+props_in = [11, 12, 13, 15]
+url = "https://sunnyskyusa.com/products/sunnysky-v3508-motor"
+extra_urls = ["https://sunnyskyusa.com/products/sunnysky-v3508-motor.js"]
+retrieved = "2026-10-27"
+notes = "Multirotor V series, KV580 tab (second spec table on the page). 'Max Lipo Cell 4S' -> only cells_max set; no minimum stated. 'Max Continuous Current 25A/30s'. Weight 97g, cable inclusion not stated. props_in from 'EOLO CN11*4.5/CN12*5/CN13*5/CN15*5.5' (SunnySky's own EOLO props). Doubt: on the same page the first Kv tab is labelled 'Motor Kv 350' while the shop variant is '380', so the page is not fully self-consistent; the 580 tab and the '580' variant agree."
+quote = '''
+SunnySky V3508 High Efficiency Brushless Motors
+Stator Diameter | 35mm | Rotor Diameter | 41.8mm
+Stator Thickness | 8mm | Body Length | 20mm
+No.of Stator Slots | 12 | Max Lipo Cell | 4S
+No.of Rotor Poles | 14 | ESC | 30A
+Motor Kv | 580 | Recommended Prop(inch) | EOLO CN11*4.5/CN12*5/CN13*5/CN15*5.5
+No-load current | 0.6A/10V | Recommended single take-off Weight | ≤700g
+Motor Resistance | 125mΩ |  |
+Max Continuous Current | 25A/30s |  |
+Max Continuous Power | 400W |  |
+Weight | 97g |  |
+'''
+
+[[motor]]
+id = "tmotor-mn3508-700"
+maker = "T-Motor"
+model = "MN3508"
+kv = 700
+stator = "3508"
+resistance_mohm = 72
+no_load_current_a = 0.5
+no_load_voltage_v = 10
+mass_g = 82
+mass_includes_cable = false
+max_current_a = 23
+max_current_duration_s = 180
+max_power_w = 510
+cells_min = 3
+cells_max = 4
+url = "https://store.tmotor.com/goods-354-MN3508.html"
+extra_urls = ["https://store.tmotor.com/goods.php?id=354"]
+retrieved = "2026-10-27"
+notes = "Same page as tmotor-mn3508-380 (KV700 spec table). 'Weight Including Cables 104g'. props_in omitted: the page's single 'P15*5' recommendation is written for the KV380 and not restated for KV700."
+quote = '''
+Home / Multi-rotor UAV Power / Multi-rotor UAV Motors / MN Navigator Type UAV Motors / MN3508 Multirotor Fixed Wing UAV Motor KV380/KV580/KV700
+Test Item | MN3508 KV700 | Configuration | 12N14P
+Internal Resistance | 72mΩ | Motor Dimensions | Φ41.8×26.5mm
+Shaft Diameter | 4mm | Stator Height | 8mm
+Stator Diameter | 35mm | Cable Length | 600mm
+AWG | 18# | Weight Excluding Cables | 82g
+Weight Including Cables | 104g | Idle Current@10v | 0.5A
+No.of Cells(Lipo) | 3-4S | Max Continuous Current 180S | 23A
+Max Power (180S) | 510W |  |
+'''
+
+[[motor]]
+id = "kde-3510xf-475"
+maker = "KDE Direct"
+model = "KDE3510XF-475"
+kv = 475
+stator = "3510"
+resistance_mohm = 105
+no_load_current_a = 0.2
+no_load_voltage_v = 10
+mass_g = 120
+mass_includes_cable = false
+max_current_a = 30
+max_current_duration_s = 180
+max_power_w = 665
+cells_min = 4
+cells_max = 6
+props_in = [15.5]
+url = "https://www.kdedirect.com/products/kde3510xf-475"
+retrieved = "2026-10-27"
+notes = "'Rm (Phase to Phase Resistance Delta Wound)' given in ohms, converted to mOhm (x1000). 'Motor Weight 120 g (175 g with Wires/Bullets)' -> mass_g is the bare-motor figure, with-wires figure in the same cell. Max current/power are '(180 s)' ratings and the page footnote says they require 'consistent open airflow (5 mph or greater)'. Cells from 'Voltage Range 14.8 V (4S LiPo) - 26.1 V (6S LiHV)' (LiHV upper end). props_in from 'Recommended Propeller: KDE Direct 15.5\" x 5.3 Dual-Propeller Blades' (KDE's own prop); the spec table separately allows 'Up to 15.5\"-TP (15.5\"-DP Maximum on 6S)'. KDE's performance PDFs use KDE props only."
+quote = '''
+KDE3510XF-475 Brushless Motor for Electric Multi-Rotor (sUAS) Series
+Recommended Propeller: KDE Direct 15.5" x 5.3 Dual-Propeller Blades
+Kv (Motor Velocity Constant) | 475 RPM/V
+Kt (Motor Torque Constant) | 0.0201 Nm/A
+Km (Motor Constant) | 0.0620 Nm/√(W)
+Maximum Continuous Current* | 30 A (180 s)
+Maximum Continuous Power* | 665 W (180 s)
+Voltage Range | 14.8 V (4S LiPo) - 26.1 V (6S LiHV)
+Io (@10V) | 0.2 A
+Rm (Phase to Phase Resistance Delta Wound) | 0.105 Ω
+Stator Poles | 12 (12S14P)
+Magnetic Poles | 14 (12S14P)
+Bearings | Triple, MR105ZZ, 625ZZ
+Mount Pattern | M4/3 x ф25 mm, M3/2.5 x ф32 mm
+Stator Class | 3510, 0.2 mm Japanese
+Shaft Diameter | ф4 mm (ф5 mm Internal)
+Shaft Length | 5.5 mm
+Motor Diameter | ф42.2 mm
+Motor Rotor Inertia | 0.139 kg*cm^2
+Motor Length | 35 mm
+Motor Weight | 120 g (175 g with Wires/Bullets)
+Propeller Blade Size | Up to 15.5"-TP (15.5"-DP Maximum on 6S)
+Motor Advance Timing | 22° - 30°
+Motor Drive Frequency | 16 - 32 kHz
+Wire Gauge | 15 AWG
+Enameled Magnet Wire Thermal Class | 200 °C
+'''
+
+[[motor]]
+id = "scorpion-mii-4010-360"
+maker = "Scorpion"
+model = "MII-4010-360KV"
+kv = 360
+stator = "4010"
+resistance_mohm = 152
+no_load_current_a = 0.34
+no_load_voltage_v = 10
+mass_g = 152
+max_current_a = 30
+max_power_w = 1110
+cells_max = 10
+url = "https://www.scorpionsystem.com/catalog/multicopter/motor_5/mii-40/MII_4010_360/"
+extra_urls = ["https://www.scorpionsystem.com/files/i2,751_data_chart.pdf"]
+retrieved = "2026-10-27"
+notes = "Multicopter MII-40 series. 'Motor Resistance(RM) 0.152 Ohms' converted to mOhm (convention not stated; wind is '11 Turn Y'). max_current_a/max_power_w are the continuous ratings ('Max Continuous Current 30 Amps', 'Max Continuous Power 1110 Watts', no duration); the page also gives 'Peak Current 42 Amps (2 seconds)' and 'Peal [sic] Power 1554 Watts (2 seconds)'. 'Max Lipo Cell 10s' -> cells_max only. Weight: cable inclusion not stated. Its data chart uses Tarot (TL) props only, so no UIUC test rows. No recommended prop list, props_in omitted."
+quote = '''
+Scorpion MII-4010-360KV - Scorpion Power System
+Stator Diameter | 40 mm(1.57 in)
+Stator Thickness | 10 mm(0.39 in)
+No.of stator Arms | 12
+No.of stator Poles | 14
+Motor Wind | 11 Turn Y
+Motor Wire | 12-Strand 0.25 mm
+Motor Kv | 360KV RPM/Volt
+NO-Load Current(IO/10V) | 0.34 Amps
+Motor Resistance(RM) | 0.152 Ohms
+Max Continuous Current | 30 Amps
+Max Continuous Power | 1110 Watts
+Weight | 152 Grams (4.63 oz)
+Outside Diameter | 48.8 mm (1.92 in)
+Shaft Diameter | 3.98 mm (0.16 in)
+Body Length | 32.17 mm (1.27 in)
+Ovrall Shaft Length | 36.5 mm (1.44 in)
+Max Lipo Cell | 10s
+Peak Current | 42 Amps (2 seconds)
+Peal Power | 1554 Watts (2 seconds)
+Motor Timing | 5deg
+Drive Frequency | 8kHz
+'''
+
+[[motor]]
+id = "tmotor-mn4010-370"
+maker = "T-Motor"
+model = "MN4010"
+kv = 370
+stator = "4010"
+resistance_mohm = 98
+no_load_current_a = 0.8
+no_load_voltage_v = 10
+mass_g = 112
+mass_includes_cable = false
+max_current_a = 20
+max_current_duration_s = 180
+max_power_w = 450
+cells_min = 4
+cells_max = 8
+props_in = [16]
+url = "https://store.tmotor.com/goods.php?id=341"
+retrieved = "2026-10-27"
+notes = "Navigator MN4010 KV370 (Report NO. MN.00019). 'Weight Including Cables 137g'. DOUBT: the KV475 table on the same page also says 'Internal Resistance 98mΩ' (identical to KV370), which looks like a copy error on one of them; 98 mΩ is recorded for KV370 as published. props_in from the page's Matching Guide 'T-MOTOR P16*5.4 Prop' (T-Motor's own prop). Resistance convention not stated."
+quote = '''
+MN4010 Aerial Photograph UAV Motor - Longer Flight Time
+Test Item | MN4010 KV370 | Report NO. | MN.00019
+Internal Resistance | 98mΩ | Configuration | 18N24P
+Shaft Diameter | 4mm | Motor Dimensions | Φ44.7×30.5mm
+Stator Diameter | 40mm | Stator Height | 10mm
+AWG | 18# | Cable Length | 600mm
+Weight Including Cables | 137g | Weight Excluding Cables | 112g
+No.of Cells(Lipo) | 4-8S | Idle Current@10v | 0.8A
+Max Power (180S) | 450W | Max Continuous Current 180S | 20A
+Matching Guide:
+T-MOTOR P16*5.4 Prop / Air 40A 2-6S ESC
+'''
+
+[[motor]]
+id = "axisflying-c134-6000"
+maker = "Axisflying"
+model = "C134"
+kv = 6000
+resistance_mohm = 207
+no_load_current_a = 0.5
+no_load_voltage_v = 10
+mass_g = 7.6
+mass_includes_cable = true
+max_current_a = 12.04
+max_power_w = 184.91
+cells_min = 3
+cells_max = 4
+props_in = [2, 3]
+url = "https://www.axisflying.com/products/motor-6000kv-c134-for-fpv-drone-2-3-inch"
+retrieved = "2026-10-27"
+notes = "Stator size is NOT published for the C134: the text gives only 'Size: Φ15×9mm' (an outer size, not a 13xx stator) and the model name; the description image filenames are C1304xx.jpg and Axisflying's C155 is a 1505, which hints at 1304, but no fetched page states it, so the stator key is omitted. 'Max Current: 12.04A' and 'Max Power: 184.91W' have no duration. The page's testing-data image (https://ueeshop.ly200-cdn.com/u_file/UPBG/UPBG828/2604/16/photo/C130406.jpg) shows they come from different test points: 12.04 A at 11.92 V on a 3028-3 prop, 184.91 W at 15.98 V / 11.58 A on a T2*2*3 prop, so max_power_w is not voltage x max_current_a. The spec image on the same page repeats 207.00mΩ, 0.50 A ('Current without payload(10V)'), 7.60g (wire included), 12.04 A, 184.91 W. props_in = endpoints of 'Application: 2–3 inch'."
+quote = '''
+Motor C134 3-4s
+6000KV / For Cinewhoop Drone / 2-3 inch
+Recommended Configuration
+Motor: Axisflying C134 6000KV
+Voltage: 3–4S LiPo
+Props: T223 / 3028-3 / GF20204 / 2.52*3
+Application: 2–3 inch FPV, whoop, toothpick drones
+Specifications
+Model: C134
+KV: 6000KV
+Slot-Pole: 12N14P
+Internal Resistance: 207.00mΩ
+Shaft Diameter: 1.5mm
+Wire: 26# silicone wire, 105mm
+Mount: 4-M2
+Size: Φ15×9mm
+Weight (with wire): 7.60g
+No-load Current (10V): 0.50A
+Max Power: 184.91W
+Max Current: 12.04A
+Max Thrust: 95g
+'''

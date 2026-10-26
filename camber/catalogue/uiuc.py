@@ -37,8 +37,16 @@ from ..spec.units import INCH
 #: one the README, `camber endurance` and the app's Optimise step all use.
 REFERENCE_PROP = "gwsdd_5x4.3"
 
-#: `apce_11x5.5` -> family `apce`, 11 in diameter, 5.5 in pitch.
-_KEY = re.compile(r"^(?P<family>[a-z0-9\-]+?)_(?P<dia>\d+(?:\.\d+)?)x(?P<pitch>\d+(?:\.\d+)?)$")
+#: `apce_11x5.5` -> family `apce`, 11 in diameter, 5.5 in pitch. A trailing
+#: `_3b` names a three-blade variant of a two-blade design.
+_KEY = re.compile(r"^(?P<family>[a-z0-9\-]+?)_(?P<dia>\d+(?:\.\d+)?)x"
+                  r"(?P<pitch>\d+(?:\.\d+)?)(?:_(?P<blades>\d)b)?$")
+
+#: Families whose file names drop the decimal point: `apce_14x85` is the 14 x
+#: 8.5 and `ancf_125x6` the 12.5 x 6, by the archive's own headings. Only
+#: these two do it; elsewhere a large number is a size in millimetres
+#: (`ef_130x70`), so the rule is per family rather than a guess from size.
+_POINT_DROPPED = {"apce", "ancf"}
 
 
 class UiucError(ValueError):
@@ -109,12 +117,26 @@ class StaticRun:
 
 def parse_key(key: str) -> tuple[str, float, float]:
     """`apce_10x5` -> ('apce', 0.254 m, 0.127 m). Inches in, metres out."""
+    family, diameter, pitch, _ = parse_name(key)
+    return family, diameter, pitch
+
+
+def parse_name(key: str) -> tuple[str, float, float, int]:
+    """Family, diameter (m), pitch (m) and blade count from a propeller key."""
     m = _KEY.match(key)
     if not m:
         raise UiucError(
             f"cannot parse propeller key {key!r}; expected <family>_<dia>x<pitch>"
         )
-    return (m["family"], float(m["dia"]) * INCH, float(m["pitch"]) * INCH)
+    dia, pitch = float(m["dia"]), float(m["pitch"])
+    if m["family"] in _POINT_DROPPED:
+        if dia >= 100:
+            dia /= 10
+        # 12x13 is a real pitch; 12x65 is 6.5. No propeller here has a pitch
+        # above twice its diameter.
+        if pitch > 2 * dia and "." not in m["pitch"]:
+            pitch /= 10
+    return m["family"], dia * INCH, pitch * INCH, int(m["blades"] or 2)
 
 
 def _rows(path: Path, expected: int) -> list[list[float]]:

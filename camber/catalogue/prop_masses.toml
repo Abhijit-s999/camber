@@ -1,0 +1,838 @@
+# Published propeller weights, for the propellers Camber can choose (CAT-04).
+# Each row is one maker's or seller's published figure, with the page and the
+# text quoted (LIC-03). APC publishes ounces; those are converted at 28.3495 g.
+# A propeller with no row here gets an estimate from a power law through these,
+# and says so wherever it is shown.
+#
+# Doubts recorded per row in `notes`: whether APC's figure includes the adapter
+# rings it ships with, nominal per-diameter weights from Master Airscrew, and
+# disagreeing sellers for the smallest GWS propellers.
+
+[[prop]]
+uiuc_key = "apcff_4.2x4"
+as_published = "APC 4.2x4"
+mass_g = 3.1
+url = "https://www.apcprop.com/product/4-2x4/"
+quote = """Product Code: LP04240
+4.2x4
+[...]
+Product Weight
+0.11 oz."""
+notes = "Published in oz; converted 0.11 oz x 28.3495 = 3.12 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. APC lists it under \"049 Free Flight\". Page says the prop \"Includes one set of rings from LPAR18SF\"; it does not say whether Product Weight includes those adapter rings."
+
+[[prop]]
+uiuc_key = "apcsp_4.2x2"
+as_published = "APC 4.2x2"
+mass_g = 3.1
+url = "https://www.apcprop.com/product/4-2x2/"
+quote = """Product Code: LP04220
+4.2x2
+[...]
+Product Weight
+0.11 oz."""
+notes = "Published in oz; converted 0.11 oz x 28.3495 = 3.12 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. APC lists it under \"020 Sport\". Page says the prop \"Includes one set of rings from LPAR18SF\"; it does not say whether Product Weight includes those adapter rings."
+
+[[prop]]
+uiuc_key = "apcsp_7x6"
+as_published = "APC 7x6"
+mass_g = 13.0
+url = "https://www.apcprop.com/product/7x6/"
+quote = """Product Code: LP07060
+7x6
+[...]
+Product Weight
+0.46 oz."""
+notes = "Published in oz; converted 0.46 oz x 28.3495 = 13.04 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Sport; no adapter rings mentioned."
+
+[[prop]]
+uiuc_key = "apcsp_8x4"
+as_published = "APC 8x4"
+mass_g = 15.9
+url = "https://www.apcprop.com/product/8x4/"
+quote = """Product Code: LP08040
+8x4
+[...]
+Product Weight
+0.56 oz."""
+notes = "Published in oz; converted 0.56 oz x 28.3495 = 15.88 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Sport; page says adapter rings \"(not included)\"."
+
+[[prop]]
+uiuc_key = "apcsp_8x6"
+as_published = "APC 8x6"
+mass_g = 19.0
+url = "https://www.apcprop.com/product/8x6/"
+quote = """Product Code: LP08060
+8x6
+[...]
+Product Weight
+0.67 oz."""
+notes = "Published in oz; converted 0.67 oz x 28.3495 = 18.99 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. APC now files LP08060 under \"Control Line\", not Sport; it is the only plain 8x6 (LP08060) APC lists. Adapter rings \"(not included)\"."
+
+[[prop]]
+uiuc_key = "apcsp_9x6"
+as_published = "APC 9x6"
+mass_g = 22.1
+url = "https://www.apcprop.com/product/9x6/"
+quote = """Product Code: LP09060
+9x6
+[...]
+Product Weight
+0.78 oz."""
+notes = "Published in oz; converted 0.78 oz x 28.3495 = 22.11 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Sport; adapter rings \"(not included)\"."
+
+[[prop]]
+uiuc_key = "apcsp_10x6"
+as_published = "APC 10x6"
+mass_g = 28.9
+url = "https://www.apcprop.com/product/10x6/"
+quote = """Product Code: LP10060
+10x6
+[...]
+Product Weight
+1.02 oz."""
+notes = "Published in oz; converted 1.02 oz x 28.3495 = 28.92 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Sport; no adapter rings mentioned."
+
+[[prop]]
+uiuc_key = "apcsp_11x6"
+as_published = "APC 11x6"
+mass_g = 40.0
+url = "https://www.apcprop.com/product/11x6/"
+quote = """Product Code: LP11060
+11x6
+[...]
+Product Weight
+1.41 oz."""
+notes = "Published in oz; converted 1.41 oz x 28.3495 = 39.97 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Sport; no adapter rings mentioned."
+
+[[prop]]
+uiuc_key = "apce_8x4"
+as_published = "APC 8x4E"
+mass_g = 13.0
+url = "https://www.apcprop.com/product/8x4e/"
+quote = """Product Code: LP08040E
+8x4E
+[...]
+Product Weight
+0.46 oz."""
+notes = "Published in oz; converted 0.46 oz x 28.3495 = 13.04 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_8x6"
+as_published = "APC 8x6E"
+mass_g = 13.9
+url = "https://www.apcprop.com/product/8x6e/"
+quote = """Product Code: LP08060E
+8x6E
+[...]
+Product Weight
+0.49 oz."""
+notes = "Published in oz; converted 0.49 oz x 28.3495 = 13.89 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_9x4.5"
+as_published = "APC 9x4.5E"
+mass_g = 17.9
+url = "https://www.apcprop.com/product/9x4-5e/"
+quote = """Product Code: LP09045E
+9x4.5E
+[...]
+Product Weight
+0.63 oz."""
+notes = "Published in oz; converted 0.63 oz x 28.3495 = 17.86 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_9x6"
+as_published = "APC 9x6E"
+mass_g = 17.9
+url = "https://www.apcprop.com/product/9x6e/"
+quote = """Product Code: LP09060E
+9x6E
+[...]
+Product Weight
+0.63 oz."""
+notes = "Published in oz; converted 0.63 oz x 28.3495 = 17.86 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_10x5"
+as_published = "APC 10x5E"
+mass_g = 20.1
+url = "https://www.apcprop.com/product/10x5e/"
+quote = """Product Code: LP10050E
+10x5E
+[...]
+Product Weight
+0.71 oz."""
+notes = "Published in oz; converted 0.71 oz x 28.3495 = 20.13 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_10x7"
+as_published = "APC 10x7E"
+mass_g = 20.1
+url = "https://www.apcprop.com/product/10x7e/"
+quote = """Product Code: LP10070E
+10x7E
+[...]
+Product Weight
+0.71 oz."""
+notes = "Published in oz; converted 0.71 oz x 28.3495 = 20.13 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_11x5.5"
+as_published = "APC 11x5.5E"
+mass_g = 23.0
+url = "https://www.apcprop.com/product/11x5-5e/"
+quote = """Product Code: LP11055E
+11x5.5E
+[...]
+Product Weight
+0.81 oz."""
+notes = "Published in oz; converted 0.81 oz x 28.3495 = 22.96 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_11x7"
+as_published = "APC 11x7E"
+mass_g = 23.0
+url = "https://www.apcprop.com/product/11x7e/"
+quote = """Product Code: LP11070E
+11x7E
+[...]
+Product Weight
+0.81 oz."""
+notes = "Published in oz; converted 0.81 oz x 28.3495 = 22.96 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_12x6"
+as_published = "APC 12x6E"
+mass_g = 26.9
+url = "https://www.apcprop.com/product/12x6e/"
+quote = """Product Code: LP12060E
+12x6E
+[...]
+Product Weight
+0.95 oz."""
+notes = "Published in oz; converted 0.95 oz x 28.3495 = 26.93 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_12x8"
+as_published = "APC 12x8E"
+mass_g = 26.1
+url = "https://www.apcprop.com/product/12x8e/"
+quote = """Product Code: LP12080E
+12x8E
+[...]
+Product Weight
+0.92 oz."""
+notes = "Published in oz; converted 0.92 oz x 28.3495 = 26.08 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_13x65"
+as_published = "APC 13x6.5E"
+mass_g = 30.1
+url = "https://www.apcprop.com/product/13x6-5e/"
+quote = """Product Code: LP13065E
+13x6.5E
+[...]
+Product Weight
+1.06 oz."""
+notes = "Published in oz; converted 1.06 oz x 28.3495 = 30.05 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. UIUC vol-4 data files spell this size \"13x65\" (apce_13x65_*.txt). Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_13x8"
+as_published = "APC 13x8E"
+mass_g = 30.9
+url = "https://www.apcprop.com/product/13x8e/"
+quote = """Product Code: LP13080E
+13x8E
+[...]
+Product Weight
+1.09 oz."""
+notes = "Published in oz; converted 1.09 oz x 28.3495 = 30.90 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_14x7"
+as_published = "APC 14x7E"
+mass_g = 34.0
+url = "https://www.apcprop.com/product/14x7e/"
+quote = """Product Code: LP14070E
+14x7E
+[...]
+Product Weight
+1.20 oz."""
+notes = "Published in oz; converted 1.20 oz x 28.3495 = 34.02 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_14x10"
+as_published = "APC 14x10E"
+mass_g = 34.0
+url = "https://www.apcprop.com/product/14x10e/"
+quote = """Product Code: LP14010E
+14x10E
+[...]
+Product Weight
+1.20 oz."""
+notes = "Published in oz; converted 1.20 oz x 28.3495 = 34.02 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_16x8"
+as_published = "APC 16x8E"
+mass_g = 51.9
+url = "https://www.apcprop.com/product/16x8e/"
+quote = """Product Code: LP16080E
+16x8E
+[...]
+Product Weight
+1.83 oz."""
+notes = "Published in oz; converted 1.83 oz x 28.3495 = 51.88 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_16x10"
+as_published = "APC 16x10E"
+mass_g = 51.9
+url = "https://www.apcprop.com/product/16x10e/"
+quote = """Product Code: LP16010E
+16x10E
+[...]
+Product Weight
+1.83 oz."""
+notes = "Published in oz; converted 1.83 oz x 28.3495 = 51.88 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_18x8"
+as_published = "APC 18x8E"
+mass_g = 72.9
+url = "https://www.apcprop.com/product/18x8e/"
+quote = """Product Code: LP18080E
+18x8E
+[...]
+Product Weight
+2.57 oz."""
+notes = "Published in oz; converted 2.57 oz x 28.3495 = 72.86 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_18x10"
+as_published = "APC 18x10E"
+mass_g = 72.9
+url = "https://www.apcprop.com/product/18x10e/"
+quote = """Product Code: LP18010E
+18x10E
+[...]
+Product Weight
+2.57 oz."""
+notes = "Published in oz; converted 2.57 oz x 28.3495 = 72.86 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_20x10"
+as_published = "APC 20x10E"
+mass_g = 96.1
+url = "https://www.apcprop.com/product/20x10e/"
+quote = """Product Code: LP20010E
+20x10E
+[...]
+Product Weight
+3.39 oz."""
+notes = "Published in oz; converted 3.39 oz x 28.3495 = 96.10 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apce_21x13"
+as_published = "APC 21x13E"
+mass_g = 110.0
+url = "https://www.apcprop.com/product/21x13e/"
+quote = """Product Code: LP21013E
+21x13E
+[...]
+Product Weight
+3.88 oz."""
+notes = "Published in oz; converted 3.88 oz x 28.3495 = 110.00 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR06E\"; it does not say whether Product Weight includes those adapter rings (rings are small, but treat as possibly included)."
+
+[[prop]]
+uiuc_key = "apcsf_8x3.8"
+as_published = "APC 8x3.8SF"
+mass_g = 7.1
+url = "https://www.apcprop.com/product/8x3-8sf/"
+quote = """Product Code: LP08038SF
+8x3.8SF
+[...]
+Product Weight
+0.25 oz."""
+notes = "Published in oz; converted 0.25 oz x 28.3495 = 7.09 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR18SF\"; it does not say whether Product Weight includes those adapter rings. Cross-check: Park Pilot (Spring 2017, theparkpilot.org/propellers) weighed an APC 8x3.8SF at 6.92 g."
+
+[[prop]]
+uiuc_key = "apcsf_9x4.7"
+as_published = "APC 9x4.7SF"
+mass_g = 9.1
+url = "https://www.apcprop.com/product/9x4-7sf/"
+quote = """Product Code: LP09047SF
+9x4.7SF
+[...]
+Product Weight
+0.32 oz."""
+notes = "Published in oz; converted 0.32 oz x 28.3495 = 9.07 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR18SF\"; it does not say whether Product Weight includes those adapter rings."
+
+[[prop]]
+uiuc_key = "apcsf_10x4.7"
+as_published = "APC 10x4.7SF"
+mass_g = 11.9
+url = "https://www.apcprop.com/product/10x4-7sf/"
+quote = """Product Code: LP10047SF
+10x4.7SF
+[...]
+Product Weight
+0.42 oz."""
+notes = "Published in oz; converted 0.42 oz x 28.3495 = 11.91 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR18SF\"; it does not say whether Product Weight includes those adapter rings."
+
+[[prop]]
+uiuc_key = "apcsf_11x4.7"
+as_published = "APC 11x4.7SF"
+mass_g = 15.0
+url = "https://www.apcprop.com/product/11x4-7sf/"
+quote = """Product Code: LP11047SF
+11x4.7SF
+[...]
+Product Weight
+0.53 oz."""
+notes = "Published in oz; converted 0.53 oz x 28.3495 = 15.03 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR18SF\"; it does not say whether Product Weight includes those adapter rings."
+
+[[prop]]
+uiuc_key = "apcsf_11x7"
+as_published = "APC 11x7SF"
+mass_g = 15.0
+url = "https://www.apcprop.com/product/11x7sf/"
+quote = """Product Code: LP11070SF
+11x7SF
+[...]
+Product Weight
+0.53 oz."""
+notes = "Published in oz; converted 0.53 oz x 28.3495 = 15.03 g (rounded to 0.1 g). APC gives only 2 decimals of oz, so resolution is about +/-0.14 g. Page says the prop \"Includes one set of rings from LPAR18SF\"; it does not say whether Product Weight includes those adapter rings."
+
+[[prop]]
+uiuc_key = "gwsdd_2.5x0.8"
+as_published = "GWS EP-2508 (2.5x0.8)"
+mass_g = 0.49
+url = "https://plantraco.com/products/prop-gws2508"
+quote = """Prop EP-2508 (65mm x 20mm) 1mm Bore 0.49g"""
+notes = "Plantraco (plantraco.com, US retailer) product page; GWS EP-series part. GWS is discontinued. UIUC calls these GWS \"Direct Drive\"; Plantraco sells the EP part with the bore shown, so hub/bore may differ from the exact sample UIUC tested. Other published values disagree: Stevens Aero (stevensaero.com, GW/EP2508) says \"Weight: .7g\"; Overdrive-Racing (overdrive-racing.de) table says 0,5g."
+
+[[prop]]
+uiuc_key = "gwsdd_2.5x1"
+as_published = "GWS EP-2510 (2.5x1)"
+mass_g = 0.46
+url = "https://plantraco.com/products/prop-gws2510"
+quote = """Prop EP-2510 (65mm x 25mm) 1mm Bore 0.46g"""
+notes = "Plantraco (plantraco.com, US retailer) product page; GWS EP-series part. GWS is discontinued. UIUC calls these GWS \"Direct Drive\"; Plantraco sells the EP part with the bore shown, so hub/bore may differ from the exact sample UIUC tested. Not in the requested list but UIUC measured it (gwsdd_2.5x1). Overdrive-Racing table says 0,5g."
+
+[[prop]]
+uiuc_key = "gwsdd_3x2"
+as_published = "GWS EP-3020 (3x2)"
+mass_g = 0.94
+url = "https://plantraco.com/products/prop-gws3020"
+quote = """Prop EP-3020 (82mm x 50mm) 1.5mm Bore 0.94g
+[...]
+Weight
+0.94g"""
+notes = "Plantraco (plantraco.com, US retailer) product page; GWS EP-series part. GWS is discontinued. UIUC calls these GWS \"Direct Drive\"; Plantraco sells the EP part with the bore shown, so hub/bore may differ from the exact sample UIUC tested. Stevens Aero (GW/EP3020) says \"Weight: 1g\"; Overdrive-Racing says 1g."
+
+[[prop]]
+uiuc_key = "gwsdd_3x3"
+as_published = "GWS EP-3030 (3x3)"
+mass_g = 0.69
+url = "https://plantraco.com/products/prop-gws3030"
+quote = """Prop EP-3030 (82mm x 76mm) 1.5mm Bore 0.69g
+[...]
+Weight
+0.69g"""
+notes = "Plantraco (plantraco.com, US retailer) product page; GWS EP-series part. GWS is discontinued. UIUC calls these GWS \"Direct Drive\"; Plantraco sells the EP part with the bore shown, so hub/bore may differ from the exact sample UIUC tested. Not in the requested list but UIUC measured it (gwsdd_3x3). Microflier Radio (microflierradio.com/Propellers.html) lists the GWS 3.0x3.0 at \"Weight .680 gm.\""
+
+[[prop]]
+uiuc_key = "gwsdd_4x2.5"
+as_published = "GWS EP-4025 (4x2.5)"
+mass_g = 1.25
+url = "https://plantraco.com/products/prop-gws4025"
+quote = """Prop EP-4025 (102mm x 64mm) 4mm Bore 1.25g
+[...]
+Weight
+1.25g"""
+notes = "Plantraco (plantraco.com, US retailer) product page; GWS EP-series part. GWS is discontinued. UIUC calls these GWS \"Direct Drive\"; Plantraco sells the EP part with the bore shown, so hub/bore may differ from the exact sample UIUC tested. Overdrive-Racing says 1,2g."
+
+[[prop]]
+uiuc_key = "gwsdd_4x4"
+as_published = "GWS EP-4040 (4x4)"
+mass_g = 1.09
+url = "https://plantraco.com/products/prop-gws4040"
+quote = """Prop - EP-4040 (102mm x 102mm) 4mm Bore 1.09g"""
+notes = "Plantraco (plantraco.com, US retailer) product page; GWS EP-series part. GWS is discontinued. UIUC calls these GWS \"Direct Drive\"; Plantraco sells the EP part with the bore shown, so hub/bore may differ from the exact sample UIUC tested. Not in the requested list but UIUC measured it (gwsdd_4x4). Overdrive-Racing says 1,1g."
+
+[[prop]]
+uiuc_key = "gwsdd_4.5x3"
+as_published = "GWS EP-4530 (4.5x3)"
+mass_g = 1.25
+url = "https://plantraco.com/products/prop-gws4530"
+quote = """Prop - EP-4530 (114mm x 76mm) 4mm Bore 1.25g
+[...]
+Weight
+1.25g"""
+notes = "Plantraco (plantraco.com, US retailer) product page; GWS EP-series part. GWS is discontinued. UIUC calls these GWS \"Direct Drive\"; Plantraco sells the EP part with the bore shown, so hub/bore may differ from the exact sample UIUC tested. Overdrive-Racing says 1,2g; Microflier Radio lists the GWS 4.5x3.0 gear-drive prop at \"Weight 1.275 gm.\""
+
+[[prop]]
+uiuc_key = "gwsdd_4.5x4"
+as_published = "GWS EP-4540 (4.5x4)"
+mass_g = 1.34
+url = "https://plantraco.com/products/prop-gws4540"
+quote = """Prop - EP-4540 (114mm x 102mm) 4mm Bore 1.34g
+[...]
+Weight
+1.34g"""
+notes = "Plantraco (plantraco.com, US retailer) product page; GWS EP-series part. GWS is discontinued. UIUC calls these GWS \"Direct Drive\"; Plantraco sells the EP part with the bore shown, so hub/bore may differ from the exact sample UIUC tested. Not in the requested list but UIUC measured it (gwsdd_4.5x4). Overdrive-Racing says 1,3g."
+
+[[prop]]
+uiuc_key = "gwsdd_5x3"
+as_published = "GWS EP-5030 (5x3)"
+mass_g = 1.49
+url = "https://plantraco.com/products/prop-gws5030"
+quote = """Prop - EP-5030 (127mm x 76mm) 4mm Bore 1.49g
+[...]
+Weight
+1.49g"""
+notes = "Plantraco (plantraco.com, US retailer) product page; GWS EP-series part. GWS is discontinued. UIUC calls these GWS \"Direct Drive\"; Plantraco sells the EP part with the bore shown, so hub/bore may differ from the exact sample UIUC tested. Stevens Aero (GW/EP5030) says \"Weight: 1.4g\"; Microflier Radio says \"Weight 1.50 gm.\""
+
+[[prop]]
+uiuc_key = "gwsdd_5x4.3"
+as_published = "GWS EP-5043 (5x4.3)"
+mass_g = 1.55
+url = "https://plantraco.com/products/prop-gws5043"
+quote = """Prop - EP-5043 (125mm x 110mm) 4mm Bore 1.55g
+[...]
+Weight
+1.55g"""
+notes = "Plantraco (plantraco.com, US retailer) product page; GWS EP-series part. GWS is discontinued. UIUC calls these GWS \"Direct Drive\"; Plantraco sells the EP part with the bore shown, so hub/bore may differ from the exact sample UIUC tested. Overdrive-Racing says 1,5g; Microflier Radio says \"Weight 1.50 gm.\""
+
+[[prop]]
+uiuc_key = "gwssf_8x4.3"
+as_published = "GWS 8 x 4.3 (slow fly)"
+mass_g = 3.98
+url = "https://www.theparkpilot.org/propellers"
+quote = """The following are specific weights of the referenced 8-inch and 9-inch propellers:
+[...]
+GWS, 8 x 4.3: 3.98 grams"""
+notes = "Third-party measured weight: Dave Lockhart, \"Propellers\", Park Pilot (AMA) Spring 2017, listed under \"The following are specific weights of the referenced 8-inch and 9-inch propellers\". Overdrive-Racing (German retailer) lists 8x4,3RD at 4g. GWS sells its slow-fly props as \"RD\" (reduction) EP props."
+
+[[prop]]
+uiuc_key = "gwssf_9x4.7"
+as_published = "GWS 9 x 4.7 (slow fly)"
+mass_g = 5.07
+url = "https://www.theparkpilot.org/propellers"
+quote = """GWS, 9 x 4.7: 5.07 grams"""
+notes = "Third-party measured weight: Dave Lockhart, \"Propellers\", Park Pilot (AMA) Spring 2017, listed under \"The following are specific weights of the referenced 8-inch and 9-inch propellers\". Overdrive-Racing lists 9x4,7RD at 5g."
+
+[[prop]]
+uiuc_key = "gwsdd_9x5"
+as_published = "GWS 9 x 5DD"
+mass_g = 7.02
+url = "https://www.theparkpilot.org/propellers"
+quote = """GWS, 9 x 5DD: 7.02 grams"""
+notes = "Third-party measured weight: Dave Lockhart, \"Propellers\", Park Pilot (AMA) Spring 2017, listed under \"The following are specific weights of the referenced 8-inch and 9-inch propellers\". Overdrive-Racing lists 9x5DD at 7,2g."
+
+[[prop]]
+uiuc_key = "gwsdd_10x6"
+as_published = "GWS 10x6DD"
+mass_g = 8.8
+url = "https://www.overdrive-racing.de/multikopter-quadrokopter/luftschrauben-propeller/gws-luftschrauben-propeller-5er-10er-sets-slow-flyer_3652_13635"
+quote = """Technische Daten:
+Größe, Bohrung, Gewicht
+[...]
+10x6DD, 6-Kant (7mm) GWS Aufnahme mit 3mm Bohrung, 8,8g"""
+notes = "Overdrive-Racing (German retailer) GWS set listing; table \"Größe, Bohrung, Gewicht\" (size, bore, weight), German decimal comma. DD = Direct Drive, RD = Reduction (the GWS slow-fly EP line). The weight column is per propeller; the bore column for RD props says \"6mm + Adapter 3/4/5mm\" so it is unclear whether the adapter inserts are counted. "
+
+[[prop]]
+uiuc_key = "gwsdd_11x7"
+as_published = "GWS 11x7DD"
+mass_g = 12.1
+url = "https://www.overdrive-racing.de/multikopter-quadrokopter/luftschrauben-propeller/gws-luftschrauben-propeller-5er-10er-sets-slow-flyer_3652_13635"
+quote = """Technische Daten:
+Größe, Bohrung, Gewicht
+[...]
+11x7DD, 6-Kant (7mm) GWS Aufnahme mit 3mm Bohrung, 12,1g"""
+notes = "Overdrive-Racing (German retailer) GWS set listing; table \"Größe, Bohrung, Gewicht\" (size, bore, weight), German decimal comma. DD = Direct Drive, RD = Reduction (the GWS slow-fly EP line). The weight column is per propeller; the bore column for RD props says \"6mm + Adapter 3/4/5mm\" so it is unclear whether the adapter inserts are counted. "
+
+[[prop]]
+uiuc_key = "gwssf_10x4.7"
+as_published = "GWS 10x4,7RD"
+mass_g = 7.5
+url = "https://www.overdrive-racing.de/multikopter-quadrokopter/luftschrauben-propeller/gws-luftschrauben-propeller-5er-10er-sets-slow-flyer_3652_13635"
+quote = """Technische Daten:
+Größe, Bohrung, Gewicht
+[...]
+10x4,7RD, 6mm + Adapter 3/4/5mm, 7,5g"""
+notes = "Overdrive-Racing (German retailer) GWS set listing; table \"Größe, Bohrung, Gewicht\" (size, bore, weight), German decimal comma. DD = Direct Drive, RD = Reduction (the GWS slow-fly EP line). The weight column is per propeller; the bore column for RD props says \"6mm + Adapter 3/4/5mm\" so it is unclear whether the adapter inserts are counted. "
+
+[[prop]]
+uiuc_key = "gwssf_11x4.7"
+as_published = "GWS 11x4,7RD"
+mass_g = 10.0
+url = "https://www.overdrive-racing.de/multikopter-quadrokopter/luftschrauben-propeller/gws-luftschrauben-propeller-5er-10er-sets-slow-flyer_3652_13635"
+quote = """Technische Daten:
+Größe, Bohrung, Gewicht
+[...]
+11x4,7RD, 6-Kant (5,5mm) GWS Aufnahme mit 3mm Bohrung, 10g"""
+notes = "Overdrive-Racing (German retailer) GWS set listing; table \"Größe, Bohrung, Gewicht\" (size, bore, weight), German decimal comma. DD = Direct Drive, RD = Reduction (the GWS slow-fly EP line). The weight column is per propeller; the bore column for RD props says \"6mm + Adapter 3/4/5mm\" so it is unclear whether the adapter inserts are counted. "
+
+[[prop]]
+uiuc_key = "gwssf_8x6"
+as_published = "GWS 8x6RD"
+mass_g = 4.3
+url = "https://www.overdrive-racing.de/multikopter-quadrokopter/luftschrauben-propeller/gws-luftschrauben-propeller-5er-10er-sets-slow-flyer_3652_13635"
+quote = """Technische Daten:
+Größe, Bohrung, Gewicht
+[...]
+8x6RD, 6mm + Adapter 3/4/5mm, 4,3g"""
+notes = "Overdrive-Racing (German retailer) GWS set listing; table \"Größe, Bohrung, Gewicht\" (size, bore, weight), German decimal comma. DD = Direct Drive, RD = Reduction (the GWS slow-fly EP line). The weight column is per propeller; the bore column for RD props says \"6mm + Adapter 3/4/5mm\" so it is unclear whether the adapter inserts are counted. Not in the requested list but UIUC measured it (gwssf_8x6)."
+
+[[prop]]
+uiuc_key = "gwssf_9x7"
+as_published = "GWS 9x7RD"
+mass_g = 5.6
+url = "https://www.overdrive-racing.de/multikopter-quadrokopter/luftschrauben-propeller/gws-luftschrauben-propeller-5er-10er-sets-slow-flyer_3652_13635"
+quote = """Technische Daten:
+Größe, Bohrung, Gewicht
+[...]
+9x7RD, 6-Kant (5,5mm) GWS Aufnahme mit 3mm Bohrung, 5,6g"""
+notes = "Overdrive-Racing (German retailer) GWS set listing; table \"Größe, Bohrung, Gewicht\" (size, bore, weight), German decimal comma. DD = Direct Drive, RD = Reduction (the GWS slow-fly EP line). The weight column is per propeller; the bore column for RD props says \"6mm + Adapter 3/4/5mm\" so it is unclear whether the adapter inserts are counted. Not in the requested list but UIUC measured it (gwssf_9x7)."
+
+[[prop]]
+uiuc_key = "mi_3.2x2.2"
+as_published = "Micro Invent MCF3222"
+mass_g = 0.2
+url = "https://web.archive.org/web/20150402063538/http://www.microinvent.com:80/mambo/index.php?option=content&task=view&id=26&Itemid=45"
+quote = """MCF3222
+Maximal diameter
+81 mm (3.2")
+Pitch
+56 mm (2.2")
+Weight
+0.2 g"""
+notes = "Manufacturer page (Micro Invent, \"Carbon propellers - Propellers made of carbon laminate\"), archived by the Wayback Machine on 2015-04-02 (the live site is gone; this capture also has unrelated spam links appended at the bottom, the product table itself is intact). Not in the requested list but UIUC measured it (mi_3.2x2.2). Microflier Radio lists a \"Molded Carbon Fiber Prop\" CF. 3.2 x 2.2 at \"Weight .165 gm.\" (brand not named there)."
+
+[[prop]]
+uiuc_key = "mi_4x2.7"
+as_published = "Micro Invent MCF4027"
+mass_g = 0.25
+url = "https://web.archive.org/web/20150402063538/http://www.microinvent.com:80/mambo/index.php?option=content&task=view&id=26&Itemid=45"
+quote = """MCF4027
+Maximal diameter
+101 mm (4.0")
+Pitch
+68 mm (2.7")
+Weight
+0.25 g"""
+notes = "Manufacturer page (Micro Invent, \"Carbon propellers - Propellers made of carbon laminate\"), archived by the Wayback Machine on 2015-04-02 (the live site is gone; this capture also has unrelated spam links appended at the bottom, the product table itself is intact). Doubt: Micro Invent also sold a stiffer MCF4027S (same size) at \"0.30 g\"; UIUC does not say which variant it tested. Microflier Radio lists a CF 4.0 x 2.7 molded carbon prop at \"Weight .20 gm.\" (brand not named)."
+
+[[prop]]
+uiuc_key = "mi_5x3.5"
+as_published = "Micro Invent MCF5035"
+mass_g = 0.35
+url = "https://web.archive.org/web/20150402063538/http://www.microinvent.com:80/mambo/index.php?option=content&task=view&id=26&Itemid=45"
+quote = """MCF5035
+Maximal diameter
+127 mm (5.0")
+Pitch
+89 mm (3.5")
+Weight
+0.35 g"""
+notes = "Manufacturer page (Micro Invent, \"Carbon propellers - Propellers made of carbon laminate\"), archived by the Wayback Machine on 2015-04-02 (the live site is gone; this capture also has unrelated spam links appended at the bottom, the product table itself is intact). Doubt: Micro Invent also sold a stiffer MCF5035S (same size) at \"0.5 g\"; UIUC does not say which variant it tested."
+
+[[prop]]
+uiuc_key = "magf_7x4"
+as_published = "Master Airscrew GF Series - 7x4 Propeller"
+mass_g = 7.4
+url = "https://www.masterairscrew.com/products/gf-series-7x4-propeller"
+quote = """GF Series - 7x4 Propeller
+[...]
+Propeller Weight
+0.26 oz / 7.4 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "magf_8x4"
+as_published = "Master Airscrew GF Series - 8x4 Propeller"
+mass_g = 11.1
+url = "https://www.masterairscrew.com/products/gf-series-8x4-propeller"
+quote = """GF Series - 8x4 Propeller
+[...]
+Propeller Weight
+0.39 oz / 11.1 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "magf_9x4"
+as_published = "Master Airscrew GF Series - 9x4 Propeller"
+mass_g = 14.5
+url = "https://www.masterairscrew.com/products/gf-series-9x4-propeller"
+quote = """GF Series - 9x4 Propeller
+[...]
+Propeller Weight
+0.51 oz / 14.5 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "magf_9x5"
+as_published = "Master Airscrew GF Series - 9x5 Propeller"
+mass_g = 14.5
+url = "https://www.masterairscrew.com/products/gf-series-9x5-propeller"
+quote = """GF Series - 9x5 Propeller
+[...]
+Propeller Weight
+0.51 oz / 14.5 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "magf_9x7"
+as_published = "Master Airscrew GF Series - 9x7 Propeller"
+mass_g = 15.0
+url = "https://www.masterairscrew.com/products/gf-series-9x7-propeller"
+quote = """GF Series - 9x7 Propeller
+[...]
+Propeller Weight
+0.53 oz / 15 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "magf_10x6"
+as_published = "Master Airscrew GF Series - 10x6 Propeller"
+mass_g = 21.0
+url = "https://www.masterairscrew.com/products/gf-series-10x6-propeller"
+quote = """GF Series - 10x6 Propeller
+[...]
+Propeller Weight
+0.74 oz / 21 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "magf_10x8"
+as_published = "Master Airscrew GF Series - 10x8 Propeller"
+mass_g = 22.1
+url = "https://www.masterairscrew.com/products/gf-series-10x8-propeller"
+quote = """GF Series - 10x8 Propeller
+[...]
+Propeller Weight
+0.78 oz / 22.1 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "magf_11x4"
+as_published = "Master Airscrew GF Series - 11x4 Propeller"
+mass_g = 26.1
+url = "https://www.masterairscrew.com/products/gf-series-11x4-propeller"
+quote = """GF Series - 11x4 Propeller
+[...]
+Propeller Weight
+0.92 oz / 26.1 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "magf_11x5"
+as_published = "Master Airscrew GF Series - 11x5 Propeller"
+mass_g = 26.1
+url = "https://www.masterairscrew.com/products/gf-series-11x5-propeller"
+quote = """GF Series - 11x5 Propeller
+[...]
+Propeller Weight
+0.92 oz / 26.1 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "magf_11x8"
+as_published = "Master Airscrew GF Series - 11x8 Propeller"
+mass_g = 26.1
+url = "https://www.masterairscrew.com/products/gf-series-11x7-5-propeller"
+quote = """GF Series - 11x8 Propeller
+[...]
+Propeller Weight
+0.92 oz / 26.1 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. The URL slug says 11x7-5 but the page title and spec say 11\" x 8\" pitch. "
+
+[[prop]]
+uiuc_key = "mas_9x5"
+as_published = "Master Airscrew Scimitar - 9x5 Propeller"
+mass_g = 15.9
+url = "https://www.masterairscrew.com/products/scimitar-9x5-propeller"
+quote = """Scimitar - 9x5 Propeller
+[...]
+Propeller Weight
+0.56 oz / 15.9 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "mas_9x6"
+as_published = "Master Airscrew Scimitar - 9x6 Propeller"
+mass_g = 15.9
+url = "https://www.masterairscrew.com/products/scimitar-9x6-propeller"
+quote = """Scimitar - 9x6 Propeller
+[...]
+Propeller Weight
+0.56 oz / 15.9 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "mas_9x7"
+as_published = "Master Airscrew Scimitar - 9x7 Propeller"
+mass_g = 15.9
+url = "https://www.masterairscrew.com/products/scimitar-9x7-propeller"
+quote = """Scimitar - 9x7 Propeller
+[...]
+Propeller Weight
+0.56 oz / 15.9 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "mas_10x5"
+as_published = "Master Airscrew Scimitar - 10x5 Propeller"
+mass_g = 20.1
+url = "https://www.masterairscrew.com/products/scimitar-10x5-propeller"
+quote = """Scimitar - 10x5 Propeller
+[...]
+Propeller Weight
+0.71 oz / 20.1 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "mas_10x7"
+as_published = "Master Airscrew Scimitar - 10x7 Propeller"
+mass_g = 21.0
+url = "https://www.masterairscrew.com/products/scimitar-10x7-propeller"
+quote = """Scimitar - 10x7 Propeller
+[...]
+Propeller Weight
+0.74 oz / 21 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "mas_11x6"
+as_published = "Master Airscrew Scimitar - 11x6 Propeller"
+mass_g = 26.9
+url = "https://www.masterairscrew.com/products/scimitar-11x6-propeller"
+quote = """Scimitar - 11x6 Propeller
+[...]
+Propeller Weight
+0.95 oz / 26.9 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "mas_11x7"
+as_published = "Master Airscrew Scimitar - 11x7 Propeller"
+mass_g = 28.6
+url = "https://www.masterairscrew.com/products/scimitar-11x7-propeller"
+quote = """Scimitar - 11x7 Propeller
+[...]
+Propeller Weight
+1.01 oz / 28.6 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "
+
+[[prop]]
+uiuc_key = "mas_11x8"
+as_published = "Master Airscrew Scimitar - 11x8 Propeller"
+mass_g = 28.6
+url = "https://www.masterairscrew.com/products/scimitar-11x8-propeller"
+quote = """Scimitar - 11x8 Propeller
+[...]
+Propeller Weight
+1.01 oz / 28.6 g"""
+notes = "Manufacturer page (Master Airscrew / Windsor Propeller). Published as both oz and g; the g figure is used as printed. Master Airscrew prints one weight for several pitches of the same diameter, so it looks like a nominal per-diameter figure. Current production; UIUC tested its samples around 2005-2008. "

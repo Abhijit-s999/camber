@@ -332,6 +332,30 @@ fitted from Camber's own OpenFOAM runs. No third-party measurement is in it.
 which was the only thing this decision was blocking. It remains private by
 LIC-02, which is a separate choice and his alone.
 
+### LIC-03 · The motor table and propeller weights ship; they are cited facts — `FIXED`
+
+**Value:** `camber/catalogue/motors.toml` and `camber/catalogue/prop_masses.toml`
+are tracked and ship in the wheel. Every row is one maker's (or, for a few
+discontinued propellers, one seller's) published figure for its own product,
+with the page it came from and the text quoted. LIC-01 stands for everything
+else: the UIUC archive, Tyto, APC's performance files and ThrustCurve are still
+fetched, never shipped.
+
+**Reasoning:** LIC-01 was about *datasets*: someone else's compiled
+measurements, whose selection and arrangement can be protected even where the
+numbers cannot. A motor's Kv, resistance, idle current, mass and current rating
+are the maker's own statement of fact about its product, published to sell it,
+and the table is Camber's selection from more than a dozen makers' pages, not a
+copy of one source. Each row carries its URL and quote, so the claim is
+checkable row by row rather than asserted for the whole.
+
+The alternative, fetching motor data from a source with no bulk download on
+the user's machine, is the scraper LIC-01 already refused.
+
+**Enforced:** `tests/test_licensing.py` fails if a shipped row lacks an https
+page or a quote, or if any other data file appears under `camber/catalogue/`;
+`tests/test_components.py` fails if a motor's numbers are not in its quote.
+
 ### ENV-01 · Other projects are off-limits, including the shared OpenFOAM install — `FIXED`
 
 **Value:** no writes to another project's tree; no refactor that extracts
@@ -649,6 +673,87 @@ energy alone finds designs that fail on the first aggressive manoeuvre.
 
 ## 5. The optimiser (P3)
 
+### PHYS-09 · The motor model, against makers' thrust stands — `FIXED`
+
+**Value:** within 15% on thrust and current for 106 and 108 of 114 rows where
+the propeller is named and the point is full throttle. Recorded with its
+misses; `tests/test_motor_validation.py` holds it as a floor.
+
+**The set:** 155 rows from makers' own test tables (`tests/data/motor_tests.toml`)
+in which the propeller is one the UIUC tunnel also measured: Cobra C2213/26,
+C2814/20 and C3510/24 and Scorpion SII-2212-960 prop charts (114 rows, 32
+APC Thin Electric, Slow Flyer and GWS Direct Drive propellers, 3S to 5S), and SunnySky
+X2212 and X2216 thrust sweeps (41 rows). Nothing in Camber is fitted to them:
+the motor is its datasheet row, the propeller its tunnel data. The band, 15% on
+thrust and on current, was written into the test before the first comparison.
+
+**The check:** at each row's measured rpm, thrust from the propeller's
+coefficients and current from the motor carrying the propeller's torque. The
+planned full-throttle solve from volts alone could not run: no source prints
+throttle or the voltage under load, and the round pack voltages they print
+(11.1, 14.8, 18.5) are not what the motor saw.
+
+**Two corrections to the comparison, neither to the model,** both decided from
+the sources' own text:
+
+- The first run compared motor current with the stands' "Amps", which is the
+  supply's (their Watts column is volts times amps). At part throttle those
+  differ by the throttle (PHYS-10): SunnySky's lightest row read +290%.
+- Applying that correction to every row then under-read the prop charts by
+  10%. Cobra's chart note says why: its voltages are "based on a properly sized
+  Li-Po battery ... a larger than normal capacity battery ... will result in
+  higer current draw for each prop". The chart points are full throttle from a
+  sagging pack, where supply and motor current are the same. Rows from those
+  charts are marked `full_throttle`; SunnySky's sweeps are not.
+
+**Results:**
+
+| rows | thrust in band | median | current in band | median |
+|---|---|---|---|---|
+| prop charts, full throttle (114) | 106 | -3.9% | 108 | +4.3% |
+| SunnySky sweeps (41) | 19 | | 17 | |
+
+Every thrust miss on the charts is one of two propellers, and each misses the
+same way on every motor that ran it: APC 8x6E reads 17-21% low on four
+motors, 12x8E 23-27% high on two. That is the tunnel's sample of those
+propellers against the makers' samples. The current misses there are scattered
+and just outside (15-18%).
+
+**SunnySky is reported, not gated.** Its page names "APC1047" and so on with no
+line letter, which the collector flagged before any comparison, and its X2212
+tables run a 9x4.7 to 11,755 rpm, 1.6 times APC's published limit for the Slow
+Flyer it was taken to be. The X2216 on the 10x4.7 and 11x4.7 reads within 3%
+on thrust, which suggests those two at least are what they were taken for.
+
+**Not validated:** the winding resistance at full throttle, for want of a
+terminal voltage, and anything below 2212 size: the FPV makers test on their
+own propellers, none of which the tunnel measured.
+
+### PHYS-10 · The pack supplies throttle times the motor's current — `FIXED`
+
+**The bug:** hover endurance divided the pack's charge by the *motors'*
+current. Throttle is the ESC chopping the pack voltage, so at part throttle
+the motor sees a fraction of the pack's volts and draws more amps than the
+pack gives; power is what passes through. Every endurance from the physics
+tier, the optimiser's and `camber endurance`'s, used the motor side.
+
+**Found by** building component selection on top of it (2026-10-27). With the
+cell count a free choice the bug would have steered every search: more volts
+at the same motor current read as the same "pack current" from a heavier pack,
+so every extra cell looked like dead weight.
+
+**Size of it:** `camber endurance examples/quad5.toml` reported a pack current
+of 17.17 A from 4.29 A per motor, which is 288 W from the pack against 89 W
+going into the motors: energy was not conserved. Corrected, the pack supplies
+5.30 A and the endurance is **13.6 min, not 4.2**. The ratio is the hover
+throttle, about a third here, so the error was largest for designs with the
+most thrust in hand, which is every racer.
+
+**Value:** `OperatingPoint.supply_current(pack_voltage)` is the electrical
+power over the pack voltage. The ESC is taken as lossless, which still leaves
+its few per cent out. OPT-03's 16.5x was measured against the wrong 4.2 min;
+against 13.6 the placeholder is out by 5.1x.
+
 ### OPT-01 · Hard gates for flyability, penalties for geometry — `FIXED`
 
 **Value:** controllability rank, control margin and hover feasibility reject a
@@ -685,6 +790,10 @@ reported **69.4 minutes against 4.2** -- out by 16.5x, and the first
 optimisation run duly converged on a fantasy. A surrogate whose error is
 unmeasured is not a surrogate, it is a guess with a docstring.
 
+**Revised 2026-10-27 (PHYS-10):** the 4.2 minutes was itself 3.2x short, from
+counting motor current as pack current. Against the corrected 13.6 the
+placeholder is out by 5.1x. Still a placeholder, and still labelled one.
+
 ### OPT-04 · Mass must be a decision, or the second objective is decorative — `FIXED`
 
 **Reasoning:** the first run produced a "front" of forty identical points.
@@ -695,7 +804,7 @@ energy at 180 Wh/kg, which is what makes endurance-versus-mass a real axis.
 A multi-objective front that collapses to a point is not a converged search; it
 is a sign that one objective is not connected to any variable.
 
-### OPT-05 · One propeller map is scaled across radii — `PROVISIONAL`
+### OPT-05 · One propeller map is scaled across radii — `SUPERSEDED` by CAT-02
 
 **Reasoning:** CT and CP are functions of blade *shape* and Reynolds number,
 not absolute size, so a single map serves every candidate radius with thrust
@@ -705,6 +814,11 @@ against roughly 0.4 ms for the whole evaluation.
 The approximation is the Reynolds part, and PHYS-04 records that it is not
 negligible at this scale, so comparing radii far apart carries a known error.
 Worth revisiting with a small family of maps if radius ranges widen.
+
+**Superseded 2026-10-27.** With the propeller data fetched, `camber optimise`
+chooses from the measured propellers and flies each on its own measurements
+(CAT-02). The scaled map survives only in `physics_endurance_model()` and
+`camber endurance`, which still take one `--prop`.
 
 ### OPT-06 · Delegated code is reviewed, not merely tested — `FIXED`
 
@@ -773,6 +887,165 @@ still breaks, and writes neither `--out` nor `--front-json`. The app shows that
 line as the job's failure. Before, `--out` handed the least-bad infeasible
 design on to `generate`. The app test's optimiser job ran 8 x 2 on racer5 and
 passed only because of that; it now runs the app's own budget, 40 x 30.
+
+
+### OPT-08 · A component is a choice, not a number — `FIXED`
+
+**Value:** `DesignVariable(categorical=True)`. Such a gene is sampled with
+every index equally likely, crossed over by copying it whole from one parent,
+and mutated by drawing any index. Cell count stays ordinal (integral), because
+5S really is between 4S and 6S.
+
+**Reasoning:** SBX and polynomial mutation assume nearby values are similar
+and place children between or near their parents. For an index into a motor
+list that is false, and it is also biased: the child of motors 3 and 9 lands on
+4 to 8, so the ends of the list are rarely tried. Sorting the list by a
+physical key to make adjacency mean something was the alternative; no single
+key orders motors (Kv, size and resistance all matter), so the gene was made
+honest instead. `test_a_search_visits_every_option` is the acceptance test:
+every one of 30 options visited within 25 generations of 16.
+
+### OPT-10 · Neighbouring propellers may not overlap — `FIXED`
+
+**Value:** a violation, per pair of discs at the same height (within 10 mm),
+of how far their gap falls short of 4 mm, as a fraction of the radius. Stacked
+and coaxial rotors are exempt.
+
+**Reasoning:** the search always varied arm length and propeller size
+independently and never checked the two against each other. At the shortest
+arms it allowed, two 5-inch discs overlapped by 14 mm. It happened: on quad5
+at seed 2 the old optimiser's front held 4 designs of 32 with overlapping
+propellers, the worst by 11.6 mm. With the propeller size now a choice from
+2.5 to 21 inches, it would happen more.
+
+### OPT-11 · The mission's minimum endurance is a constraint — `FIXED`
+
+**Value:** `mission.min_endurance` adds `1 - endurance / floor` to the
+violation when a design falls short.
+
+**Reasoning:** the spec has always carried the floor ("a floor the design must
+meet regardless of objective") and the search never read it, so a racer's
+front could end in packs that cannot fly the race. It is enforced only now
+because only now is the endurance it is checked against right (PHYS-10); the
+momentum placeholder, still used without the propeller data, reads long enough
+that the floor rarely binds there.
+
+---
+
+## 5b. Choosing the parts
+
+### CAT-01 · The optimiser chooses the motor, the propeller and the cells — `FIXED`
+
+**Value:** with the propeller data fetched, `camber optimise` (and the app's
+Optimise step) adds three genes: a motor from `camber/catalogue/motors.toml`
+(51 motors from 8 makers, 1204 to 4010 stators, 360 to 11,000 Kv), a
+propeller from the UIUC-measured ones within `--radius-min/--radius-max`, and
+the cell count (`--cells`, default 2-6). Every rotor gets the same pair. The
+choice is then *resolved*: the rotors take the propeller's size and blade
+count, the motor's plus propeller's mass, and a static thrust computed from the
+three together at nominal pack voltage, so hover feasibility, the thrust-to-
+weight objective, the saved spec, `generate` and the simulator all read the
+chosen hardware. `--motor`, `--prop` and `--cells` narrow the choice; `--kv`
+`--rm --i0` still describe a motor of your own.
+
+**Reasoning:** the original plan promised components chosen, and the
+optimiser chose none. A static thrust typed into the spec
+also stopped meaning anything once rotor size was a variable: the racer's
+12.3 N stayed 12.3 N whatever radius the search picked.
+
+**Front rows name their parts** (`components` in `--front-json`, the table,
+`--out`'s summary), with the motor's page.
+
+### CAT-02 · Each propeller is flown on its own measurements — `FIXED`
+
+**Value:** `MeasuredPropeller` interpolates the tunnel's static CT and CP
+against rpm, and for forward flight the sweep nearest in rpm, anchored at J = 0
+by the static point. Outside the measured rpm the end values are held.
+
+**Reasoning:** for a propeller in the archive the measurement is better than any
+prediction of it, and it removes OPT-05's Reynolds error for every choice. The
+hold is the open edge: the small propellers were measured to about 8000 rpm
+and a racer turns them three times faster. CT and CP still rise slowly with
+Reynolds number there (PHYS-04), so holding them under-reads thrust a little;
+compressibility, which the tunnel never reached, works the other way (CAT-03).
+
+**What the catalogue is:** every archive propeller with static data, a size
+that parses and a maker who sold it. The 3D-printed research designs (DA4002,
+DA4022, DA4052, NR640) and the micro propellers the archive names in
+millimetres are left out. `apce_14x85` is the 14 x 8.5 and `ancf_125x6` the
+12.5 x 6: the archive drops the decimal point in those two families, which the
+key parser now knows. Below 7 inches the archive holds slow-flyer and park
+propellers, not today's racing props, so a choice there stands for its
+aerodynamics, "a two-blade 5x4.3", more than for a part number.
+
+### CAT-03 · The limits a choice must meet — `FIXED`
+
+**Value:** each adds to the violation, scaled so 10% over costs 0.1:
+
+| limit | from |
+|---|---|
+| motor current at full throttle on a full pack | the maker's rating (`max_current_a`) |
+| pack cells within the motor's rated range | the maker's page |
+| pack current at full throttle | the spec's capacity times its C rating |
+| tip speed below Mach 0.7 | the edge of the measured data |
+| rpm below APC's published limit | 150,000 / D for Thin Electric, 65,000 / D for Slow Flyer, 225,000 / D for Sport on electric motors ([APC](https://www.apcprop.com/technical-information/rpm-limits/)) |
+
+and a motor that cannot turn the propeller at all is rejected outright.
+
+**Reasoning:** limits are constraints, not filters, so a rejected pairing keeps
+its reason and the search can walk back from it (OPT-01). Full throttle on a
+full pack (4.2 V a cell) is the worst case for current; static thrust is taken
+at nominal (3.7 V), the voltage most of a flight is flown at. Makers quote
+their current ratings over different times (5 s to 180 s, or none), and the
+table records which; a punch-out is seconds long, so the rating is compared as
+published. Mach 0.7 is where the measured coefficients stop being trustworthy,
+not a structural limit: racers run 5-inch tips near Mach 0.6.
+
+### CAT-04 · A propeller's mass is published where it can be, estimated where not — `FIXED`
+
+**Value:** `camber/catalogue/prop_masses.toml` holds 73 published weights (APC
+from apcprop.com, Master Airscrew from its site, Micro Invent from its archived
+site, GWS, discontinued, from sellers' tables and one magazine author who
+weighed them). The other 141 propellers get `a * D^2.83`: one exponent fitted
+through all 73 in log space, and the scale per family wherever a family has two
+published weights. Each estimate says so where it is shown.
+
+**Reasoning:** a propeller weighs from 5% of its motor (a 5-inch GWS on a
+2207) to a third (an APC 10x5E on a 2212), so it cannot be left out, and makers
+publish it for only some lines.
+Construction dominates the scale: a 5-inch Micro Invent weighs 0.35 g and a
+5-inch APC Sport ten times that. One law for every family scattered by a
+factor of 1.7; per family, 1.3, measured leaving each published weight out in
+turn (worst 2.4x).
+
+**Doubts kept in the rows:** whether APC's figure includes the adapter rings it
+ships with (an independent weighing of an 8x3.8SF read 6.92 g against APC's
+7.1), Master Airscrew's one weight per diameter, and sellers disagreeing on the
+smallest GWS propellers.
+
+### CAT-05 · Every part combination is screened before the search — `FIXED`
+
+**Value:** before NSGA-II starts, every combination of motor, propeller and
+cell count is evaluated with the continuous genes at mid-range, and the best
+quarter of a population (by constrained rank, then crowding) replaces random
+starting members. About 3800 combinations, 7 s; above 20,000 a random sample
+stands in.
+
+**Reasoning:** a genetic search over a few thousand part combinations plus a
+dozen continuous genes settles on whichever parts it met early. Over six
+seeds at the app's budget (40 x 30):
+
+| | quad5 best endurance, min | racer5 best T:W |
+|---|---|---|
+| without the screen | 30.2 to 36.6, median 32.9 | 6.6 to 13.7, median 10.1 |
+| with it | 34.2 to 35.9, median 35.1 | 11.1 to 12.0, median 11.4 |
+
+and with it, the same parts every seed. The screen gives up a little of the
+lucky best case (racer5 reached 13.7 once, unscreened, on a pairing the
+mid-range screen ranks lower) for a much better worst case; an answer that
+changes with the seed is not one. Seeding half the population, drawing the
+seeds' continuous genes at random, and mutating the part genes three times as
+often all tested worse or no better.
 
 ---
 
@@ -2082,6 +2355,9 @@ minutes for the racer and 3 to 11 for the endurance quad, in 2.8 s instead
 of 1.6. A caveat is the right answer when the better number costs
 something; here it cost nothing.
 
+**Revised 2026-10-27 (PHYS-10):** those minutes were about a third of the
+truth; the physics tier counted motor current as pack current.
+
 **Still true:** one propeller is scaled across radii (OPT-05) and the motor is
 the CLI default, so the number is a fair comparison and a rough flight time
 until components are chosen. The chart says that too.
@@ -2100,6 +2376,23 @@ on 2026-10-26. The Aerodynamics step said "Flying with this" while the Fly step
 sat on "Estimated drag", so the measured table only reached a flight if the
 user found a second toggle. And STEP was offered for a vehicle it could never
 be written for, failing with a 400 after the click.
+
+### UI-10 · The Optimise step shows the parts, and links open — `FIXED`
+
+**Value:** clicking a design on the trade-off chart lists its motor (linked to
+the maker's page), propeller, cell count, and the full-throttle thrust and
+current against the motor's rating. A rotor chosen by the optimiser shows its
+motor and propeller in the Design step; typing a size or thrust there drops the
+part numbers, because the rotor is no longer that hardware.
+
+**And links work in the app window.** A link with `target="_blank"` makes Qt
+WebEngine ask for a new window before it navigates, and the page never answered,
+so the request was dropped: the ROS panel's documentation link had done nothing
+in the Qt window since it was added (it worked in browser mode, which is how it
+was checked). `createWindow` now returns a throwaway page that hands its one
+navigation to the desktop browser. Checked offscreen with the hook recording
+instead of opening: before, a blank-target click reached nothing; after, it
+arrives once.
 
 ### SPEC-02 · Saving a vehicle dropped its constraints — `FIXED`
 

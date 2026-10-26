@@ -92,6 +92,19 @@ def cmd_inspect(args: argparse.Namespace) -> int:
     else:
         print(f"  INFEASIBLE    {h.reason}")
 
+    chosen = {(getattr(t, "motor_sku", None), getattr(t, "prop_sku", None))
+              for t in v.thrusters} - {(None, None)}
+    if chosen:
+        from .catalogue import motors, props
+        table = {m.id: m for m in motors.load()}
+        print()
+        print("parts")
+        for motor, prop in sorted(chosen, key=str):
+            m = table.get(motor)
+            print(f"  motor         {m.label if m else motor or '-'}"
+                  + (f"   {m.url}" if m else ""))
+            print(f"  propeller     {props.describe(prop) if prop else '-'}")
+
     breaches = 0
     if v.constraints:
         print()
@@ -192,11 +205,13 @@ def cmd_endurance(args: argparse.Namespace) -> int:
         print(f"\ncannot hover: {exc}", file=sys.stderr)
         return 1
 
-    total_current = op.current_a * len(v.thrusters)
+    # What the pack supplies, which at part throttle is less than what the
+    # motors draw: the ESC trades voltage for current (PHYS-10).
+    total_current = op.supply_current(pack.terminal_voltage(0.0, 1.0)) * len(v.thrusters)
     endurance = pack.endurance_s(total_current)
     print()
     print(f"  hover rpm        {op.rpm:8.0f}")
-    print(f"  per-rotor current{op.current_a:8.2f} A     motor eta {op.motor_efficiency:.1%}")
+    print(f"  motor current    {op.current_a:8.2f} A     motor eta {op.motor_efficiency:.1%}")
     print(f"  pack current     {total_current:8.2f} A     "
           f"({total_current/pack.max_current_a:.0%} of the pack's rating)")
     print(f"  thrust per watt  {op.thrust_per_watt:8.4f} N/W")
@@ -240,6 +255,73 @@ _OBJECTIVE_COLUMNS = {
 }
 
 
+def _cells(text: str) -> tuple[int, int]:
+    """`4` or `3-6`: the pack cell counts a search may choose between."""
+    try:
+        lo, _, hi = text.partition("-")
+        lo, hi = int(lo), int(hi or lo)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"cells must be N or N-M, not {text!r}") from None
+    if not 1 <= lo <= hi <= 14:
+        raise argparse.ArgumentTypeError(f"cells must be between 1 and 14, not {text!r}")
+    return lo, hi
+
+
+def _component_space(args: argparse.Namespace, v):
+    """The motors, propellers and cell counts this run may choose from.
+
+    Returns (space, None), or (None, why) when there is no propeller data to
+    choose with; raises ValueError for a part the catalogue does not hold.
+    """
+    from .catalogue import motors as motor_table
+    from .catalogue import props as prop_table
+    from .catalogue.uiuc import UiucError
+    try:
+        from .optimise.components import ComponentSpace
+        props = prop_table.load(str(args.propdb) if args.propdb else None)
+    except UiucError:
+        return None, "no propeller data"
+    except ImportError:
+        # The motor and propeller models need scipy; the core does not (AI-07).
+        return None, "choosing parts needs the physics extra (pip install 'camber[physics]')"
+    if args.prop:
+        known = {p.key: p for p in props}
+        wanted = [k.strip() for k in args.prop.split(",") if k.strip()]
+        bad = [k for k in wanted if k not in known]
+        if bad:
+            raise ValueError(f"no measured propeller {', '.join(bad)}; "
+                             "`camber catalogue props` lists them")
+        props = [known[k] for k in wanted]
+    else:
+        props = [p for p in props
+                 if args.radius_min - 1e-9 <= p.diameter_m / 2 <= args.radius_max + 1e-9]
+        if not props:
+            raise ValueError(f"no measured propeller between {args.radius_min * 2000:.0f} "
+                             f"and {args.radius_max * 2000:.0f} mm across")
+
+    if args.kv is not None:
+        # The flags describe one motor of the user's own. It has no rating to
+        # check and weighs what the spec's rotors weigh.
+        from .catalogue.motors import CatalogueMotor
+        rotor_mass = next((t.mass for t in v.thrusters), 0.03)
+        motors = [CatalogueMotor(
+            id=f"custom-{args.kv:g}kv", maker="custom", model="from flags", kv=args.kv,
+            resistance_ohm=args.rm, no_load_current_a=args.i0,
+            mass_kg=args.motor_mass or rotor_mass, max_current_a=float("inf"),
+            cells_min=1, cells_max=14, url="")]
+    else:
+        motors = list(motor_table.load())
+        if args.motor:
+            known = {m.id: m for m in motors}
+            wanted = [k.strip() for k in args.motor.split(",") if k.strip()]
+            bad = [k for k in wanted if k not in known]
+            if bad:
+                raise ValueError(f"no motor {', '.join(bad)} in the table; "
+                                 "`camber catalogue motors` lists them")
+            motors = [known[k] for k in wanted]
+    return ComponentSpace(motors, props, cells=args.cells), None
+
+
 def cmd_optimise(args: argparse.Namespace) -> int:
     """Search the design space and print the Pareto front."""
     import time
@@ -247,9 +329,8 @@ def cmd_optimise(args: argparse.Namespace) -> int:
     from .optimise.nsga2 import minimise
     from .optimise.problem import (
         DesignProblem, arm_length_variable, battery_capacity_variable,
-        physics_endurance_model, position_variables, rotor_radius_variable,
+        position_variables, rotor_radius_variable,
     )
-    from .physics.motor import Motor
 
     try:
         v = io.load(args.spec)
@@ -257,38 +338,49 @@ def cmd_optimise(args: argparse.Namespace) -> int:
         print(f"spec error: {exc}", file=sys.stderr)
         return 2
 
+    try:
+        space, why = _component_space(args, v)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
     variables = position_variables(v, span=args.span)
     variables.append(arm_length_variable(v, args.arm_min, args.arm_max))
-    variables.append(rotor_radius_variable(v, args.radius_min, args.radius_max))
     packs = [b.name for b in v.bodies if hasattr(b, "capacity_ah")]
     if packs:
         variables.append(battery_capacity_variable(
             v, packs[0], args.capacity_min, args.capacity_max))
 
     endurance = None
-    if args.prop:
-        motor = Motor("motor", kv_rpm_v=args.kv, resistance_ohm=args.rm,
-                      no_load_current_a=args.i0)
-        try:
-            from .paths import propdb
-            endurance = physics_endurance_model(
-                args.prop, motor, str(args.propdb or propdb()))
-        except (KeyError, Exception) as exc:  # noqa: BLE001
-            print(f"could not build the physics model: {exc}", file=sys.stderr)
-            return 3
+    if space is not None:
+        variables += space.variables(v)
+        endurance = space.endurance_model()
+        lo, hi = space.cells
+        print(f"choosing from {len(space.motors)} motors x {len(space.props)} "
+              f"measured propellers, {lo}S" + (f"-{hi}S" if hi > lo else ""))
     else:
-        print("warning: no --prop given, so endurance uses the momentum-theory\n"
-              "         placeholder, which overstates it by more than 10x. Use it\n"
-              "         to compare layouts, never as a number.", file=sys.stderr)
+        variables.append(rotor_radius_variable(v, args.radius_min, args.radius_max))
+        print(f"warning: {why}, so no motor or propeller is chosen and endurance\n"
+              "         uses the momentum-theory placeholder, which overstates it\n"
+              "         about 5x. Use it to compare layouts, never as a number.\n"
+              "         `camber catalogue fetch` gets the data, once.",
+              file=sys.stderr)
 
-    problem = DesignProblem(v, variables, endurance_model=endurance)
+    problem = DesignProblem(v, variables, endurance_model=endurance, components=space)
     print(f"{v.name}: {problem.n_var} variables, objectives "
           f"{problem.objective_names}")
 
     started = time.time()
+    seeds = None
+    if space is not None:
+        from .optimise.components import screen
+        seeds = screen(problem, keep=args.population // 4, seed=args.seed)
+        if args.verbose:
+            print(f"  screened every part combination in {time.time() - started:.1f}s",
+                  flush=True)
     result = minimise(problem, population=args.population,
                       generations=args.generations, seed=args.seed,
-                      verbose=args.verbose)
+                      verbose=args.verbose, seeds=seeds)
     print(f"{time.time()-started:.1f}s, feasible "
           f"{result.feasible_count}/{len(result.evaluations)}, "
           f"front {len(result.front_indices)}\n")
@@ -304,11 +396,12 @@ def cmd_optimise(args: argparse.Namespace) -> int:
         return 1
 
     names = [d.name for d in problem.variables]
-    interesting = [n for n in names
-                   if n.endswith(("capacity_ah", "radius", "length"))]
+    interesting = [n for n in names if n.endswith(("capacity_ah", "radius", "length"))]
     cols = [_OBJECTIVE_COLUMNS.get(n, (n, 10, lambda v: f"{v:.4g}"))
             for n in problem.objective_names]
+    parts = [("motor", 30), ("propeller", 28), ("cells", 5)] if space else []
     header = "  ".join(f"{c[0]:>{c[1]}}" for c in cols) + "  " \
+        + "  ".join(f"{n:<{w}}" for n, w in parts) + ("  " if parts else "") \
         + "  ".join(f"{n:>16}" for n in interesting)
     print(header)
     print("-" * len(header))
@@ -316,12 +409,17 @@ def cmd_optimise(args: argparse.Namespace) -> int:
     for obj, x in sorted(zip(result.front_objectives, result.front_x),
                          key=lambda t: tuple(t[0])):
         cells = [c[2](v) for c, v in zip(cols, obj)]
-        key = tuple(cells)
+        _, choice = problem.resolve(x)
+        bom = ([choice.motor.label, choice.prop.label, f"{choice.cells}S"]
+               if choice else [])
+        key = (*cells, *bom)
         if key in seen:
             continue
         seen.add(key)
         d = dict(zip(names, x))
         print("  ".join(f"{t:>{c[1]}}" for c, t in zip(cols, cells)) + "  "
+              + "  ".join(f"{t[:w]:<{w}}" for t, (_, w) in zip(bom, parts))
+              + ("  " if parts else "")
               + "  ".join(f"{d[n]:16.4f}" for n in interesting))
 
     if args.front_json:
@@ -331,14 +429,21 @@ def cmd_optimise(args: argparse.Namespace) -> int:
         import json
         points = []
         for obj, x in zip(result.front_objectives, result.front_x):
-            points.append({
-                "objectives": [float(o) for o in obj],
-                "variables": {n: float(val) for n, val in zip(names, x)},
-                "vehicle": io.to_dict(problem.build(x))})
+            vehicle, choice = problem.resolve(x)
+            point = {"objectives": [float(o) for o in obj],
+                     "variables": {n: float(val) for n, val in zip(names, x)},
+                     "vehicle": io.to_dict(vehicle)}
+            if choice is not None:
+                point["components"] = choice.bill()
+            points.append(point)
         # Which endurance model ranked the front travels with it, so a chart
         # labels the momentum-theory placeholder as rough only when it is.
-        model, detail = (("blade-element", f"{args.prop} propeller, {args.kv:g} Kv motor")
-                         if args.prop else ("momentum theory", "no motor or ESC losses"))
+        if space is not None:
+            model = "catalogue"
+            detail = (f"{len(space.motors)} motors and {len(space.props)} measured "
+                      f"propellers to choose from")
+        else:
+            model, detail = "momentum theory", "no motor or ESC losses"
         Path(args.front_json).write_text(json.dumps(
             {"objective_names": problem.objective_names, "endurance_model": model,
              "endurance_detail": detail, "points": points}))
@@ -350,13 +455,28 @@ def cmd_optimise(args: argparse.Namespace) -> int:
         # prints a table and `camber generate` needs a spec file.
         best = min(range(len(result.front_objectives)),
                    key=lambda i: result.front_objectives[i][0])
-        chosen = problem.build(result.front_x[best])
+        chosen, choice = problem.resolve(result.front_x[best])
         chosen.name = f"{v.name}_optimised"
         io.save_json(chosen, args.out)
         obj = result.front_objectives[best]
         print(f"\nwrote {args.out}: best on {problem.objective_names[0]}, "
               + ", ".join(f"{c[0]} {c[2](o)}" for c, o in zip(cols, obj)))
+        if choice is not None:
+            _print_bill(choice)
     return 0
+
+
+def _print_bill(choice) -> None:
+    """The parts, and where every number about them came from."""
+    m, p = choice.motor, choice.prop
+    print(f"  motor      {m.label}, {m.mass_kg * 1000:.1f} g"
+          + (f"  {m.url}" if m.url else ""))
+    print(f"  propeller  {p.label}, {p.blades} blades, {p.mass_kg * 1000:.1f} g "
+          f"(UIUC-measured: {p.key})")
+    print(f"  pack       {choice.cells}S")
+    print(f"  per rotor  {choice.static_thrust_n:.2f} N at full throttle, "
+          f"{choice.full_current_a:.1f} A of the motor's {m.max_current_a:g} A "
+          f"on a full pack")
 
 
 def cmd_ui(args: argparse.Namespace) -> int:
@@ -375,6 +495,28 @@ def cmd_catalogue(args: argparse.Namespace) -> int:
         print(notice())
         print(f"{len(redistributable())} of {len(SOURCES)} may be redistributed "
               f"with Camber.")
+        return 0
+    if args.action == "motors":
+        from .catalogue.motors import load
+        print(f"{'id':32s} {'Kv':>5s} {'stator':>7s} {'mOhm':>6s} {'I0 A':>5s} "
+              f"{'g':>6s} {'max A':>6s} cells")
+        for m in load():
+            print(f"{m.id:32s} {m.kv:5.0f} {m.stator:>7s} {m.resistance_ohm * 1000:6.1f} "
+                  f"{m.no_load_current_a:5.2f} {m.mass_kg * 1000:6.1f} "
+                  f"{m.max_current_a:6.1f} {m.cells_min}-{m.cells_max}S")
+        return 0
+    if args.action == "props":
+        from .catalogue.props import load
+        from .catalogue.uiuc import UiucError
+        try:
+            rows = load(str(args.root / "UIUC-propDB") if args.root else None)
+        except UiucError as exc:
+            print(exc, file=sys.stderr)
+            return 3
+        print(f"{'key':18s} {'propeller':38s} {'blades':>6s} {'g':>6s}  mass from")
+        for r in rows:
+            src = "published" if r.mass_source.startswith("https://") else "estimated"
+            print(f"{r.key:18s} {r.label:38s} {r.blades:6d} {r.mass_kg * 1000:6.1f}  {src}")
         return 0
 
     print("Fetching source datasets. None of these is redistributed with")
@@ -799,13 +941,22 @@ def main(argv: list[str] | None = None) -> int:
 
     opt = sub.add_parser("optimise", help="search the design space")
     opt.add_argument("spec", type=_example)
+    opt.add_argument("--motor", default=None,
+                     help="choose only from these motor ids, comma-separated "
+                          "(default: the whole table; see `catalogue motors`)")
     opt.add_argument("--prop", default=None,
-                     help="UIUC propeller key; without it endurance uses a "
-                          "placeholder that overstates by >10x")
+                     help="choose only from these UIUC propeller keys, "
+                          "comma-separated (default: every measured one within "
+                          "--radius-min/--radius-max)")
+    opt.add_argument("--cells", type=_cells, default=(2, 6),
+                     help="pack cell count, N or N-M (default 2-6)")
     opt.add_argument("--propdb", type=Path, default=None)
-    opt.add_argument("--kv", type=float, default=1900.0)
-    opt.add_argument("--rm", type=float, default=0.075)
-    opt.add_argument("--i0", type=float, default=1.4)
+    opt.add_argument("--kv", type=float, default=None,
+                     help="a motor of your own instead of the table: Kv")
+    opt.add_argument("--rm", type=float, default=0.075, help="its winding ohms")
+    opt.add_argument("--i0", type=float, default=1.4, help="its no-load amps")
+    opt.add_argument("--motor-mass", type=float, default=None,
+                     help="its mass, kg (default: the spec's rotor mass)")
     opt.add_argument("--population", type=int, default=32)
     opt.add_argument("--generations", type=int, default=20)
     opt.add_argument("--seed", type=int, default=0)
@@ -934,8 +1085,9 @@ def main(argv: list[str] | None = None) -> int:
     ae.add_argument("--iterations", type=int, default=600)
     ae.set_defaults(func=cmd_aero)
 
-    cat = sub.add_parser("catalogue", help="fetch component data, or show terms")
-    cat.add_argument("action", choices=["fetch", "sources"])
+    cat = sub.add_parser("catalogue",
+                         help="fetch component data, list the parts, or show terms")
+    cat.add_argument("action", choices=["fetch", "sources", "motors", "props"])
     cat.add_argument("--root", type=Path, default=None)
     cat.add_argument("--force", action="store_true")
     cat.set_defaults(func=cmd_catalogue)

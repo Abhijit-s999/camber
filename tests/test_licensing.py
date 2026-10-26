@@ -76,3 +76,31 @@ class TestNoSourceDataInTheTree:
         d = json.loads(p.read_text())
         assert set(d) >= {"x", "y", "length_scale"}
         assert len(d["x"][0]) == 4, "features are the 4 derived descriptors"
+
+
+class TestWhatDoesShipCitesItsSource:
+    """LIC-03: the motor table and the propeller weights ship because each row
+    is a maker's own published figure for its own product, cited. A row with
+    no page behind it would be an unsourced number in the product (AI-06)."""
+
+    def test_every_motor_names_its_page(self):
+        import tomllib
+        from camber.catalogue.motors import TABLE
+        for r in tomllib.loads(TABLE.read_text())["motor"]:
+            assert r["url"].startswith("https://"), r["id"]
+            assert r["quote"].strip(), r["id"]
+
+    def test_every_propeller_weight_names_its_page(self):
+        import tomllib
+        from camber.catalogue.props import MASSES
+        for r in tomllib.loads(MASSES.read_text())["prop"]:
+            assert r["url"].startswith("https://"), r["uiuc_key"]
+            assert r["quote"].strip(), r["uiuc_key"]
+
+    def test_the_tables_are_tracked_and_nothing_else_new_is(self):
+        """Only these two tables, by name: a third would need its own check."""
+        tracked = set(tracked_files())
+        tables = {f for f in tracked if f.startswith("camber/catalogue/")
+                  and not f.endswith(".py")}
+        assert tables <= {"camber/catalogue/motors.toml",
+                          "camber/catalogue/prop_masses.toml"}, tables

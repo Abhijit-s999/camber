@@ -118,19 +118,63 @@ def _mutate(x: np.ndarray, lower: np.ndarray, upper: np.ndarray,
     return np.clip(x + hit * delta * span, lower, upper)
 
 
+def _categorical(parents: np.ndarray, children: np.ndarray, mask: np.ndarray,
+                 lower: np.ndarray, upper: np.ndarray, rng: np.random.Generator,
+                 prob: float | None = None) -> np.ndarray:
+    """Crossover and mutation for genes that are choices, not numbers (OPT-08).
+
+    SBX and polynomial mutation both assume that nearby values are similar:
+    they put children *between* or *near* their parents. For an index into a
+    motor list that is meaningless, and worse, it is biased: a child of
+    motors 3 and 9 lands on 4 to 8, so motors at the ends of the list are
+    rarely tried. Here each child gene is copied whole from one parent or the
+    other, and a mutation draws any index with equal chance.
+    """
+    if not mask.any():
+        return children
+    out = children.copy()
+    for i in range(0, len(parents) - 1, 2):
+        swap = rng.random(mask.sum()) < 0.5
+        a, b = parents[i, mask], parents[i + 1, mask]
+        out[i, mask] = np.where(swap, b, a)
+        out[i + 1, mask] = np.where(swap, a, b)
+    if len(parents) % 2:
+        out[-1, mask] = parents[-1, mask]
+    prob = prob if prob is not None else 1.0 / max(children.shape[1], 1)
+    lo, hi = lower[mask].astype(int), upper[mask].astype(int)
+    hit = rng.random((len(out), mask.sum())) < prob
+    drawn = rng.integers(lo, hi + 1, size=(len(out), mask.sum()))
+    out[:, mask] = np.where(hit, drawn, out[:, mask])
+    return out
+
+
 def minimise(problem: DesignProblem, population: int = 48, generations: int = 30,
-             seed: int = 0, verbose: bool = False) -> Result:
-    """Search the design space. Returns the whole final population and its front."""
+             seed: int = 0, verbose: bool = False,
+             seeds: np.ndarray | None = None) -> Result:
+    """Search the design space. Returns the whole final population and its front.
+
+    `seeds` are candidates to start from in place of random ones, such as the
+    best of a screen of every part combination (`components.screen`).
+    """
     if population % 2:
         population += 1  # crossover pairs them up
     rng = np.random.default_rng(seed)
     lower, upper = problem.bounds
+    choice = getattr(problem, "categorical", np.zeros(problem.n_var, dtype=bool))
 
     x = rng.uniform(lower, upper, size=(population, problem.n_var))
+    if choice.any():
+        # Every index equally likely, the end ones included.
+        x[:, choice] = rng.integers(lower[choice].astype(int),
+                                    upper[choice].astype(int) + 1,
+                                    size=(population, choice.sum()))
     # Seed one member at the spec's own layout: the author's design is a real
     # candidate and often a good one, and starting entirely at random throws
-    # that information away.
-    x[0] = np.clip((lower + upper) / 2, lower, upper)
+    # that information away. A choice has no middle, so it keeps its draw.
+    x[0, ~choice] = np.clip((lower + upper) / 2, lower, upper)[~choice]
+    if seeds is not None and len(seeds):
+        k = min(len(seeds), population - 1)
+        x[1:1 + k] = np.clip(np.asarray(seeds, dtype=float)[:k], lower, upper)
 
     evals = [problem.evaluate(row) for row in x]
     objectives = np.array([e.objectives for e in evals])
@@ -150,6 +194,7 @@ def minimise(problem: DesignProblem, population: int = 48, generations: int = 30
         picks = _tournament(rank, crowd, rng, population)
         children = _sbx(x[picks], lower, upper, rng)
         children = _mutate(children, lower, upper, rng)
+        children = _categorical(x[picks], children, choice, lower, upper, rng)
 
         child_evals = [problem.evaluate(row) for row in children]
         child_obj = np.array([e.objectives for e in child_evals])

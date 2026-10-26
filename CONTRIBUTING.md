@@ -12,7 +12,7 @@ cd camber
 uv venv .venv
 uv pip install --python .venv/bin/python -e '.[dev]'
 .venv/bin/camber catalogue fetch      # UIUC propeller data, ~87 MB, once
-.venv/bin/python -m pytest -q         # about 2.5 minutes
+.venv/bin/python -m pytest -q         # about 3 minutes
 ```
 
 OpenFOAM and ROS 2 are optional. Nothing in the test suite needs them.
@@ -46,7 +46,19 @@ description of it.
 4. **No third-party data in the repository.** Most component and wind-tunnel
    data grants no redistribution right. A new source arrives as a fetcher that
    downloads from the origin, plus its terms in `camber catalogue sources`.
-   `tests/test_licensing.py` fails if source data is ever committed.
+   `tests/test_licensing.py` fails if source data is ever committed. The one
+   exception is Camber's own motor table and propeller weights (LIC-03): each
+   row is a maker's published figure for its own product, with the page it came
+   from and the text quoted.
+
+   **Adding a motor** is a welcome first contribution. Add a `[[motor]]` row
+   to `camber/catalogue/motors.toml` from the maker's page: Kv, winding
+   resistance, no-load current, mass, current rating, cell range, the URL and
+   the spec block quoted. Leave out a motor whose page lacks resistance or
+   no-load current rather than estimating them; `tests/test_components.py`
+   fails if a number is not in its quote. Thrust-stand rows on a propeller the
+   UIUC tunnel measured are even better: they go in
+   `tests/data/motor_tests.toml` and widen PHYS-09.
 
 5. **The core stays light.** `camber inspect` and `camber optimise` must run
    with numpy alone. Anything heavier (SciPy, MuJoCo, OpenFOAM, CAD) goes behind

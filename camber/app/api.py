@@ -104,7 +104,7 @@ def vehicle_view(project) -> dict:
         if isinstance(p, Rotor):
             d.update(radius=p.radius * MM, spin="cw" if p.spin == Spin.CW else "ccw",
                      axis=[float(x) for x in (np.array(p.direction().as_list()))],
-                     thrust_n=p.static_thrust_n)
+                     thrust_n=p.static_thrust_n, **_parts(p))
         else:
             d["shape"] = _shape(p.shape)
         if isinstance(p, Battery):
@@ -150,8 +150,29 @@ def vehicle_view(project) -> dict:
         "aero_table": project.meta.get("aero_table"),
         "constraints": _constraints(v),
         "wash": _wash(v),
+        "catalogue": _catalogue(),
     }
     return out
+
+
+def _parts(rotor) -> dict:
+    """The motor and propeller a rotor was given by the optimiser, by name."""
+    from ..catalogue import motors, props
+    out = {}
+    if rotor.motor_sku:
+        m = {x.id: x for x in motors.load()}.get(rotor.motor_sku)
+        out["motor"] = ({"id": m.id, "label": m.label, "url": m.url} if m
+                        else {"id": rotor.motor_sku, "label": rotor.motor_sku})
+    if rotor.prop_sku:
+        out["prop"] = {"key": rotor.prop_sku, "label": props.describe(rotor.prop_sku)}
+    return out
+
+
+def _catalogue() -> dict:
+    """What the Optimise step can choose from on this machine."""
+    from ..catalogue import motors
+    from ..paths import propdb
+    return {"motors": len(motors.load()), "props": propdb().is_dir()}
 
 
 def _constraints(v) -> list[dict]:
@@ -269,16 +290,20 @@ def update(project, name: str, fields: dict) -> None:
     if isinstance(p, Rotor):
         if "spin" in fields:
             p.spin = Spin.CW if fields["spin"] == "cw" else Spin.CCW
+        # A size or thrust typed in by hand is no longer the catalogue part
+        # the optimiser chose, so the part number goes with the edit.
         if "radius_mm" in fields:
             r = float(fields["radius_mm"]) / MM
             if r <= 0:
                 raise ValueError("prop radius must be positive")
             p.radius = r
+            p.prop_sku = None
         if "thrust_n" in fields:
             t = float(fields["thrust_n"])
             if t <= 0:
                 raise ValueError("thrust must be positive")
             p.static_thrust_n = t
+            p.motor_sku = p.prop_sku = None
     if "name" in fields and fields["name"] != name:
         new = str(fields["name"]).strip()
         if not new or any(q.name == new for q in

@@ -89,4 +89,12 @@ def notice() -> str:
         if s.citation:
             lines.append(f"  cite:  {s.citation}")
         lines.append("")
+    lines += [
+        "Two small tables do ship, and they are Camber's own compilation, not",
+        "a copy of anyone's dataset (DECISIONS LIC-03): camber/catalogue/motors.toml,",
+        "each motor's specification as its maker publishes it, and",
+        "camber/catalogue/prop_masses.toml, propeller weights as their makers or",
+        "sellers publish them. Every row names the page it came from.",
+        "",
+    ]
     return "\n".join(lines)

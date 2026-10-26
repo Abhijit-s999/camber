@@ -58,15 +58,15 @@ def _args(kind: str, spec: str, params: dict, out: dict) -> list[str]:
         a = ["optimise", spec, "--population", i("population", 40),
              "--generations", i("generations", 30), "--seed", i("seed", 1),
              "--verbose", "--front-json", out["front"], "--out", out["best"]]
-        # Rank on the validated blade-element model whenever its data is here;
-        # the momentum-theory placeholder reads 10-20x long (OPT-03, UI-08).
-        from ..catalogue.uiuc import REFERENCE_PROP
-        from ..paths import propdb
-        prop = params.get("prop") or (REFERENCE_PROP if propdb().is_dir() else None)
-        if prop:
-            if not re.fullmatch(r"[a-z0-9_.\-]+", str(prop)):
-                raise ValueError(f"not a propeller key: {prop!r}")
-            a += ["--prop", str(prop)]
+        # With the propeller data fetched, the CLI chooses motor, propeller and
+        # cells from the catalogue by itself (CAT-01); these only narrow it.
+        for key, flag, pattern in (("prop", "--prop", r"[a-z0-9_.,\-]+"),
+                                   ("motor", "--motor", r"[a-z0-9,\-]+"),
+                                   ("cells", "--cells", r"\d{1,2}(-\d{1,2})?")):
+            if params.get(key):
+                if not re.fullmatch(pattern, str(params[key])):
+                    raise ValueError(f"not a {key}: {params[key]!r}")
+                a += [flag, str(params[key])]
         return a
     if kind == "generate":
         a = ["generate", spec, "--element", f("element", 0.003),

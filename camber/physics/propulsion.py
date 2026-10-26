@@ -93,6 +93,57 @@ class PropellerMap:
 
 
 @dataclass
+class MeasuredPropeller:
+    """A propeller as the wind tunnel measured it, not as a model predicts it.
+
+    Static CT and CP against rpm, and where the archive has them, sweeps of
+    advance ratio at fixed rpm. For a propeller someone can buy, this is better
+    than any blade-element prediction of it: it is the thing itself, Reynolds
+    effects included (PHYS-04 is why that matters at this size).
+
+    Outside the measured rpm range the end values are held, not extrapolated.
+    The archive's small propellers were measured to about 8000 rpm and a racing
+    quad spins them at 25,000 or more; CT and CP still rise slowly with
+    Reynolds number up there, so holding them under-reads thrust a little, and
+    tip compressibility, which the tunnel never reached, works the other way
+    (CAT-02).
+    """
+
+    diameter_m: float
+    static_rpm: np.ndarray
+    static_ct: np.ndarray
+    static_cp: np.ndarray
+    #: (rpm, J, CT, CP) per wind-tunnel sweep, each J ascending.
+    runs: tuple = ()
+    name: str = ""
+
+    def coefficients(self, rpm: float, advance_ratio: float = 0.0) -> tuple[float, float]:
+        r = float(np.clip(rpm, self.static_rpm[0], self.static_rpm[-1]))
+        ct0 = float(np.interp(r, self.static_rpm, self.static_ct))
+        cp0 = float(np.interp(r, self.static_rpm, self.static_cp))
+        if advance_ratio <= 1e-9 or not self.runs:
+            return ct0, cp0
+        # The sweep nearest in rpm, anchored at J = 0 by the static point at
+        # this rpm: the tunnel sweeps start at J of 0.1 or more.
+        _, js, cts, cps = min(self.runs, key=lambda run: abs(run[0] - rpm))
+        js = np.concatenate([[0.0], js])
+        j = float(np.clip(advance_ratio, 0.0, js[-1]))
+        return (float(np.interp(j, js, np.concatenate([[ct0], cts]))),
+                float(np.interp(j, js, np.concatenate([[cp0], cps]))))
+
+    def thrust_torque(self, omega: float, v_inf: float,
+                      rho: float = RHO_AIR) -> tuple[float, float]:
+        """Thrust (N) and shaft torque (N m) at a shaft speed and airspeed."""
+        if omega <= 1e-6:
+            return 0.0, 0.0
+        n = omega / (2.0 * math.pi)
+        ct, cp = self.coefficients(n * 60.0, v_inf / (n * self.diameter_m))
+        thrust = ct * rho * n ** 2 * self.diameter_m ** 4
+        power = cp * rho * n ** 3 * self.diameter_m ** 5
+        return thrust, power / omega
+
+
+@dataclass
 class OperatingPoint:
     rpm: float
     thrust_n: float
@@ -109,6 +160,18 @@ class OperatingPoint:
     def thrust_per_watt(self) -> float:
         """Newtons per electrical watt. The figure of merit for endurance."""
         return self.thrust_n / self.electrical_power_w if self.electrical_power_w > 0 else 0.0
+
+    def supply_current(self, pack_voltage: float) -> float:
+        """What the pack delivers for this point, which is not the motor's current.
+
+        Throttle is the ESC switching the full pack voltage on and off, so the
+        motor sees `voltage_v` on average while the pack sees its own voltage.
+        Power is what passes through: at half throttle the motor draws twice
+        the pack's current. Counting motor current as pack current halved the
+        hover endurance of every design (PHYS-10). The ESC is taken as
+        lossless; its few per cent are one of the losses still missing.
+        """
+        return self.electrical_power_w / pack_voltage if pack_voltage > 0 else 0.0
 
 
 def solve_operating_point(motor: Motor, prop: PropellerMap, voltage: float,

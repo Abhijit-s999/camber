@@ -19,10 +19,45 @@ from pathlib import Path
 ICON = Path(__file__).resolve().parent / "static" / "icon.svg"
 
 
+def page_class(open_external):
+    """The app's page: its own server stays in the window, the rest goes out."""
+    from PyQt6.QtWebEngineCore import QWebEnginePage
+
+    class Popup(QWebEnginePage):
+        sent = False
+
+        def acceptNavigationRequest(self, target, kind, main_frame):
+            # Only the first: Chromium asks again for the same URL as it
+            # tears the page down, which opened every link twice.
+            if not self.sent:
+                self.sent = True
+                open_external(target)
+                self.deleteLater()
+            return False
+
+    class Page(QWebEnginePage):
+        def acceptNavigationRequest(self, target, kind, main_frame):
+            # Anything that is not the app opens in the user's browser.
+            if target.host() not in ("127.0.0.1", "localhost"):
+                open_external(target)
+                return False
+            return super().acceptNavigationRequest(target, kind, main_frame)
+
+        def createWindow(self, kind):
+            # A link with target="_blank" asks for a new window before it
+            # navigates anywhere. Unanswered, Qt drops it and the link does
+            # nothing: the datasheet and documentation links were dead in the
+            # app window. A throwaway page passes its one navigation out.
+            self._popup = Popup(self.profile(), self)
+            return self._popup
+
+    return Page
+
+
 def run(url: str) -> int:
     from PyQt6.QtCore import QUrl
     from PyQt6.QtGui import QDesktopServices, QIcon
-    from PyQt6.QtWebEngineCore import QWebEngineDownloadRequest, QWebEnginePage
+    from PyQt6.QtWebEngineCore import QWebEngineDownloadRequest
     from PyQt6.QtWebEngineWidgets import QWebEngineView
     from PyQt6.QtWidgets import QApplication, QMainWindow
 
@@ -32,13 +67,7 @@ def run(url: str) -> int:
     if ICON.exists():
         app.setWindowIcon(QIcon(str(ICON)))
 
-    class Page(QWebEnginePage):
-        def acceptNavigationRequest(self, target, kind, main_frame):
-            # Anything that is not the app opens in the user's browser.
-            if target.host() not in ("127.0.0.1", "localhost"):
-                QDesktopServices.openUrl(target)
-                return False
-            return super().acceptNavigationRequest(target, kind, main_frame)
+    Page = page_class(QDesktopServices.openUrl)
 
     win = QMainWindow()
     win.setWindowTitle("Camber")

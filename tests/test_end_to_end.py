@@ -15,11 +15,11 @@ from camber.control import controllability, solve_hover
 from camber.generate import generate_frame
 from camber.manufacture import Feature, get_process
 from camber.optimise.nsga2 import minimise
+from camber.catalogue import motors, props
+from camber.optimise.components import ComponentSpace
 from camber.optimise.problem import (
     DesignProblem, arm_length_variable, battery_capacity_variable,
-    physics_endurance_model, rotor_radius_variable,
 )
-from camber.physics.motor import Motor
 from camber.spec import io
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -33,8 +33,10 @@ def optimised():
     if not PROPDB.exists():
         pytest.skip("UIUC data not fetched; run `camber catalogue fetch`")
     v = io.load(EXAMPLE)
-    motor = Motor("2207", kv_rpm_v=1900, resistance_ohm=0.075,
-                  no_load_current_a=1.4)
+    # The parts are chosen, as `camber optimise` chooses them (CAT-01).
+    space = ComponentSpace(motors.load(),
+                           [p for p in props.load(str(PROPDB)) if 0.05 <= p.diameter_m / 2 <= 0.09],
+                           cells=(3, 6))
     interference = None
     model_path = ROOT / "data" / "interference.json"
     if model_path.exists():
@@ -42,13 +44,13 @@ def optimised():
     problem = DesignProblem(
         v,
         [arm_length_variable(v, 0.09, 0.18),
-         rotor_radius_variable(v, 0.05, 0.09),
-         battery_capacity_variable(v, "battery", 1.0, 3.0)],
-        endurance_model=physics_endurance_model("gwsdd_5x4.3", motor,
-                                                str(PROPDB)),
+         battery_capacity_variable(v, "battery", 1.0, 3.0),
+         *space.variables(v)],
+        endurance_model=space.endurance_model(),
         interference=interference,
+        components=space,
     )
-    result = minimise(problem, population=12, generations=5, seed=1)
+    result = minimise(problem, population=16, generations=8, seed=1)
     feasible = [i for i, e in enumerate(result.evaluations) if e.feasible]
     assert feasible, "the optimiser found nothing flyable"
     best = max(feasible, key=lambda i: -result.evaluations[i].objectives[0])
@@ -116,3 +118,8 @@ def test_the_design_round_trips_through_the_spec_format(optimised, tmp_path):
     assert reloaded.mass_properties().mass == pytest.approx(
         vehicle.mass_properties().mass)
     assert controllability(reloaded).rank == controllability(vehicle).rank
+    # The chosen parts travel with it, so `generate` and `sim` fly them.
+    for a, b in zip(vehicle.thrusters, reloaded.thrusters):
+        assert b.motor_sku == a.motor_sku and b.prop_sku == a.prop_sku
+        assert b.static_thrust_n == pytest.approx(a.static_thrust_n)
+        assert b.torque_coefficient == pytest.approx(a.torque_coefficient)

@@ -48,6 +48,14 @@ class DesignVariable:
     apply: Callable[[Vehicle, float], None]
     #: Continuous unless stated; integers are rounded before application.
     integral: bool = False
+    #: An index into a list with no order, such as a motor in the catalogue:
+    #: index 7 is no nearer to 8 than to 30, so the search must not treat
+    #: it as a number (OPT-08). Implies integral.
+    categorical: bool = False
+
+    def __post_init__(self) -> None:
+        if self.categorical:
+            self.integral = True
 
     def clip(self, value: float) -> float:
         v = min(max(value, self.lower), self.upper)
@@ -146,6 +154,9 @@ class DesignProblem:
     #: point of the fidelity ladder (ARCH-01): CFD never evaluates a candidate,
     #: it only teaches L1 where L1 is wrong.
     interference: object | None = None
+    #: The catalogue a component search picks from (CAT-01). When present,
+    #: rotor size, mass and thrust come from the chosen parts.
+    components: object | None = None
 
     @property
     def n_var(self) -> int:
@@ -155,6 +166,10 @@ class DesignProblem:
     def bounds(self) -> tuple[np.ndarray, np.ndarray]:
         return (np.array([v.lower for v in self.variables]),
                 np.array([v.upper for v in self.variables]))
+
+    @property
+    def categorical(self) -> np.ndarray:
+        return np.array([v.categorical for v in self.variables], dtype=bool)
 
     @property
     def objective_names(self) -> list[str]:
@@ -167,19 +182,31 @@ class DesignProblem:
 
     def build(self, x: Sequence[float]) -> Vehicle:
         """A concrete vehicle for one point in the search space."""
+        return self.resolve(x)[0]
+
+    def resolve(self, x: Sequence[float]):
+        """The vehicle for one point, and the hardware it chose, if any."""
         v = copy.deepcopy(self.template)
         for variable, value in zip(self.variables, x):
             variable.apply(v, variable.clip(float(value)))
-        return v
+        choice = None
+        if self.components is not None:
+            self.components.pin(v)
+            choice = self.components.resolve(v)
+        return v, choice
 
     def evaluate(self, x: Sequence[float]) -> Evaluation:
         big = np.array([1e6, 1e6], dtype=float)
         try:
-            vehicle = self.build(x)
+            vehicle, choice = self.resolve(x)
         except Exception as exc:  # noqa: BLE001
             return Evaluation(big, 1e6, False, f"malformed candidate: {exc}")
 
         # --- hard gates: not flyable is not a design ----------------------
+        if choice is not None and choice.stalled:
+            return Evaluation(big, 1e3, False,
+                              f"{choice.motor.label} cannot turn a {choice.prop.label} "
+                              f"on {choice.cells}S at all")
         c = controllability(vehicle)
         if c.rank < self.min_rank:
             return Evaluation(big, 1e3 + (self.min_rank - c.rank), False,
@@ -205,6 +232,14 @@ class DesignProblem:
             if amount > 1e-9:
                 breaches[type(constraint).__name__] = amount
                 violation += amount
+        overlap = prop_overlap(vehicle)
+        if overlap > 1e-9:
+            breaches["prop overlap"] = overlap
+            violation += overlap
+        if choice is not None:
+            for name, amount in choice.violations.items():
+                breaches[name] = amount
+                violation += amount
 
         mp = vehicle.mass_properties()
 
@@ -222,6 +257,18 @@ class DesignProblem:
 
         objectives = self._objectives(vehicle, hover, mp, c, loss)
 
+        # The mission's floor on flight time, which the spec has always
+        # carried and the search never read. Scaled like the other limits:
+        # 10% short costs 0.1.
+        floor = vehicle.mission.min_endurance
+        if floor:
+            names = self.objective_names
+            endurance = -objectives[names.index("-endurance_s")]
+            short = 1.0 - endurance / floor
+            if short > 1e-9:
+                breaches["mission endurance"] = short
+                violation += short
+
         return Evaluation(
             objectives=objectives,
             violation=violation,
@@ -231,7 +278,8 @@ class DesignProblem:
             detail={"mass_kg": mp.mass, "control_margin": c.margin,
                     "interference_loss": loss,
                     "max_utilisation": float(np.nanmax(hover.utilisation))
-                    if hover.utilisation is not None else float("nan")},
+                    if hover.utilisation is not None else float("nan"),
+                    **({"components": choice.bill()} if choice is not None else {})},
         )
 
     def _objectives(self, vehicle, hover, mp, control,
@@ -279,8 +327,8 @@ class DesignProblem:
         """Ideal-hover endurance from momentum theory and stored energy.
 
         Deliberately optimistic and known to be: it assumes a perfect rotor and
-        ignores motor and ESC losses, so it overstates endurance by roughly a
-        factor of two. It exists so the optimiser has a smooth, monotone
+        ignores motor and ESC losses, so it overstates endurance about five
+        times (OPT-03). It exists so the optimiser has a smooth, monotone
         surrogate before the blade-element tier is attached, not to be quoted.
         """
         energy = sum(b.energy_wh for b in vehicle.all_bodies()
@@ -295,6 +343,27 @@ class DesignProblem:
         induced = math.sqrt(thrust / (2.0 * 1.225 * area))
         power = thrust * induced
         return energy / power if power > 0 else 0.0
+
+
+def prop_overlap(vehicle: Vehicle, gap: float = 0.004) -> float:
+    """How far neighbouring discs at the same height cut into each other.
+
+    Summed per pair, as a fraction of the radius, below a 4 mm gap (the same
+    warning line as the Design step's clearance check). The search always
+    varied arm length and prop size independently and never checked this: at
+    the shortest arms it allowed, two 5-inch discs overlapped by 14 mm.
+    """
+    rotors = [t for t in vehicle.thrusters if isinstance(t, Rotor)]
+    total = 0.0
+    for i, a in enumerate(rotors):
+        for b in rotors[i + 1:]:
+            if abs(a.position.z - b.position.z) >= 0.01:
+                continue    # stacked or coaxial: they may overlap in plan
+            centre = math.hypot(a.position.x - b.position.x, a.position.y - b.position.y)
+            short = gap - (centre - a.radius - b.radius)
+            if short > 0:
+                total += short / max(a.radius, b.radius)
+    return total
 
 
 # --------------------------------------------------------------------------
@@ -380,7 +449,8 @@ def physics_endurance_model(prop_key: str,
             op = thrust_for(motor, scaled, pack, per_rotor, v_inf=0.0)
         except ValueError:
             return 0.0  # cannot produce hover thrust at all
-        total_current = op.current_a * len(rotors)
+        # The pack's current, not the motors' (PHYS-10).
+        total_current = op.supply_current(pack.terminal_voltage(0.0, 1.0)) * len(rotors)
         if total_current <= 0:
             return 0.0
         return pack.endurance_s(total_current, usable_fraction=usable_fraction)
