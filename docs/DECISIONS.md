@@ -2420,3 +2420,20 @@ that `camber generate` printed and carried on past.
 
 With manifold3d installed trimesh prefers it to Blender, so a full install now
 runs the engine CI tests. The whole suite passes on it, drilling included.
+
+### PKG-05 · PyPI: an explicit sdist, and trusted publishing — `FIXED`
+
+**Value:** `[tool.hatch.build.targets.sdist]` is an `only-include` list: the
+package, the examples, the shipped data, `foam-env.sh`, the two docs the README
+links to, and the licence files. The wheel is built from that sdist, and
+`test_packaging` fails if anything the wheel force-includes is missing from it.
+`.github/workflows/publish.yml` uploads a GitHub release to PyPI through
+trusted publishing, after checking the tag matches `__version__`.
+
+**Reasoning:** hatch's default sdist is the working tree minus `.gitignore`.
+Built for PyPI on 2026-10-26, it contained a planning note that is kept out of
+git only through `.git/info/exclude`, which hatch does not read, along with
+`bench/`. An explicit list cannot pick up a file because it happens to be
+present. Trusted publishing means PyPI verifies the workflow's identity, so no
+upload token exists to leak. The README's links are absolute so they work on
+PyPI as well as GitHub.

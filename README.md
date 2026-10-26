@@ -125,7 +125,7 @@ STL, and load the result back in.
   no crash or landing load case yet.
 
 Every one of these, and every non-obvious choice behind the rest, is in
-[`docs/DECISIONS.md`](docs/DECISIONS.md) with its reasoning.
+[`docs/DECISIONS.md`](https://github.com/Abhijit-s999/camber/blob/main/docs/DECISIONS.md) with its reasoning.
 
 ## Data, and what is not shipped
 
@@ -169,7 +169,7 @@ uv pip install --python .venv/bin/python -e '.[dev]'
 .venv/bin/python -m pytest -q                     # about 2.5 minutes
 ```
 
-Contributions are welcome; [`CONTRIBUTING.md`](CONTRIBUTING.md) has the few
+Contributions are welcome; [`CONTRIBUTING.md`](https://github.com/Abhijit-s999/camber/blob/main/CONTRIBUTING.md) has the few
 rules that keep the project honest.
 
 | path | what it is |

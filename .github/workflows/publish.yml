@@ -1,0 +1,30 @@
+name: publish
+
+# Builds from a clean checkout of the release tag and uploads to PyPI through
+# trusted publishing: PyPI checks this workflow's identity, so no token is
+# stored anywhere (DECISIONS PKG-05).
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pypi:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Build the sdist, and the wheel from it
+        run: uv build
+      - name: Check the version matches the tag
+        if: github.event_name == 'release'
+        run: |
+          v=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' camber/__init__.py)
+          test "v$v" = "${{ github.event.release.tag_name }}"
+      - run: uv publish --trusted-publishing always

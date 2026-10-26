@@ -53,3 +53,15 @@ def test_the_version_has_one_source():
     assert PYPROJECT["tool"]["hatch"]["version"]["path"] == "camber/__init__.py"
     assert "version" in PYPROJECT["project"]["dynamic"]
     assert camber.__version__.count(".") == 2
+
+
+def test_the_source_distribution_is_an_explicit_list():
+    """PKG-05: hatch's default sdist is the tree minus .gitignore, so it ships
+    whatever is present but untracked -- notes kept out of git only through
+    .git/info/exclude, and the bench (AI-04). The list is explicit, and it holds
+    everything the wheel is built from."""
+    sdist = PYPROJECT["tool"]["hatch"]["build"]["targets"]["sdist"]["only-include"]
+    assert not any(p in ("", ".", "docs") or p.startswith("bench") for p in sdist)
+    for src in INCLUDED:
+        assert any(src == p or src.startswith(p + "/") for p in sdist), (
+            f"{src} goes into the wheel but is not in the sdist it is built from")

@@ -22,6 +22,7 @@ dependencies = ["numpy>=1.26"]
 Homepage = "https://github.com/Abhijit-s999/camber"
 Issues = "https://github.com/Abhijit-s999/camber/issues"
 Decisions = "https://github.com/Abhijit-s999/camber/blob/main/docs/DECISIONS.md"
+Changelog = "https://github.com/Abhijit-s999/camber/releases"
 
 # The bench is DEVELOPMENT TOOLING. It is deliberately an optional extra so that
 # a plain `pip install camber` cannot pull a network client into the product.
@@ -79,6 +80,18 @@ packages = ["camber"]
 "examples/pilots/figure_eight.py" = "camber/examples/pilots/figure_eight.py"
 "examples/pilots/flip.py" = "camber/examples/pilots/flip.py"
 "scripts/foam-env.sh" = "camber/scripts/foam-env.sh"
+
+# The source distribution is an explicit list. Hatch's default takes the whole
+# tree minus .gitignore, which would ship anything untracked but present --
+# local notes kept out of git through .git/info/exclude, the bench (AI-04).
+# This is what the wheel is built from, plus the docs it links to (PKG-05).
+[tool.hatch.build.targets.sdist]
+only-include = [
+    "camber", "examples", "scripts/foam-env.sh",
+    "data/interference.json", "data/validation_summary.json",
+    "docs/DECISIONS.md", "docs/FLYING.md",
+    "README.md", "CONTRIBUTING.md", "LICENSE", "NOTICE", "pyproject.toml",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
