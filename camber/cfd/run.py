@@ -28,6 +28,22 @@ class FoamError(RuntimeError):
     pass
 
 
+def missing() -> str | None:
+    """Why OpenFOAM cannot be reached through foam-env.sh, or None if it can.
+
+    OpenFOAM is optional, so most installs will not have it. Asking first turns
+    "blockMesh failed in aero/t10" after writing a case folder into one sentence
+    before anything is written.
+    """
+    proc = subprocess.run(["bash", str(FOAM_ENV), "true"], capture_output=True,
+                          text=True, check=False)
+    if proc.returncode == 0:
+        return None
+    lines = [ln.replace("ERROR:", "").strip() for ln in proc.stderr.splitlines()]
+    return next((ln for ln in lines if ln),
+                f"{FOAM_ENV} exited with status {proc.returncode}")
+
+
 @dataclass
 class StepResult:
     name: str

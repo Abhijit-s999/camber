@@ -255,7 +255,10 @@ def _check_references(v: Vehicle) -> None:
 
 def load(path: str | Path) -> Vehicle:
     path = Path(path)
-    text = path.read_text()
+    try:
+        text = path.read_text()
+    except OSError as exc:
+        raise SpecError(f"{path}: {(exc.strerror or str(exc)).lower()}") from exc
     try:
         data = (json.loads(text) if path.suffix == ".json"
                 else tomllib.loads(text))

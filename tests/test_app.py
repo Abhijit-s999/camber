@@ -169,8 +169,8 @@ class TestJobs:
     def test_an_optimiser_job_runs_and_its_pick_applies(self, project):
         port, app, pid = project
         s, job = call(port, app.token, "POST", f"/api/p/{pid}/jobs",
-                      {"kind": "optimise",
-                       "params": {"population": 8, "generations": 2}})
+                      {"kind": "optimise",          # the app's default budget
+                       "params": {"population": 40, "generations": 30}})
         assert s == 200 and job["status"] == "running"
         deadline = time.time() + 120
         while time.time() < deadline:

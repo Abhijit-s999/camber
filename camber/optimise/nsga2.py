@@ -19,6 +19,7 @@ because the aircraft cannot be built.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from itertools import groupby
 
 import numpy as np
 
@@ -52,9 +53,14 @@ class Result:
 def _constrained_ranks(evals: list[Evaluation], objectives: np.ndarray) -> list[list[int]]:
     """Fronts under constrained domination.
 
-    Infeasible candidates are sorted purely by violation and placed strictly
-    after every feasible one, so the objective values of an unbuildable design
-    never compete with those of a real one.
+    Infeasible candidates are placed strictly after every feasible one, so the
+    objective values of an unbuildable design never compete with those of a
+    real one. Among themselves they are ranked by violation alone, one front
+    per level: the smaller violation dominates. They used to share a single
+    front, which tied them all, so the tournament and the survival cut chose
+    between them by spread in objective space. A population that started
+    infeasible then had nothing pulling it toward feasibility: racer5 with
+    seed 0 finished 0/32 after 40 generations (DECISIONS OPT-09).
     """
     feasible = [i for i, e in enumerate(evals) if e.feasible]
     infeasible = [i for i, e in enumerate(evals) if not e.feasible]
@@ -63,9 +69,9 @@ def _constrained_ranks(evals: list[Evaluation], objectives: np.ndarray) -> list[
     if feasible:
         sub = non_dominated_sort(objectives[feasible])
         fronts.extend([[feasible[j] for j in front] for front in sub])
-    if infeasible:
-        infeasible.sort(key=lambda i: evals[i].violation)
-        fronts.append(infeasible)
+    infeasible.sort(key=lambda i: evals[i].violation)
+    for _, level in groupby(infeasible, key=lambda i: evals[i].violation):
+        fronts.append(list(level))
     return fronts
 
 

@@ -132,10 +132,25 @@ class TestConstrainedDomination:
         fronts = _constrained_ranks(evals, obj)
         assert fronts[0] == [0], "an unbuildable design must not lead the front"
 
-    def test_infeasible_sorted_by_violation(self):
-        evals = [Evaluation(np.zeros(2), v, False) for v in (0.9, 0.1, 0.5)]
-        obj = np.zeros((3, 2))
-        assert _constrained_ranks(evals, obj)[-1] == [1, 2, 0]
+    def test_the_smaller_violation_dominates(self):
+        """One front per violation level, so a tournament between two
+        infeasible designs is won on violation, not on objective spread."""
+        evals = [Evaluation(np.zeros(2), v, False) for v in (0.9, 0.1, 0.5, 0.1)]
+        obj = np.zeros((4, 2))
+        assert _constrained_ranks(evals, obj) == [[1, 3], [2], [0]]
+
+    def test_an_infeasible_start_is_pulled_to_feasibility(self):
+        """racer5 with seed 0 finished 0/32 feasible when every infeasible
+        design shared one front (OPT-09)."""
+        from pathlib import Path
+        v = io.load(Path(__file__).resolve().parent.parent / "examples" / "racer5.toml")
+        p = DesignProblem(v, position_variables(v, span=0.04) + [
+            arm_length_variable(v, 0.08, 0.16), rotor_radius_variable(v, 0.05, 0.09),
+            battery_capacity_variable(v, "battery", 0.8, 4.0)])
+        assert not p.evaluate(np.clip((p.bounds[0] + p.bounds[1]) / 2,
+                                      *p.bounds)).feasible
+        res = minimise(p, population=32, generations=20, seed=0)
+        assert res.feasible_count == 32
 
 
 class TestSearch:

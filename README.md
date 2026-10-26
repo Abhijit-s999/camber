@@ -67,7 +67,7 @@ Every app step is also a command:
 $ camber inspect examples/quad5.toml              # mass, control, hover, constraints
 $ camber optimise examples/quad5.toml --prop gwsdd_5x4.3
 $ camber endurance examples/quad5.toml            # predicted flight time
-$ camber generate examples/racer5.toml --mass 40 --out frame.stl
+$ camber generate examples/racer5.toml --mass 40 --out frame.stl   # ~30 min
 $ camber cad examples/quad5.toml out.step         # STEP for CNC, or .stl / .3mf
 $ camber sim examples/racer5.toml --viewer        # fly it (docs/FLYING.md)
 $ camber aero examples/racer5.toml                # CFD across its flight envelope
@@ -78,7 +78,12 @@ $ camber app                                      # the desktop app
 A vehicle is a TOML file: bodies, rotors, frame, constraints and a
 `[mission]`. `examples/quad5.toml` (an endurance quad) and
 `examples/racer5.toml` (a 5-inch racer) are commented, and they are the two
-templates the app starts from.
+templates the app starts from. Installed from the wheel, the same commands work
+from any folder: `examples/quad5.toml`, or just `quad5`, finds the copy that
+ships inside Camber, and the CLI prints where it is so you can copy and edit it.
+
+`generate` at its default 3 mm elements takes about half an hour on a laptop.
+`--element 0.006 --iterations 15` gives a rough frame in under a minute.
 
 The whole chain is exercised by `tests/test_end_to_end.py`: optimise a real
 vehicle, grow a frame for the winner, confirm it still flies, export STEP and
@@ -158,6 +163,7 @@ published wind-tunnel data. DECISIONS section 0 has the bench's own record.
 ```sh
 uv venv .venv
 uv pip install --python .venv/bin/python -e '.[dev]'
+.venv/bin/camber catalogue fetch                  # without it, 8 data tests skip
 .venv/bin/python -m pytest -q                     # about 2.5 minutes
 ```
 

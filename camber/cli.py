@@ -20,6 +20,31 @@ def _fmt_vec(v) -> str:
     return f"({v.x:+.4f}, {v.y:+.4f}, {v.z:+.4f})"
 
 
+def _example(arg: str | Path) -> Path:
+    """A file the user named, or the bundled example the name points at.
+
+    The README and docs/FLYING.md say `examples/quad5.toml`, a path that exists
+    in a checkout and nowhere else. Installed from the wheel, the same command
+    finds the copy shipped inside the package (PKG-02) instead of failing on a
+    folder the user never had. A file that really is there always wins.
+    """
+    from . import paths
+
+    path = Path(arg)
+    if path.exists() or path.is_absolute():
+        return path
+    parts = path.parts[1:] if path.parts[:1] == ("examples",) else path.parts
+    if not parts:
+        return path
+    rel = Path(*parts)
+    for candidate in (rel, rel.with_suffix(".toml")):
+        bundled = paths.examples() / candidate
+        if bundled.is_file():
+            print(f"(the bundled example {bundled})", file=sys.stderr)
+            return bundled
+    return path
+
+
 def cmd_inspect(args: argparse.Namespace) -> int:
     try:
         v = io.load(args.spec)
@@ -263,6 +288,16 @@ def cmd_optimise(args: argparse.Namespace) -> int:
     print(f"{time.time()-started:.1f}s, feasible "
           f"{result.feasible_count}/{len(result.evaluations)}, "
           f"front {len(result.front_indices)}\n")
+    if not result.feasible_count:
+        # The front of an all-infeasible population is the least-bad design,
+        # not an answer. Printing it as a table, or writing it for `generate`,
+        # would pass an aircraft that cannot be built down the chain.
+        closest = min(result.evaluations, key=lambda e: e.violation)
+        print(f"error: no feasible design after {args.generations} generations; "
+              f"the closest still breaks {closest.reason}. Try more "
+              "--generations, another --seed, or looser constraints.",
+              file=sys.stderr)
+        return 1
 
     names = [d.name for d in problem.variables]
     interesting = [n for n in names
@@ -591,7 +626,7 @@ def _load_pilot(spec: str, course, speed: float = 14.0):
         return GateRacer(course, speed=speed)
     if spec == "hover":
         return Hover(1.5)
-    path = Path(spec)
+    path = _example(spec)
     if not path.exists():
         raise SystemExit(f"no pilot {spec!r}: give a .py file, or 'gates' or 'hover'")
     mod_spec = importlib.util.spec_from_file_location(path.stem, path)
@@ -666,6 +701,7 @@ def cmd_aero(args: argparse.Namespace) -> int:
     """Measure the vehicle across its own flight envelope with OpenFOAM."""
     from .cfd.case import CaseConfig
     from .cfd.envelope import envelope
+    from .cfd.run import missing
     from .cfd.sweep import sweep
     from .geometry.surface import airframe_surface
 
@@ -674,6 +710,12 @@ def cmd_aero(args: argparse.Namespace) -> int:
     except io.SpecError as exc:
         print(f"spec error: {exc}", file=sys.stderr)
         return 2
+    why = missing()
+    if why:
+        print(f"the aerodynamics step needs OpenFOAM, which is optional: {why}\n"
+              "Install it and set FOAM_INSTALL, or put simpleFoam on PATH. "
+              "Everything else in Camber works without it.", file=sys.stderr)
+        return 3
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     stl = out / "airframe_m.stl"
@@ -712,21 +754,21 @@ def main(argv: list[str] | None = None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     ins = sub.add_parser("inspect", help="mass properties, control, hover")
-    ins.add_argument("spec", type=Path)
+    ins.add_argument("spec", type=_example)
     ins.set_defaults(func=cmd_inspect)
 
     conv = sub.add_parser("convert", help="normalise a spec to JSON")
-    conv.add_argument("spec", type=Path)
+    conv.add_argument("spec", type=_example)
     conv.add_argument("out", type=Path)
     conv.set_defaults(func=cmd_convert)
 
     cad = sub.add_parser("cad", help="export STEP (CNC) or 3MF/STL (print)")
-    cad.add_argument("spec", type=Path)
+    cad.add_argument("spec", type=_example)
     cad.add_argument("out", type=Path)
     cad.set_defaults(func=cmd_cad)
 
     end = sub.add_parser("endurance", help="predicted hover endurance")
-    end.add_argument("spec", type=Path)
+    end.add_argument("spec", type=_example)
     end.add_argument("--prop", default="gwsdd_5x4.3", help="UIUC propeller key")
     end.add_argument("--propdb", type=Path, default=None)
     end.add_argument("--blades", type=int, default=2)
@@ -747,7 +789,7 @@ def main(argv: list[str] | None = None) -> int:
     val.set_defaults(func=cmd_validate)
 
     opt = sub.add_parser("optimise", help="search the design space")
-    opt.add_argument("spec", type=Path)
+    opt.add_argument("spec", type=_example)
     opt.add_argument("--prop", default=None,
                      help="UIUC propeller key; without it endurance uses a "
                           "placeholder that overstates by >10x")
@@ -774,14 +816,14 @@ def main(argv: list[str] | None = None) -> int:
     opt.set_defaults(func=cmd_optimise)
 
     ui = sub.add_parser("ui", help="open a vehicle file in the app")
-    ui.add_argument("spec", type=Path)
+    ui.add_argument("spec", type=_example)
     ui.add_argument("--browser", action="store_true",
                     help="use the web browser instead of the app window")
     ui.set_defaults(func=cmd_ui)
 
     gen = sub.add_parser("generate",
                          help="grow a frame by topology optimisation")
-    gen.add_argument("spec", type=Path)
+    gen.add_argument("spec", type=_example)
     gen.add_argument("--out", type=Path, default=Path("frame.stl"))
     budget = gen.add_mutually_exclusive_group()
     budget.add_argument("--mass", type=float, default=40.0,
@@ -851,14 +893,14 @@ def main(argv: list[str] | None = None) -> int:
     gen.set_defaults(func=cmd_generate)
 
     ap = sub.add_parser("app", help="open the Camber app")
-    ap.add_argument("spec", type=Path, nargs="?",
+    ap.add_argument("spec", type=_example, nargs="?",
                     help="optionally, a vehicle file to open as a new project")
     ap.add_argument("--browser", action="store_true",
                     help="use the web browser instead of the app window")
     ap.set_defaults(func=cmd_app)
 
     sm = sub.add_parser("sim", help="fly the vehicle in MuJoCo")
-    sm.add_argument("spec", type=Path)
+    sm.add_argument("spec", type=_example)
     sm.add_argument("--pilot", default="gates",
                     help="'gates', 'hover', or a .py file defining a Pilot class")
     sm.add_argument("--course", default="auto", choices=("auto", "oval", "none"))
@@ -875,7 +917,7 @@ def main(argv: list[str] | None = None) -> int:
     sm.set_defaults(func=cmd_sim)
 
     ae = sub.add_parser("aero", help="CFD across the vehicle's own flight envelope")
-    ae.add_argument("spec", type=Path)
+    ae.add_argument("spec", type=_example)
     ae.add_argument("--out", type=Path, default=Path("aero"))
     ae.add_argument("--n", type=int, default=6, help="flight conditions to test")
     ae.add_argument("--ranks", type=int, default=0,
@@ -890,7 +932,11 @@ def main(argv: list[str] | None = None) -> int:
     cat.set_defaults(func=cmd_catalogue)
 
     args = p.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except io.SpecError as exc:          # `app` and `ui` load the spec deeper down
+        print(f"spec error: {exc}", file=sys.stderr)
+        return 2
 
 
 

@@ -743,6 +743,37 @@ one non-dominated point while the new one admits several.
 functions of the same variable. It is easy to write down two things you care
 about and not notice one determines the other.
 
+### OPT-09 · Infeasible designs are ranked by violation, one front per level — `FIXED`
+
+**The bug:** constrained domination says the smaller violation wins between two
+infeasible designs, and the module docstring says so. `_constrained_ranks`
+sorted the infeasible designs by violation and then returned them as *one*
+front. Every one of them had the same rank, so the tournament fell through to
+crowding distance, and the survival cut, which breaks an overflowing front by
+crowding, threw the sort away. A population that started infeasible was pushed
+toward spread in objective space and not toward feasibility at all.
+
+**Found by** the clean-install check before announcing the project
+(2026-10-26). `camber optimise examples/racer5.toml`, at the CLI's default seed
+0 and 32 x 20, printed "feasible 0/32" and then a table of those 32 designs as
+if they were the front. Over seeds 0-19 at that budget, 4 of 20 runs ended with
+nothing feasible, and seed 0 stayed at 0/32 at 40 generations.
+
+**Value:** each violation level is its own front; exact ties share one. The
+same sweep afterwards: 0 of 20 runs without a feasible design, and racer5
+averages 32.0/32 feasible against 25.6 before. quad5, feasible from the start,
+barely moves: the median best placeholder endurance over 20 seeds went from
+89.1 to 87.7 min, inside the seed-to-seed spread (interquartile range 83-94
+before, 86-95 after). `test_an_infeasible_start_is_pulled_to_feasibility` pins
+the racer5 case.
+
+**And an infeasible front is no longer presented as an answer.** With nothing
+feasible, `camber optimise` exits 1, names the constraint the closest design
+still breaks, and writes neither `--out` nor `--front-json`. The app shows that
+line as the job's failure. Before, `--out` handed the least-bad infeasible
+design on to `generate`. The app test's optimiser job ran 8 x 2 on racer5 and
+passed only because of that; it now runs the app's own budget, 40 x 30.
+
 ---
 
 ## 6. The CFD tier and the closed loop (P4)
@@ -2331,3 +2362,24 @@ server from outside any checkout.
 leaves out (AI-04), so every wheel install had a `bench` command that could only
 crash. In a checkout it is `python -m bench.cli`.
 
+
+### PKG-03 · The README's commands work from an installed wheel — `FIXED`
+
+**Value:** every vehicle argument goes through `cli._example`. A path that
+exists is used as given. One that does not, such as `examples/quad5.toml` or
+plain `quad5`, falls back to the copy PKG-02 ships inside the package, and the
+CLI says which file it used. Pilots (`--pilot examples/pilots/flip.py`) resolve
+the same way. A file that really is missing is now `spec error: ... no such
+file or directory`, exit 2, where it used to be a Python traceback.
+
+`camber aero` asks `cfd.run.missing()` before it writes anything. Without
+OpenFOAM it says the step needs it, that it is optional, and how to point
+Camber at one, and exits 3, the code `sim` uses for a missing MuJoCo. Before,
+it wrote a case folder and died inside blockMesh with a traceback.
+
+**Reasoning:** PKG-02 was verified by running each command against files that
+happened to be there. The 2026-10-26 check went the way a stranger would:
+the release wheel installed with `uv tool install` into an empty `HOME`, run
+from an empty folder, following the README line by line. The first line of
+its command-line section failed, because `examples/` exists only in a checkout.
+`tests/test_cli.py` runs those commands from an empty working directory.
