@@ -13,6 +13,9 @@ permissions:
 
 jobs:
   pypi:
+    # Off until PyPI knows this workflow as a trusted publisher; then the
+    # repository variable PYPI_PUBLISH is set to true.
+    if: vars.PYPI_PUBLISH == 'true'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
