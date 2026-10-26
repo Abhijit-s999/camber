@@ -38,9 +38,11 @@ cad = ["build123d>=0.11"]
 # bench: `camber inspect` and `camber optimise` must still run with numpy and
 # nothing else (AI-07), and `tests/test_topology.py` asserts the core imports pull
 # none of these. pyamg is what makes fine grids affordable -- see GEN-12 -- and
-# the solve falls back to a direct factorisation without it.
+# the solve falls back to a direct factorisation without it. manifold3d is the
+# mesh boolean that drills the bolt holes (GEN-11 needs one, and trimesh has
+# none of its own); without it trimesh looks for a `blender` on PATH (PKG-04).
 generate = ["scipy>=1.11", "scikit-image>=0.22", "trimesh>=4.0", "pyamg>=5.0",
-            "fast-simplification>=0.1"]
+            "fast-simplification>=0.1", "manifold3d>=3.0"]
 # Flying the designed vehicle in MuJoCo (camber.sim). ROS 2 lives in ros/ and
 # brings its own environment; see ros/pixi.toml.
 sim = ["mujoco>=3.2", "trimesh>=4.0"]

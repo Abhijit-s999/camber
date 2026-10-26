@@ -2383,3 +2383,20 @@ the release wheel installed with `uv tool install` into an empty `HOME`, run
 from an empty folder, following the README line by line. The first line of
 its command-line section failed, because `examples/` exists only in a checkout.
 `tests/test_cli.py` runs those commands from an empty working directory.
+
+### PKG-04 · The mesh boolean is a declared dependency — `FIXED`
+
+**Value:** `manifold3d` is in the `generate` extra, so in `app` too.
+
+**Reasoning:** `drill()` (GEN-11) and the CFD surface union go through
+trimesh's booleans, and trimesh has no engine of its own: it uses manifold3d if
+it is installed, and failing that a `blender` on `PATH`. The development
+machine has Blender, so every local run, including the clean-install check in
+PKG-03, drilled holes without anyone noticing which engine did it. The first CI
+run on a bare Ubuntu runner (2026-10-26) had neither and failed all five
+drilling tests with "No boolean backend". A user without Blender got, after
+the half-hour topology solve, a frame with no bolt holes and one warning line
+that `camber generate` printed and carried on past.
+
+With manifold3d installed trimesh prefers it to Blender, so a full install now
+runs the engine CI tests. The whole suite passes on it, drilling included.
