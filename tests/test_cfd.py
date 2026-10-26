@@ -249,3 +249,34 @@ class TestInterferenceModel:
         assert loss_fraction(10.0, -0.5) == pytest.approx(-0.05)
         with pytest.raises(ValueError):
             loss_fraction(0.0, 1.0)
+
+
+class TestDiskManners:
+    """CFD-10: the per-rank copies go once they are merged, and only then."""
+
+    @pytest.fixture
+    def case(self, tmp_path, monkeypatch):
+        from camber.cfd import run
+        (tmp_path / "system").mkdir()
+        (tmp_path / "system" / "decomposeParDict").write_text("numberOfSubdomains 4;\n")
+        for i in range(4):
+            (tmp_path / f"processor{i}" / "0").mkdir(parents=True)
+        self.reconstruct_ok = True
+
+        def fake_foam(case, command, **kw):
+            app = command.split()[0]
+            ok = self.reconstruct_ok if app == "reconstructPar" else True
+            return run.StepResult(app, ok, 0.0, f"log.{app}", "" if ok else "failed")
+        monkeypatch.setattr(run, "foam", fake_foam)
+        return tmp_path
+
+    def test_a_merged_case_keeps_no_per_rank_copies(self, case):
+        from camber.cfd import run
+        run.solve(case)
+        assert not list(case.glob("processor*"))
+
+    def test_a_failed_merge_keeps_them(self, case):
+        from camber.cfd import run
+        self.reconstruct_ok = False
+        run.solve(case)
+        assert len(list(case.glob("processor*"))) == 4

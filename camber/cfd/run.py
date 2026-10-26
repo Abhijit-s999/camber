@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 import time
 from dataclasses import asdict, dataclass
@@ -173,7 +174,14 @@ def solve(case: Path, parallel: bool = True) -> StepResult:
     if not result.ok:
         raise FoamError(f"solve failed in {case}: {result.message}")
     if parallel:
-        foam(case, "reconstructPar -latestTime")
+        merged = foam(case, "reconstructPar -latestTime")
+        # The per-rank copies are half of every case on disk (about 150 of
+        # 290 MB at the default mesh) and nothing reads them once merged: the
+        # forces come from postProcessing/, the fields from the time folder.
+        # Six conditions per Aerodynamics run made each run ~1.7 GB (CFD-10).
+        if merged.ok:
+            for d in case.glob("processor*"):
+                shutil.rmtree(d, ignore_errors=True)
     return result
 
 

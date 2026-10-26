@@ -1991,6 +1991,20 @@ demands instead of an invented 0.13 N. **The old boundaries inflated airframe
 drag 2.7x**, which would have flown the simulated racer well below its real top
 speed. Hover keeps the open boundaries, which are right there.
 
+### CFD-10 · A solved case keeps its merged fields, not its per-rank copies — `FIXED`
+
+**Value:** once `reconstructPar` succeeds, `solve` deletes the case's
+`processor*` folders. If the merge fails they stay, so nothing is lost.
+
+**Reasoning:** at the default mesh a case is about 290 MB and the per-rank
+copies are about 150 MB of it, while nothing reads them after the merge: the
+forces come from `postProcessing/` and the fields, for anyone opening the case
+in ParaView, from the merged time folder. Driving the app end to end on
+2026-10-26, six conditions put about 1.7 GB into the project per Aerodynamics
+run, and filled the 12 GB RAM-backed `/tmp` the test ran in. Halving that is
+free. The mesh in `constant/` stays, because a case without it cannot be
+reopened.
+
 ---
 
 ## 12. The app (P8)
