@@ -111,10 +111,10 @@ STL, and load the result back in.
   motor is set by flags (`--kv --rm --i0`), and the propeller is one UIUC map
   scaled across sizes. Picking motors, props and cell counts from a catalogue
   is the next major piece of work.
-- **The app's Optimise step ranks on a rough endurance estimate** (momentum
-  theory, no motor or ESC losses), which reads far too long; the app says so
-  beside the chart. `camber optimise --prop` uses the validated blade-element
-  model.
+- **Endurance uses one motor and one scaled propeller.** Once the propeller
+  data is fetched, the app and `camber optimise --prop` rank designs on the
+  validated blade-element model. Without it they fall back to a momentum-theory
+  estimate that reads 10-20 times too long, and say so beside the chart.
 - **Multirotors only, four rotors or more.** Wings and tilting rotors are built
   in the simulator but not yet in the app, so this release leaves them out
   (DECISIONS SIM-06, SIM-07).

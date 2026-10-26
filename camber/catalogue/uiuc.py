@@ -33,6 +33,10 @@ from pathlib import Path
 
 from ..spec.units import INCH
 
+#: The propeller map scaled across radii (OPT-05) when nobody names one: the
+#: one the README, `camber endurance` and the app's Optimise step all use.
+REFERENCE_PROP = "gwsdd_5x4.3"
+
 #: `apce_11x5.5` -> family `apce`, 11 in diameter, 5.5 in pitch.
 _KEY = re.compile(r"^(?P<family>[a-z0-9\-]+?)_(?P<dia>\d+(?:\.\d+)?)x(?P<pitch>\d+(?:\.\d+)?)$")
 

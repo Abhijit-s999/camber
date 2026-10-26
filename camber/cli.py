@@ -12,6 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
+from .catalogue.uiuc import REFERENCE_PROP
 from .control import AXES, G, allocation_matrix, controllability, solve_hover
 from .spec import io
 
@@ -331,8 +332,13 @@ def cmd_optimise(args: argparse.Namespace) -> int:
                 "objectives": [float(o) for o in obj],
                 "variables": {n: float(val) for n, val in zip(names, x)},
                 "vehicle": io.to_dict(problem.build(x))})
+        # Which endurance model ranked the front travels with it, so a chart
+        # labels the momentum-theory placeholder as rough only when it is.
+        model, detail = (("blade-element", f"{args.prop} propeller, {args.kv:g} Kv motor")
+                         if args.prop else ("momentum theory", "no motor or ESC losses"))
         Path(args.front_json).write_text(json.dumps(
-            {"objective_names": problem.objective_names, "points": points}))
+            {"objective_names": problem.objective_names, "endurance_model": model,
+             "endurance_detail": detail, "points": points}))
         print(f"wrote {args.front_json}: {len(points)} designs on the front")
 
     if args.out:
@@ -769,7 +775,7 @@ def main(argv: list[str] | None = None) -> int:
 
     end = sub.add_parser("endurance", help="predicted hover endurance")
     end.add_argument("spec", type=_example)
-    end.add_argument("--prop", default="gwsdd_5x4.3", help="UIUC propeller key")
+    end.add_argument("--prop", default=REFERENCE_PROP, help="UIUC propeller key")
     end.add_argument("--propdb", type=Path, default=None)
     end.add_argument("--blades", type=int, default=2)
     end.add_argument("--kv", type=float, default=1900.0)

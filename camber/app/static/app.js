@@ -376,7 +376,8 @@ function fly() {
   else if (rec?.status === "failed") html += failed(rec);
   html += `<section class="sec"><details class="more"><summary>Program it over ROS 2</summary>
     <p class="hint" style="margin-top:8px">The same simulator, as a ROS 2 node. Publishes <code>/camber/odom</code>, <code>/camber/imu</code>; accepts motors, a wrench, a pose or a trajectory setpoint.</p>
-    <pre class="log">~/.pixi/bin/pixi run -m ros/pixi.toml fly</pre><p class="hint">See docs/FLYING.md for the topics.</p></details></section>`;
+    <p class="hint">From a clone of the repository, with <a href="https://pixi.sh" target="_blank" rel="noopener">pixi</a>:</p>
+    <pre class="log">pixi run -m ros/pixi.toml fly</pre><p class="hint"><a href="https://github.com/Abhijit-s999/camber/blob/main/docs/FLYING.md#3-program-it-over-ros-2" target="_blank" rel="noopener">The topics, and how to run your own node</a>.</p></details></section>`;
   return html;
 }
 
@@ -534,12 +535,16 @@ function scatter(pts, xl, yl, onPick) {
 async function drawFront(j) {
   const box = $("#front");
   const f = await api("GET", `${P()}/front?job=${j.id}`);
-  const lab = { "-endurance_s": ["Endurance min (rough)", (v) => -v / 60], "mass_kg": ["Mass g", (v) => v * 1000],
+  // Fronts from before UI-08 carry no model name: they were all momentum theory.
+  const rough = f.endurance_model !== "blade-element";
+  const lab = { "-endurance_s": [rough ? "Endurance min (rough)" : "Endurance min", (v) => -v / 60], "mass_kg": ["Mass g", (v) => v * 1000],
                 "-thrust_margin": ["Thrust : weight", (v) => -v] };
   const [a, b] = f.objective_names;
   const pts = f.points.map((p) => [lab[a]?.[1](p.objectives[0]) ?? p.objectives[0], lab[b]?.[1](p.objectives[1]) ?? p.objectives[1]]);
   box.innerHTML = scatter(pts, lab[a]?.[0] ?? a, lab[b]?.[0] ?? b)
-    + (a === "-endurance_s" ? `<div class="hint">Endurance on this chart is a momentum-theory estimate with no motor or ESC losses. Checked against the blade-element model it read 16.5× too long (OPT-03), so treat it as a comparison, not a flight time. <code>camber optimise --prop</code> gives the real number from the terminal.</div>` : "")
+    + (f.objective_names.includes("-endurance_s") ? (rough
+      ? `<div class="hint">Endurance on this chart is a momentum-theory estimate with no motor or ESC losses. Checked against the blade-element model it read 16.5× too long (OPT-03), so treat it as a comparison, not a flight time. Fetch the propeller data with <code>camber catalogue fetch</code> and run again for the validated model.</div>`
+      : `<div class="hint">Hover endurance from the blade-element model (${esc(f.endurance_detail)}), validated against 115 UIUC wind-tunnel propellers. One propeller is scaled across sizes and the motor is a default until components are chosen, so read it as a fair comparison and a rough flight time.</div>`) : "")
     + `<div id="front-pick" class="hint">${f.points.length} designs, none better than another on both at once.</div>`;
   box.querySelectorAll("circle").forEach((c) => {
     c.onclick = () => {

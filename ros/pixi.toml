@@ -6,8 +6,8 @@
 # and no container -- so it cannot collide with the system interpreter and it
 # cannot break when the system updates underneath it.
 #
-#   ~/.pixi/bin/pixi run -m ros/pixi.toml build      # colcon build
-#   ~/.pixi/bin/pixi run -m ros/pixi.toml fly        # bridge + example pilot
+#   pixi run -m ros/pixi.toml build      # colcon build
+#   pixi run -m ros/pixi.toml fly        # bridge + example pilot
 [workspace]
 name = "camber-ros"
 channels = ["robostack-jazzy", "conda-forge"]

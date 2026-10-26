@@ -141,7 +141,8 @@ PILOT_TEMPLATE = '''"""{title}: describe what this pilot does in one line.
 `update(state, sim)` runs every 2 ms. Set a target and the cascade flies there,
 or override it completely and return one motor command per rotor in [0, 1].
 state: position, velocity, quaternion, rates, specific_force, thrust (x fwd,
-y left, z up). See docs/FLYING.md for the layers you can take over.
+y left, z up). The layers you can take over:
+https://github.com/Abhijit-s999/camber/blob/main/docs/FLYING.md
 """
 
 import numpy as np

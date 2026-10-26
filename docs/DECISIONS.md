@@ -2052,6 +2052,26 @@ loopback address -- which is what stops a DNS-rebinding page reaching it by a
 hostname that resolves to 127.0.0.1. Files are served only from inside the
 project folder.
 
+### UI-08 · The Optimise chart ranks on the validated model — `FIXED`
+
+**Value:** when the UIUC data has been fetched, the app's optimiser job passes
+`--prop` with the reference propeller (`uiuc.REFERENCE_PROP`, the same one the
+README and `camber endurance` use), so the front is ranked on the blade-element
+tier. Without the data it falls back to momentum theory. `front.json` records
+which model ranked it, and the chart labels endurance "rough" only when it is.
+
+**Reasoning:** REL-01 added a caveat beside a number OPT-03 had measured 16.5x
+too long, and the app kept ranking on it even with the data on disk. Driving
+the app end to end on 2026-10-26, the racing quad's trade-off chart read 54 to
+107 minutes. With the validated model the same job, same budget, reads 3 to 9
+minutes for the racer and 3 to 11 for the endurance quad, in 2.8 s instead
+of 1.6. A caveat is the right answer when the better number costs
+something; here it cost nothing.
+
+**Still true:** one propeller is scaled across radii (OPT-05) and the motor is
+the CLI default, so the number is a fair comparison and a rough flight time
+until components are chosen. The chart says that too.
+
 ### SPEC-02 · Saving a vehicle dropped its constraints — `FIXED`
 
 `to_dict` had no case for constraints and omitted them, so every JSON save

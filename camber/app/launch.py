@@ -58,8 +58,8 @@ def main(project: str | None = None, browser: bool = False,
             env["PYTHONPATH"] = os.pathsep.join([str(PKG_ROOT), env.get("PYTHONPATH", "")])
             return subprocess.call([exe, "-m", "camber.app.shell", "--url", url], env=env)
         webbrowser.open(url)
-        print("No Qt WebEngine found, so Camber opened in your browser. "
-              "Press Ctrl+C here to stop it.")
+        why = "" if browser else "No Qt WebEngine found, so "
+        print(f"{why}Camber opened in your browser. Press Ctrl+C here to stop it.")
         thread.join()
         return 0
     except KeyboardInterrupt:

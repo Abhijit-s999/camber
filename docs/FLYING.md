@@ -87,8 +87,12 @@ write.
 
 ## 3. Program it over ROS 2
 
+This runs from a clone of the repository and needs [pixi](https://pixi.sh). The
+first run downloads ROS 2 Jazzy, about 2.5 GB, into `ros/.pixi`: its own
+environment, so nothing is installed system-wide.
+
 ```console
-$ ~/.pixi/bin/pixi run -m ros/pixi.toml fly      # bridge + example pilot
+$ pixi run -m ros/pixi.toml fly                 # bridge + example pilot
 ```
 
 That builds the workspace, starts `camber_sim` with the viewer, and starts
@@ -96,7 +100,7 @@ That builds the workspace, starts `camber_sim` with the viewer, and starts
 your own node against the bridge instead:
 
 ```console
-$ cd ros && ~/.pixi/bin/pixi shell
+$ cd ros && pixi shell
 $ colcon build --symlink-install --base-paths src && source install/setup.bash
 $ ros2 run camber_ros bridge --ros-args -p spec:=../examples/racer5.toml
 $ ros2 topic pub /camber/cmd/pose geometry_msgs/PoseStamped \

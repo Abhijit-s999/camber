@@ -207,3 +207,36 @@ class TestImport:
         assert src.exists() and p.root.resolve() in src.resolve().parents
         s, data = call(port, app.token, "GET", f"/api/p/{p.id}/frame.stl")
         assert s == 200 and len(data) > 10_000
+
+
+class TestOptimiseRanksOnTheValidatedModel:
+    """UI-08: the app's chart used the momentum-theory placeholder even with the
+    propeller data on disk, and showed a 5-inch racer flying for 100 minutes."""
+
+    OUT = {"front": "front.json", "best": "best.json"}
+
+    def test_with_the_data_it_passes_the_reference_propeller(self, tmp_path, monkeypatch):
+        from camber.app.jobs import _args
+        from camber.catalogue.uiuc import REFERENCE_PROP
+        (tmp_path / "raw" / "UIUC-propDB").mkdir(parents=True)
+        monkeypatch.setenv("CAMBER_USER_DATA", str(tmp_path))
+        a = _args("optimise", "v.json", {}, self.OUT)
+        assert a[a.index("--prop") + 1] == REFERENCE_PROP
+
+    def test_without_it_the_placeholder_runs_and_the_front_says_so(self, tmp_path,
+                                                                  monkeypatch):
+        from camber.app.jobs import _args
+        from camber.cli import main
+        monkeypatch.setenv("CAMBER_USER_DATA", str(tmp_path))
+        a = _args("optimise", "examples/quad5.toml",
+                  {"population": 24, "generations": 10}, self.OUT)
+        assert "--prop" not in a
+        monkeypatch.chdir(tmp_path)
+        assert main(a) == 0
+        front = json.loads((tmp_path / "front.json").read_text())
+        assert front["endurance_model"].startswith("momentum")
+
+    def test_a_propeller_key_cannot_carry_anything_else(self):
+        from camber.app.jobs import _args
+        with pytest.raises(ValueError):
+            _args("optimise", "v.json", {"prop": "x; rm -rf ~"}, self.OUT)
