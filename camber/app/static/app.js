@@ -38,7 +38,7 @@ const guard = (fn) => async (...a) => { try { return await fn(...a); } catch (e)
 
 // ---- state -------------------------------------------------------------------
 const S = { pid: null, v: null, step: "design", jobs: [], sel: null, measure: null,
-            dragging: false, pilots: [], pilot: "gates", flyAero: false, envelope: null,
+            dragging: false, pilots: [], pilot: "gates", flyAero: null, envelope: null,
             live: null, flyMode: "assist",
             gen: { mode: "price", price: 1.0, mass: 40, min_feature: 3, quality: "standard" },
             opt: { population: 40, generations: 30 } };
@@ -89,6 +89,7 @@ let vp;
 async function open(pid) {
   S.pid = pid;
   S.sel = null;
+  S.flyAero = null;                 // a choice made for one project is not one for the next
   history.replaceState(null, "", `?p=${encodeURIComponent(pid)}`);
   $("#home").hidden = true;
   $("#work").hidden = false;
@@ -363,7 +364,7 @@ function fly() {
   }
 
   html += `<section class="sec"><h3>Air</h3>
-    <div class="seg"><button data-aero="0" class="${!S.flyAero ? "on" : ""}" ${flying ? "disabled" : ""}>Estimated drag</button><button data-aero="1" class="${S.flyAero ? "on" : ""}" ${S.v.aero_table && !flying ? "" : "disabled"}>CFD aerodynamics</button></div>
+    <div class="seg"><button data-aero="0" class="${!cfdAir() ? "on" : ""}" ${flying ? "disabled" : ""}>Estimated drag</button><button data-aero="1" class="${cfdAir() ? "on" : ""}" ${S.v.aero_table && !flying ? "" : "disabled"}>CFD aerodynamics</button></div>
     ${S.v.aero_table ? "" : `<p class="hint">Run step 4 to measure this airframe's real aerodynamics.</p>`}
     <div class="actions">${flying
       ? `<button class="primary" data-act="land">Land and stop</button><button data-act="reset-live">Reset</button>`
@@ -381,9 +382,13 @@ function fly() {
   return html;
 }
 
+// Fly on the measured table once the Aerodynamics step has put one in use,
+// unless the user picked the estimate here.
+const cfdAir = () => !!S.v?.aero_table && (S.flyAero ?? true);
+
 async function takeOff() {
   live.vp = vp;
-  await live.start({ pilot: S.pilot, mode: S.flyMode, aero: S.flyAero,
+  await live.start({ pilot: S.pilot, mode: S.flyMode, aero: cfdAir(),
                      speed: S.speed ?? 14, course: true });
   S.live = true;
   $("#vtools").hidden = true;
@@ -450,12 +455,12 @@ function bindPanel(el) {
       land: guard(land),
       "reset-live": guard(() => live.send({ do: "reset" })),
       "fly-live": guard(async () => {
-        await api("POST", `${P()}/fly`, { pilot: S.pilot, speed: S.speed ?? 14, aero: S.flyAero });
+        await api("POST", `${P()}/fly`, { pilot: S.pilot, speed: S.speed ?? 14, aero: cfdAir() });
         toast("Opening the physics engine…");
       }),
       record: guard(() => run("record", { pilot: S.pilot === "gates" || S.pilot === "hover" ? S.pilot : S.pilot,
                                           speed: S.speed ?? 14, duration: 20,
-                                          aero: S.flyAero ? S.v.aero_table : "" })),
+                                          aero: cfdAir() ? S.v.aero_table : "" })),
       "new-pilot": guard(async () => {
         const name = prompt("Name your pilot", "My pilot");
         if (!name) return;
@@ -675,11 +680,18 @@ $("#link").onclick = (e) => {
   panel();
 };
 $("#snap").onchange = (e) => vp.setSnap(+e.target.value);
-$("#export-btn").onclick = () => ($("#export-menu").hidden = !$("#export-menu").hidden);
+$("#export-btn").onclick = () => {
+  // A grown frame is a mesh, and STEP carries solids (cad.export refuses it).
+  const step = $('#export-menu [data-export="step"]'), mesh = !!S.v?.has_generated_frame;
+  step.classList.toggle("off", mesh);
+  step.title = mesh ? "The grown frame is a mesh and STEP needs solids. Export STL: CAM software reads it." : "";
+  $("#export-menu").hidden = !$("#export-menu").hidden;
+};
 $("#export-menu").onclick = (e) => {
   const a = e.target.closest("a");
   if (!a) return;
   $("#export-menu").hidden = true;
+  if (a.classList.contains("off")) return toast(a.title, true);
   if (a.dataset.export) download(`${P()}/export?what=${a.dataset.export}&t=${encodeURIComponent(TOKEN)}`);
   if (a.dataset.open) api("POST", `${P()}/open`, { path: a.dataset.open }).catch((x) => toast(x.message, true));
 };

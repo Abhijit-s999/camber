@@ -2086,6 +2086,21 @@ something; here it cost nothing.
 the CLI default, so the number is a fair comparison and a rough flight time
 until components are chosen. The chart says that too.
 
+### UI-09 · The steps hand their results on, and offer only what works — `FIXED`
+
+**Value:** once Aerodynamics has put a CFD table in use ("Fly with this"), the
+Fly step flies on it unless the user picks the estimate there; the choice
+resets per project. The Export menu greys out STEP when the frame is grown,
+and says why if clicked: a grown frame is a mesh, STEP carries solids, and
+`cad.export` refuses it. `camber cad` says the same in a sentence instead of a
+traceback.
+
+**Reasoning:** both turned up when the app was driven through all five steps
+on 2026-10-26. The Aerodynamics step said "Flying with this" while the Fly step
+sat on "Estimated drag", so the measured table only reached a flight if the
+user found a second toggle. And STEP was offered for a vehicle it could never
+be written for, failing with a 400 after the click.
+
 ### SPEC-02 · Saving a vehicle dropped its constraints — `FIXED`
 
 `to_dict` had no case for constraints and omitted them, so every JSON save

@@ -93,6 +93,7 @@ input[type=range] { accent-color: var(--accent); width: 100%; }
   border: 1px solid var(--line-2); border-radius: var(--r); display: grid; min-width: 210px; z-index: 20; }
 .menu-pop a { padding: 8px 12px; cursor: pointer; }
 .menu-pop a:hover { background: var(--hover); }
+.menu-pop a.off { color: var(--faint); cursor: not-allowed; }
 
 .steps { grid-area: steps; border-right: 1px solid var(--line); padding: 14px 8px; display: grid;
   align-content: start; gap: 2px; background: var(--panel); }

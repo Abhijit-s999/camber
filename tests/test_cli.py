@@ -71,3 +71,11 @@ def test_aero_without_openfoam_says_so_before_writing_anything(elsewhere, capsys
     assert main(["aero", "examples/racer5.toml", "--out", "aero"]) == 3
     assert "needs OpenFOAM" in capsys.readouterr().err
     assert not (elsewhere / "aero").exists()
+
+
+def test_step_of_a_grown_frame_is_refused_in_a_sentence(elsewhere, capsys):
+    """A grown frame is a mesh and STEP carries solids; `cad` said so through
+    a traceback."""
+    assert main(["cad", str(ROOT / "examples" / "racer5_framed.json"), "out.step"]) == 2
+    assert "export it as .stl" in capsys.readouterr().err
+    assert not (elsewhere / "out.step").exists()

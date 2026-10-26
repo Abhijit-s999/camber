@@ -135,6 +135,9 @@ def cmd_cad(args: argparse.Namespace) -> int:
     except cad.CadUnavailable as exc:
         print(f"{exc}", file=sys.stderr)
         return 3
+    except ValueError as exc:                    # e.g. STEP of a grown (mesh) frame
+        print(f"cannot export: {exc}", file=sys.stderr)
+        return 2
     print(f"wrote {written}")
     return 0
 
