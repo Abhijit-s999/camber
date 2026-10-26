@@ -186,6 +186,31 @@ class TestJobs:
                     {"job": job["id"], "index": 0})
         assert s == 200 and v["can_undo"]
 
+    def test_a_grown_frame_can_be_used_by_the_steps_after_it(self, project):
+        """SPEC-03: "Use this frame" adopted a vehicle whose mesh path had
+        doubled, so the frame vanished from the view and Aerodynamics failed."""
+        pytest.importorskip("skimage")
+        pytest.importorskip("trimesh")
+        port, app, pid = project
+        _, job = call(port, app.token, "POST", f"/api/p/{pid}/jobs",
+                      {"kind": "generate", "params": {
+                          "mode": "mass", "mass": 40, "element": 0.008,
+                          "thickness": 0.024, "iterations": 4, "min_feature": 16}})
+        deadline = time.time() + 300
+        while time.time() < deadline:
+            _, r = call(port, app.token, "GET", f"/api/p/{pid}/jobs")
+            j = [x for x in r["jobs"] if x["id"] == job["id"]][0]
+            if j["status"] != "running":
+                break
+            time.sleep(0.5)
+        assert j["status"] == "done", j["detail"]
+        s, v = call(port, app.token, "POST", f"/api/p/{pid}/apply", {"job": job["id"]})
+        assert s == 200 and v["has_generated_frame"]
+        s, data = call(port, app.token, "GET", f"/api/p/{pid}/frame.stl")
+        assert s == 200 and len(data) > 1000
+        from camber.geometry.surface import airframe_surface
+        assert airframe_surface(app.project(pid).vehicle).is_watertight
+
     def test_a_job_can_be_cancelled(self, project):
         port, app, pid = project
         _, job = call(port, app.token, "POST", f"/api/p/{pid}/jobs",

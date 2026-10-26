@@ -67,10 +67,13 @@ class TestTheCalibrationIsUntouched:
 
 
 class TestSerialisation:
-    def test_a_tabulated_body_round_trips(self, tmp_path):
+    def test_a_tabulated_body_round_trips(self, tmp_path, monkeypatch):
         from camber.spec.units import Vec3
         from camber.spec.vehicle import Body, Placement
         v = io.load(ROOT / "examples" / "racer5.toml")
+        # In memory a relative source is relative to the working directory,
+        # which is where every reader opens it (SPEC-03), so say which one.
+        monkeypatch.chdir(tmp_path)
         v.frame.members = [Body(
             "frame", mass=0.05, placement=Placement(Vec3(0.0, 0.0, -0.001)),
             shape=Tabulated(3.2e-5, np.diag([4e-3, 4e-3, 8e-3]),
@@ -221,4 +224,26 @@ class TestPortableSources:
         assert written["frame"][0]["shape"]["source"] == "frame.stl"
         monkeypatch.chdir(tmp_path)                       # run from elsewhere
         back = io.load(d / "v.json")
+        assert pathlib.Path(back.frame.members[0].shape.source).exists()
+
+    def test_a_frame_grown_inside_a_project_can_be_loaded_back(self, tmp_path,
+                                                               monkeypatch):
+        """SPEC-03: the app runs `generate` from the project folder with
+        relative paths. The frame's source was saved as written, relative to
+        the project, then anchored to the JSON's own folder on load: the path
+        doubled, "Use this frame" showed no frame, and Aerodynamics failed."""
+        pytest.importorskip("skimage")
+        pytest.importorskip("trimesh")
+        from camber.cli import main
+        job = pathlib.Path("results") / "generate-job"
+        (tmp_path / job).mkdir(parents=True)
+        monkeypatch.chdir(tmp_path)
+        assert main(["generate", str(ROOT / "examples" / "racer5.toml"), "--mass", "40",
+                     "--element", "0.008", "--thickness", "0.024",
+                     "--iterations", "4", "--min-feature", "16",
+                     "--out", str(job / "frame.stl"), "--into", str(job / "framed.json")]) == 0
+        written = __import__("json").loads((job / "framed.json").read_text())
+        assert written["frame"][0]["shape"]["source"] == "frame.stl"
+        monkeypatch.chdir(ROOT)                           # and from anywhere else
+        back = io.load(tmp_path / job / "framed.json")
         assert pathlib.Path(back.frame.members[0].shape.source).exists()

@@ -2090,6 +2090,27 @@ constraint**, the front props blocking the view by 1.4 degrees. The check uses
 bounding spheres and is conservative, but it is exactly what hand placement
 misses.
 
+### SPEC-03 · In memory, a relative mesh path is relative to the working directory — `FIXED`
+
+**Value:** `save_json` resolves every frame-mesh source, relative or absolute,
+before writing it relative to the new file's folder. In memory, a relative
+source means relative to where Camber is running, because that is where every
+reader opens it.
+
+**The bug:** only absolute sources were rewritten on save. The app runs
+`camber generate` from the project folder with `--out results/<job>/frame.stl`,
+so the grown frame's source was that relative path, saved unchanged into
+`results/<job>/framed.json`, and then anchored on load to the JSON's own folder:
+`results/<job>/results/<job>/frame.stl`. Clicking "Use this frame" adopted a
+vehicle whose mesh did not exist. The frame vanished from the view, and the
+Aerodynamics step failed on it. Every test passed absolute paths, which is the
+one case that worked. Found by driving the app end to end on 2026-10-26.
+`test_a_grown_frame_can_be_used_by_the_steps_after_it` runs the app's own job
+and then asks for what the next steps need.
+
+**Not repaired:** a project that adopted a grown frame under 0.1.0 or 0.1.1
+keeps the doubled path. Growing the frame again fixes it.
+
 ### PKG-01 · On Arch, an editable install with system Qt — `PROVISIONAL`
 
 **Value:** `packaging/arch/install.sh`. A venv in `~/.local/share/camber` made

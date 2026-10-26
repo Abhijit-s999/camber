@@ -289,8 +289,12 @@ def _anchor_sources(v: Vehicle, base: Path, *, absolute: bool) -> Vehicle:
         src = Path(s.source)
         if absolute and not src.is_absolute():
             src = (base / src).resolve()
-        elif not absolute and src.is_absolute():
-            src = Path(os.path.relpath(src, base.resolve()))
+        elif not absolute:
+            # In memory, a relative path means relative to where Camber is
+            # running: the app's generate job writes `results/<job>/frame.stl`
+            # from the project folder. Saved as it stood, it was re-anchored to
+            # the file's own folder on load and pointed nowhere (SPEC-03).
+            src = Path(os.path.relpath(src.resolve(), base.resolve()))
         b.shape = dataclasses.replace(s, source=str(src))
     return v
 
