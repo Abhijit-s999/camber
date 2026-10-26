@@ -6,4 +6,4 @@ tests/test_isolation.py fails the build if that boundary is ever crossed.
 See docs/DECISIONS.md AI-04.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

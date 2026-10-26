@@ -1,0 +1,36 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.14"]   # the oldest supported, and the newest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Install
+        run: |
+          uv venv .venv --python ${{ matrix.python }}
+          uv pip install --python .venv/bin/python -e '.[dev]'
+      # The UIUC data is never redistributed (DECISIONS LIC-01), so it is not
+      # cached either: it comes from its origin, as it does for any user. Pull
+      # requests skip it rather than download 87 MB per push, and the eight
+      # tests that need it skip with them.
+      - name: Fetch the UIUC propeller data
+        if: github.event_name != 'pull_request'
+        run: .venv/bin/camber catalogue fetch
+      - name: Test
+        run: .venv/bin/python -m pytest -q -rs

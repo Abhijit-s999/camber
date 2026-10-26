@@ -1,5 +1,7 @@
 # Camber
 
+[![tests](https://github.com/Abhijit-s999/camber/actions/workflows/tests.yml/badge.svg)](https://github.com/Abhijit-s999/camber/actions/workflows/tests.yml)
+
 **A drone design optimiser. You give it a mission, and it designs the drone for
 it.**
 
@@ -40,7 +42,7 @@ alone.
 **Any Linux**, from the release wheel:
 
 ```sh
-uv tool install "camber[app,qt] @ https://github.com/Abhijit-s999/camber/releases/download/v0.1.0/camber-0.1.0-py3-none-any.whl"
+uv tool install "camber[app,qt] @ https://github.com/Abhijit-s999/camber/releases/download/v0.1.1/camber-0.1.1-py3-none-any.whl"
 camber app
 ```
 
@@ -166,6 +168,9 @@ uv pip install --python .venv/bin/python -e '.[dev]'
 .venv/bin/camber catalogue fetch                  # without it, 8 data tests skip
 .venv/bin/python -m pytest -q                     # about 2.5 minutes
 ```
+
+Contributions are welcome; [`CONTRIBUTING.md`](CONTRIBUTING.md) has the few
+rules that keep the project honest.
 
 | path | what it is |
 |---|---|
